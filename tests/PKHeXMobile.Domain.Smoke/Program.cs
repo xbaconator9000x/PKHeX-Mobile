@@ -49,4 +49,20 @@ await MustRejectAsync<IOException>(() =>
     SaveDocumentSession.OpenAsync(_ => throw new IOException("Provider unavailable")));
 await MustRejectAsync<InvalidDataException>(() =>
     SaveDocumentSession.OpenAsync(_ => ValueTask.FromResult<Stream>(new MemoryStream())));
-Console.WriteLine("Domain contract, bounded input, copy isolation, stale-provider and failure tests passed.");
+await using (var nonSeekable = new NonSeekableReadStream(original.CopyBytes()))
+{
+    if (nonSeekable.CanSeek)
+        throw new Exception("Test stream must deny seeking.");
+    var snapshotFromProvider = await SaveInputSnapshot.ReadAsync(nonSeekable);
+    original.RequireUnchanged(snapshotFromProvider);
+}
+var providerSession = await SaveDocumentSession.OpenAsync(_ =>
+    ValueTask.FromResult<Stream>(new NonSeekableReadStream(original.CopyBytes())));
+await providerSession.VerifySourceUnchangedAsync();
+using (var cancelled = new CancellationTokenSource())
+{
+    cancelled.Cancel();
+    await MustRejectAsync<OperationCanceledException>(() =>
+        SaveInputSnapshot.ReadAsync(new NonSeekableReadStream(original.CopyBytes()), cancelled.Token));
+}
+Console.WriteLine("Domain contract, bounded input, short non-seekable provider, cancellation, copy isolation, stale-provider and failure tests passed.");
