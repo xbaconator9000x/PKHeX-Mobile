@@ -1,8 +1,8 @@
-using System.Text;
 using Android.App;
 using Android.Content;
 using Android.OS;
 using Android.Provider;
+using Android.Views;
 using Android.Widget;
 using PKHeXMobile.Domain;
 using PKHeXMobile.ReadOnly;
@@ -10,53 +10,85 @@ using PKHeXMobile.ReadOnly;
 namespace PKHeXMobile.Android;
 
 /// <summary>
-/// First native Android read-only screen. Uses the system document picker and
-/// streams only; it never requests broad storage, opens output streams, or saves.
-/// Not yet device-certified or a full PKHeX editor.
+/// Native, least-privilege, read-only save inspector. A selection is transient;
+/// private save data is not persisted in Activity state or application storage.
+/// All parsing is provisional and all save writes remain disabled.
 /// </summary>
 [Activity(Label = "PKHeX Mobile (Test)", MainLauncher = true, Exported = true)]
 public sealed class MainActivity : Activity
 {
     private const int OpenSaveRequest = 1001;
     private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _activeInspection;
+    private bool _pickerPending;
+    private bool _destroyed;
     private Button? _openButton;
+    private Button? _cancelButton;
     private TextView? _status;
-    private TextView? _details;
+    private TextView? _trainer;
+    private TextView? _party;
+    private TextView? _boxDetails;
+    private Spinner? _boxSelector;
+    private SaveReadOnlyResult? _currentResult;
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
-
-        var layout = new LinearLayout(this)
-        {
-            Orientation = Orientation.Vertical,
-        };
+        var layout = new LinearLayout(this) { Orientation = Orientation.Vertical };
         layout.SetPadding(24, 24, 24, 24);
 
-        var heading = new TextView(this)
+        layout.AddView(new TextView(this)
         {
             Text = "PKHeX Mobile — read-only test",
             TextSize = 22,
-        };
-        layout.AddView(heading);
+        });
 
-        _openButton = new Button(this) { Text = "Open a save (read-only)" };
+        _openButton = new Button(this)
+        {
+            Text = "Open a save (read-only)",
+            ContentDescription = "Choose a save document for read-only inspection",
+        };
         _openButton.Click += (_, _) => PickSave();
         layout.AddView(_openButton);
 
+        _cancelButton = new Button(this)
+        {
+            Text = "Cancel inspection",
+            ContentDescription = "Cancel the current read-only inspection",
+            Visibility = ViewStates.Gone,
+        };
+        _cancelButton.Click += (_, _) => CancelInspection();
+        layout.AddView(_cancelButton);
+
         _status = new TextView(this)
         {
-            Text = "No save selected. Files are inspected without modification.",
+            Text = savedInstanceState is null
+                ? "No save selected. Files are inspected without modification."
+                : "Activity recreated. Select the document again; no save data was retained.",
             TextSize = 16,
         };
         layout.AddView(_status);
 
-        _details = new TextView(this)
+        _trainer = new TextView(this) { TextSize = 16 };
+        layout.AddView(_trainer);
+
+        _party = new TextView(this) { TextSize = 16 };
+        layout.AddView(_party);
+
+        _boxSelector = new Spinner(this)
         {
-            Text = "The experimental reader is not certified for any game format.",
-            TextSize = 14,
+            Visibility = ViewStates.Gone,
+            ContentDescription = "Select one Pokémon storage box to inspect",
         };
-        layout.AddView(_details);
+        _boxSelector.ItemSelected += (_, args) =>
+        {
+            if (_currentResult is not null && _boxDetails is not null)
+                _boxDetails.Text = ReadOnlyProjectionPresenter.FormatBox(_currentResult, args.Position);
+        };
+        layout.AddView(_boxSelector);
+
+        _boxDetails = new TextView(this) { TextSize = 16 };
+        layout.AddView(_boxDetails);
 
         var scroll = new ScrollView(this);
         scroll.AddView(layout);
@@ -65,90 +97,182 @@ public sealed class MainActivity : Activity
 
     private void PickSave()
     {
-        // ACTION_OPEN_DOCUMENT returns a scoped content URI and read grant.
-        // No MANAGE_EXTERNAL_STORAGE, path inference, or write permission.
+        if (_destroyed || _pickerPending || _activeInspection is not null)
+            return;
+
+        // Never infer a filesystem path, persist URI grants or request writes.
         var intent = new Intent(Intent.ActionOpenDocument);
         intent.AddCategory(Intent.CategoryOpenable);
         intent.SetType("*/*");
         intent.AddFlags(ActivityFlags.GrantReadUriPermission);
-#pragma warning disable CS0618 // A dependency-free Activity result boundary for this prototype.
-        StartActivityForResult(intent, OpenSaveRequest);
+        _pickerPending = true;
+        if (_openButton is not null)
+            _openButton.Enabled = false;
+        try
+        {
+#pragma warning disable CS0618 // Explicit result boundary, no AndroidX dependency.
+            StartActivityForResult(intent, OpenSaveRequest);
 #pragma warning restore CS0618
+        }
+        catch (Exception)
+        {
+            _pickerPending = false;
+            if (_openButton is not null) _openButton.Enabled = true;
+            if (_status is not null) _status.Text = "Could not open the document picker.";
+        }
+    }
+
+    private void CancelInspection()
+    {
+        if (_activeInspection is null)
+            return;
+        _activeInspection.Cancel();
+        if (_cancelButton is not null)
+            _cancelButton.Enabled = false;
+        if (_status is not null)
+            _status.Text = "Cancelling inspection…";
     }
 
     protected override async void OnActivityResult(int requestCode, Result resultCode, Intent? data)
     {
         base.OnActivityResult(requestCode, resultCode, data);
-        if (requestCode != OpenSaveRequest || resultCode != Result.Ok || data?.Data is null)
+        if (requestCode != OpenSaveRequest || _destroyed)
+            return;
+        _pickerPending = false;
+        if (resultCode != Result.Ok || data?.Data is null)
+        {
+            if (_openButton is not null) _openButton.Enabled = true;
+            if (_status is not null) _status.Text = "Selection cancelled. No file was changed.";
+            return;
+        }
+        if (_activeInspection is not null)
             return;
 
         var uri = data.Data;
-        if (_openButton is not null)
-            _openButton.Enabled = false;
-        if (_status is not null)
-            _status.Text = "Inspecting selected document…";
-        if (_details is not null)
-            _details.Text = string.Empty;
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _activeInspection = operation;
+        var token = operation.Token;
+        if (_openButton is not null) _openButton.Enabled = false;
+        if (_cancelButton is not null)
+        {
+            _cancelButton.Enabled = true;
+            _cancelButton.Visibility = ViewStates.Visible;
+        }
+        ClearProjection();
+        if (_status is not null) _status.Text = "Inspecting selected document…";
 
         try
         {
             var resolver = ContentResolver ?? throw new IOException("No content resolver.");
-            // Core parsing and provider I/O must not block the Android UI thread.
-            // The URI-derived document ID is re-evaluated on each open; it is
-            // only an identity hint, never a trusted provider revision token.
+            // The two opens are independent. The URI-derived identity is only
+            // a hint, not a provider generation, and never authorizes writes.
             var inspection = await Task.Run(() =>
-                ReadOnlyDocumentService.InspectWithIdentityAsync(token =>
+                ReadOnlyDocumentService.InspectWithIdentityAsync(readToken =>
                 {
-                    token.ThrowIfCancellationRequested();
+                    readToken.ThrowIfCancellationRequested();
                     var identity = GetDocumentIdentity(uri);
                     Stream stream = resolver.OpenInputStream(uri)
-                        ?? throw new IOException("The selected provider returned no read stream.");
+                        ?? throw new IOException("The provider returned no read stream.");
                     return ValueTask.FromResult(new DocumentReadHandle(stream, identity));
-                }, _lifetime.Token), _lifetime.Token);
+                }, token), token);
 
-            if (_lifetime.IsCancellationRequested)
+            if (!IsCurrent(operation))
                 return;
-
             if (!inspection.IsRecognized || inspection.Result is null)
             {
-                if (_status is not null)
-                    _status.Text = "Save refused — no changes made.";
-                if (_details is not null)
-                    _details.Text = inspection.RejectionReason ?? "Unknown or unsupported save.";
+                if (_status is not null) _status.Text = "Save refused — no changes made.";
+                if (_trainer is not null)
+                    _trainer.Text = inspection.RejectionReason ?? "Unknown or unsupported save.";
                 return;
             }
-
+            _currentResult = inspection.Result;
             if (_status is not null)
-                _status.Text = "Experimental read-only projection. No edits or export are enabled.";
-            if (_details is not null)
-                _details.Text = FormatResult(inspection);
+                _status.Text = "Read-only preview. No editing or export is enabled.";
+            if (_trainer is not null)
+                _trainer.Text = ReadOnlyProjectionPresenter.FormatTrainer(
+                    inspection.Result, inspection.SourceIdentityConfirmed);
+            if (_party is not null)
+                _party.Text = ReadOnlyProjectionPresenter.FormatParty(inspection.Result);
+            if (_boxSelector is not null && _boxDetails is not null)
+            {
+                var labels = ReadOnlyProjectionPresenter.BoxLabels(inspection.Result);
+                if (labels.Count > 0)
+                {
+                    var adapter = new ArrayAdapter<string>(
+                        this, global::Android.Resource.Layout.SimpleSpinnerItem, labels.ToArray());
+                    adapter.SetDropDownViewResource(global::Android.Resource.Layout.SimpleSpinnerDropDownItem);
+                    _boxSelector.Adapter = adapter;
+                    _boxSelector.Visibility = ViewStates.Visible;
+                    _boxSelector.SetSelection(0);
+                    _boxDetails.Text = ReadOnlyProjectionPresenter.FormatBox(inspection.Result, 0);
+                }
+            }
         }
-        catch (System.OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (operation.IsCancellationRequested)
         {
-            // The activity was destroyed; do not publish stale results.
+            if (!_destroyed && ReferenceEquals(_activeInspection, operation))
+            {
+                ClearProjection();
+                if (_status is not null) _status.Text = "Inspection cancelled. No file was changed.";
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            ShowReadFailure(operation, "Document access was denied or revoked.");
+        }
+        catch (InvalidDataException)
+        {
+            ShowReadFailure(operation, "The document is invalid, incomplete or too large.");
+        }
+        catch (IOException)
+        {
+            ShowReadFailure(operation, "The document provider could not be read reliably.");
         }
         catch (Exception)
         {
-            if (!_lifetime.IsCancellationRequested)
-            {
-                if (_status is not null)
-                    _status.Text = "Could not safely inspect this document.";
-                if (_details is not null)
-                    _details.Text = "The provider may have revoked access, changed its contents, or returned an unsupported file.";
-            }
+            ShowReadFailure(operation, "Could not safely inspect this document.");
         }
         finally
         {
-            if (!_lifetime.IsCancellationRequested && _openButton is not null)
-                _openButton.Enabled = true;
+            if (ReferenceEquals(_activeInspection, operation))
+            {
+                _activeInspection = null;
+                if (!_destroyed)
+                {
+                    if (_openButton is not null) _openButton.Enabled = true;
+                    if (_cancelButton is not null) _cancelButton.Visibility = ViewStates.Gone;
+                }
+            }
+        }
+    }
+
+    private bool IsCurrent(CancellationTokenSource operation) =>
+        !_destroyed && !operation.IsCancellationRequested &&
+        ReferenceEquals(_activeInspection, operation);
+
+    private void ShowReadFailure(CancellationTokenSource operation, string message)
+    {
+        if (!IsCurrent(operation))
+            return;
+        ClearProjection();
+        if (_status is not null) _status.Text = message + " No file was changed.";
+    }
+
+    private void ClearProjection()
+    {
+        _currentResult = null;
+        if (_trainer is not null) _trainer.Text = string.Empty;
+        if (_party is not null) _party.Text = string.Empty;
+        if (_boxDetails is not null) _boxDetails.Text = string.Empty;
+        if (_boxSelector is not null)
+        {
+            _boxSelector.Visibility = ViewStates.Gone;
+            _boxSelector.Adapter = null;
         }
     }
 
     private DocumentSourceIdentity? GetDocumentIdentity(global::Android.Net.Uri uri)
     {
-        // The document ID is encoded in the selected URI. Re-reading it does
-        // not prove the provider has not silently replaced the document; byte
-        // equality remains mandatory and no write authorization follows.
         if (string.IsNullOrWhiteSpace(uri.Authority) ||
             !DocumentsContract.IsDocumentUri(this, uri))
             return null;
@@ -157,46 +281,13 @@ public sealed class MainActivity : Activity
             ? null : new DocumentSourceIdentity(uri.Authority!, documentId);
     }
 
-    private static string FormatResult(ReadOnlyDocumentInspection inspection)
-    {
-        var save = inspection.Result!;
-        var text = new StringBuilder();
-        text.AppendLine("URI document-ID hint stable across opens: " +
-            (inspection.SourceIdentityConfirmed ? "yes (not authoritative)" : "unavailable"));
-        text.AppendLine("Core type: " + save.CoreSaveType);
-        text.AppendLine("Game: " + save.GameVersion + " | Generation: " + save.Generation);
-        text.AppendLine("Trainer: " + save.TrainerName);
-        text.AppendLine("Trainer ID: " + save.TrainerId + " / " + save.SecretId);
-        text.AppendLine("Party: " + save.PartyCount + " reported slots");
-        foreach (var pokemon in save.Party)
-            AppendPokemon(text, pokemon);
-        text.AppendLine("Boxes: " + save.BoxCount + " × " + save.BoxSlotCount);
-        foreach (var box in save.Boxes)
-        {
-            text.AppendLine("Box " + (box.BoxIndex + 1) + ": " +
-                box.OccupiedSlots.Count + " occupied");
-            foreach (var pokemon in box.OccupiedSlots)
-                AppendPokemon(text, pokemon);
-        }
-        text.AppendLine("Read-only. No format or ROM-hack write compatibility certified.");
-        return text.ToString();
-    }
-
-    private static void AppendPokemon(StringBuilder text, PokemonSlot pokemon)
-    {
-        text.Append("  Slot ").Append(pokemon.SlotIndex + 1)
-            .Append(": #").Append(pokemon.Species)
-            .Append(" ").Append(pokemon.Nickname)
-            .Append(" Lv.").Append(pokemon.Level);
-        if (pokemon.IsEgg) text.Append(" (Egg)");
-        if (pokemon.IsShiny) text.Append(" (Shiny)");
-        text.AppendLine();
-    }
-
     protected override void OnDestroy()
     {
+        _destroyed = true;
+        _activeInspection?.Cancel();
         _lifetime.Cancel();
         _lifetime.Dispose();
+        _currentResult = null;
         base.OnDestroy();
     }
 }

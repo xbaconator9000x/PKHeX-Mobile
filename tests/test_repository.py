@@ -64,6 +64,16 @@ class ScaffoldTests(unittest.TestCase):
         self.assertIn("android-debug-apk.sha256", workflow)
         self.assertIn("android-build-provenance.txt", workflow)
 
+    def test_android_ui_remains_cancelable_and_bounded(self):
+        source = (ROOT / "src/PKHeXMobile.Android/MainActivity.cs").read_text()
+        self.assertIn("CancelInspection()", source)
+        self.assertIn("ReferenceEquals(_activeInspection, operation)", source)
+        self.assertIn("ReadOnlyProjectionPresenter.FormatBox", source)
+        self.assertIn("ReadOnlyProjectionPresenter.BoxLabels", source)
+        self.assertIn("ReadOnlyProjectionPresenter.FormatParty", source)
+        self.assertNotIn("OpenOutputStream(", source)
+        self.assertNotIn("TakePersistableUriPermission", source)
+
     def test_binary_files_must_not_be_committed(self):
         self.assertTrue({".gba", ".sav", ".apk", ".jks"}.issubset(FORBIDDEN_SUFFIXES))
 

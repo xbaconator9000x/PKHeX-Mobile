@@ -298,6 +298,39 @@ try
 catch (System.Text.Json.JsonException) { }
 
 
+// Pure presentation is bounded to one box and must preserve source slot indices.
+var sparse = view with
+{
+    PartyCount = 2,
+    Party = [new PokemonSlot(0, 25, "A\\nB", 5, false, true)],
+    BoxCount = 2,
+    BoxSlotCount = 30,
+    Boxes =
+    [
+        new BoxSnapshot(0, []),
+        new BoxSnapshot(1, [new PokemonSlot(29, 133, "EEVEE", 12, false, false)]),
+    ],
+};
+var labels = ReadOnlyProjectionPresenter.BoxLabels(sparse);
+if (labels.Count != 2 || labels[0] != "Box 1 (0 occupied)" ||
+    labels[1] != "Box 2 (1 occupied)")
+    throw new Exception("Box selection labels do not reflect sparse occupancy.");
+if (!ReadOnlyProjectionPresenter.FormatBox(sparse, 0).Contains("No occupied slots.") ||
+    !ReadOnlyProjectionPresenter.FormatBox(sparse, 1).Contains("Slot 30: #133 EEVEE") ||
+    ReadOnlyProjectionPresenter.FormatBox(sparse, 1).Contains("Box 1"))
+    throw new Exception("Single-box projection lost its original slot mapping.");
+if (!ReadOnlyProjectionPresenter.FormatParty(sparse).Contains("A\\nB".Replace("\\n", " ")) ||
+    ReadOnlyProjectionPresenter.FormatParty(sparse).Contains("A\\nB"))
+    throw new Exception("Untrusted nickname controls were not sanitized.");
+if (!ReadOnlyProjectionPresenter.FormatTrainer(sparse, false).Contains("not certified"))
+    throw new Exception("Provisional presentation warning missing.");
+try
+{
+    ReadOnlyProjectionPresenter.FormatBox(sparse, 2);
+    throw new Exception("Out-of-range box selection must be rejected.");
+}
+catch (ArgumentOutOfRangeException) { }
+
 Console.WriteLine("Pinned Core reader: synthetic negatives, RZIP and hack-risk cases, near-miss checks and 1 same-Core synthetic Gen 1 positive.");
 Console.WriteLine("Provider-neutral read service: two-open success, identity-aware same-byte replacement refusal, missing identity, null stream, stale bytes, revoked provider and cancellation passed.");
 Console.WriteLine("No independently verified real-world fixture, Android device, format certification or export has been tested.");
