@@ -1,5 +1,9 @@
 # Source-level comparison plan
 
+> [Pinned source audit, pass A (2026-10-27)](UPSTREAM_SOURCE_AUDIT_2026-10-27.md) — verified fork divergence, Android write hazards, licensing and implementer tickets.
+>
+> [Desktop/mobile parity crosswalk, pass A (2026-10-27)](PARITY_MATRIX_2026-10-27.md) — 27 representative capability rows, source links and untested gates.
+>
 > [Initial pinned source findings (2026-10-27)](UPSTREAM_CHECKPOINT_2026-10-27.md) — does not yet satisfy the full build or parity audit.
 
 This is a work plan, **not a completed source audit**. Exact references to commits, classes, tests and reproducible observed behavior are still required.
