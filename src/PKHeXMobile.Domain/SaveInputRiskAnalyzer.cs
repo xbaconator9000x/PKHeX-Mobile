@@ -9,6 +9,7 @@ namespace PKHeXMobile.Domain;
 public enum SaveInputRiskCode
 {
     CompressedContainer,
+    RetroArchRzipContainer,
     PossibleUnbound,
     PossibleGsChronicles,
     ConflictingGen3Signatures,
@@ -48,6 +49,13 @@ public static class SaveInputRiskAnalyzer
     /// </summary>
     public static SaveInputRisk? Assess(ReadOnlySpan<byte> data)
     {
+        // Pinned PKForge's RetroArchSaveContainer identifies all #RZIP prefixes,
+        // including truncated/unsupported revisions. Never pass these to retail Core.
+        // https://github.com/sofianeelhor/PKForge/blob/2df04430e532b78c247f45b936f3068d8f824987/src/PKForge.Engine/RetroArchSaveContainer.cs
+        if (data.StartsWith("#RZIP"u8))
+            return new(SaveInputRiskCode.RetroArchRzipContainer,
+                "RetroArch RZIP compressed saves are unsupported; no decoder or write path is enabled.");
+
         if (IsArchive(data))
             return new(SaveInputRiskCode.CompressedContainer,
                 "Compressed save containers are not enabled for inspection.");
