@@ -7,11 +7,46 @@ static void MustBlock(Action attempt)
     throw new Exception("Expected this write to be blocked.");
 }
 
+static async Task MustRejectAsync<TException>(Func<Task> attempt) where TException : Exception
+{
+    try { await attempt(); }
+    catch (TException) { return; }
+    throw new Exception($"Expected {typeof(TException).Name}.");
+}
+
 MustBlock(() => SaveWriteGuard.RequireAuthorized(new("unknown", SaveCompatibility.Unknown, null), 128, 128));
 MustBlock(() => SaveWriteGuard.RequireAuthorized(new("known", SaveCompatibility.SupportedReadOnly, "game:v1"), 128, 128));
 MustBlock(() => SaveWriteGuard.RequireAuthorized(new("known", SaveCompatibility.SupportedWrite, null), 128, 128));
 MustBlock(() => SaveWriteGuard.RequireAuthorized(new("known", SaveCompatibility.SupportedWrite, "game:v1"), 0, 128));
 MustBlock(() => SaveWriteGuard.RequireAuthorized(new("known", SaveCompatibility.SupportedWrite, "game:v1"), 128, 64));
-
 SaveWriteGuard.RequireAuthorized(new("known", SaveCompatibility.SupportedWrite, "game:v1"), 128, 128);
-Console.WriteLine("SaveWriteGuard smoke checks passed (contract only; no real save parsing or writes).");
+
+var originalBytes = Enumerable.Range(0, 256).Select(i => (byte)i).ToArray();
+var original = SaveInputSnapshot.FromBytes(originalBytes);
+if (original.Length != 256 || original.Fingerprint.Sha256Hex.Length != 64)
+    throw new Exception("Snapshot length/hash incorrect.");
+var copy = original.CopyBytes();
+copy[0] ^= 0xFF;
+originalBytes[0] ^= 0xFF;
+if (original.CopyBytes()[0] != 0 || original.Matches(originalBytes))
+    throw new Exception("Snapshot leaked mutable storage.");
+if (!original.Matches(Enumerable.Range(0, 256).Select(i => (byte)i).ToArray()))
+    throw new Exception("Unmodified bytes must match the original fingerprint.");
+
+await MustRejectAsync<InvalidDataException>(() => SaveInputSnapshot.ReadAsync(new MemoryStream()));
+await MustRejectAsync<InvalidDataException>(() =>
+    SaveInputSnapshot.ReadAsync(new MemoryStream(new byte[SaveInputSnapshot.MaxInputBytes + 1])));
+var readBack = await SaveInputSnapshot.ReadAsync(new MemoryStream(original.CopyBytes()));
+original.RequireUnchanged(readBack);
+
+var providerBytes = original.CopyBytes();
+var session = await SaveDocumentSession.OpenAsync(_ =>
+    ValueTask.FromResult<Stream>(new MemoryStream(providerBytes, writable: false)));
+await session.VerifySourceUnchangedAsync();
+providerBytes[4] ^= 0x40;
+await MustRejectAsync<InvalidOperationException>(() => session.VerifySourceUnchangedAsync());
+await MustRejectAsync<IOException>(() =>
+    SaveDocumentSession.OpenAsync(_ => throw new IOException("Provider unavailable")));
+await MustRejectAsync<InvalidDataException>(() =>
+    SaveDocumentSession.OpenAsync(_ => ValueTask.FromResult<Stream>(new MemoryStream())));
+Console.WriteLine("Domain contract, bounded input, copy isolation, stale-provider and failure tests passed.");
