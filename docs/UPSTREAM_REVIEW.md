@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Editor-dispatch, world-service and transfer audit, pass F (2026-10-28)](UPSTREAM_EDITOR_DISPATCH_REVIEW_2026-10-28.md) — 24 source-grounded findings with exact pinned routes, version-aware coverage and write-safety handoff.
+> [Editor/transfer execution gates, pass F (2026-10-28)](PARITY_EDITOR_DISPATCH_GATES_2026-10-28.md) — 28 proposed cases; none executed or certified.
+
 > [Android follow-up source audit, pass E (2026-10-28)](UPSTREAM_ANDROID_FOLLOWUP_REVIEW_2026-10-28.md) — 16 source-backed findings, updated Android cancellation/box/CI status and upstream transaction risks.
 > [Android follow-up execution gates, pass E (2026-10-28)](PARITY_ANDROID_FOLLOWUP_GATES_2026-10-28.md) — 24 targeted unexecuted acceptance scenarios; no device/desktop certification.
 > [Android prototype, lifecycle, build and UI source audit, pass D (2026-10-28)](UPSTREAM_ANDROID_PROTOTYPE_REVIEW_2026-10-28.md) — verified first Android build, CI trigger gap, URI identity limitations, lifecycle and source-level UI comparisons.
