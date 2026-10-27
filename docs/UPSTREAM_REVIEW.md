@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Text encoding, trash bytes, Unicode and mobile editor lifecycle, pass J (2026-10-28)](UPSTREAM_TEXT_ENCODING_REVIEW_2026-10-28.md) — 26 source-backed findings, 15 identical pinned Core source blobs, with MAUI cancel/spin and string-integrity handoff.
+> [Text encoding and lifecycle execution gates, pass J (2026-10-28)](PARITY_TEXT_ENCODING_GATES_2026-10-28.md) — 40 proposed acceptance scenarios; none executed or certified.
+
 > [Entity identity, conversion and PKM field semantics, pass I (2026-10-28)](UPSTREAM_ENTITY_CONVERSION_REVIEW_2026-10-28.md) — 24 source-backed findings, eight same-source Git blobs verified against Core 26.10.18 and Gen 1/2 field caveats.
 > [Entity conversion and format acceptance gates, pass I (2026-10-28)](PARITY_ENTITY_CONVERSION_GATES_2026-10-28.md) — 32 proposed tests; none executed or certified.
 
