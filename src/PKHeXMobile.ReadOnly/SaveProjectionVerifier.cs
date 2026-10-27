@@ -87,15 +87,32 @@ public static class SaveProjectionVerifier
         Check(actual.BoxCount == expected.BoxCount, "BoxCount");
         Check(actual.BoxSlotCount == expected.BoxSlotCount, "BoxSlotCount");
 
+        Check(actual.PartyCount is >= 0 and <= 6, "PartyCount observed out of range");
+        Check(expected.PartyCount is >= 0 and <= 6, "PartyCount expected out of range");
+        ValidateIndices(actual.Party, actual.PartyCount, "Party", "observed");
         if (expected.Party is null)
             errors.Add("Party missing from expectation");
         else
+        {
+            ValidateIndices(expected.Party, expected.PartyCount, "Party", "expected");
             CompareSlots(actual.Party, expected.Party, "Party");
+        }
 
+        Check(actual.BoxCount == actual.Boxes.Count, "Boxes observed count inconsistent");
+        Check(actual.BoxSlotCount is >= 0 and <= 64, "BoxSlotCount observed out of range");
+        Check(expected.BoxCount is >= 0 and <= 64, "BoxCount expected out of range");
+        Check(expected.BoxSlotCount is >= 0 and <= 64, "BoxSlotCount expected out of range");
+        for (int i = 0; i < actual.Boxes.Count; i++)
+        {
+            Check(actual.Boxes[i].BoxIndex == i, $"Boxes[{i}].BoxIndex observed out of order");
+            ValidateIndices(actual.Boxes[i].OccupiedSlots, actual.BoxSlotCount,
+                $"Boxes[{i}].OccupiedSlots", "observed");
+        }
         if (expected.Boxes is null)
             errors.Add("Boxes missing from expectation");
         else
         {
+            Check(expected.BoxCount == expected.Boxes.Count, "Boxes expected count inconsistent");
             Check(actual.Boxes.Count == expected.Boxes.Count, "Boxes.Count");
             for (int i = 0; i < Math.Min(actual.Boxes.Count, expected.Boxes.Count); i++)
             {
@@ -107,10 +124,15 @@ public static class SaveProjectionVerifier
                     continue;
                 }
                 Check(a.BoxIndex == e.BoxIndex, $"Boxes[{i}].BoxIndex");
+                Check(e.BoxIndex == i, $"Boxes[{i}].BoxIndex expected out of order");
                 if (e.OccupiedSlots is null)
                     errors.Add($"Boxes[{i}].OccupiedSlots missing");
                 else
+                {
+                    ValidateIndices(e.OccupiedSlots, expected.BoxSlotCount,
+                        $"Boxes[{i}].OccupiedSlots", "expected");
                     CompareSlots(a.OccupiedSlots, e.OccupiedSlots, $"Boxes[{i}].OccupiedSlots");
+                }
             }
         }
 
@@ -120,6 +142,32 @@ public static class SaveProjectionVerifier
         {
             if (!equal)
                 errors.Add($"{path} mismatch");
+        }
+
+        // A matching but malformed oracle must not produce a false parity PASS.
+        // This validation is not an independent source or save-format proof.
+        void ValidateIndices<T>(IReadOnlyList<T> slots, int capacity, string path, string side)
+            where T : class
+        {
+            var seen = new HashSet<int>();
+            foreach (var slot in slots)
+            {
+                if (slot is null)
+                {
+                    errors.Add($"{path} {side} contains null slot");
+                    continue;
+                }
+                int index = slot switch
+                {
+                    PokemonSlot p => p.SlotIndex,
+                    ExpectedPokemonSlot p => p.SlotIndex,
+                    _ => throw new InvalidOperationException("Unexpected slot type"),
+                };
+                if (index < 0 || index >= capacity)
+                    errors.Add($"{path} {side} slot index out of range");
+                if (!seen.Add(index))
+                    errors.Add($"{path} {side} duplicate slot index {index}");
+            }
         }
 
         void CompareSlots(IReadOnlyList<PokemonSlot> observed, IReadOnlyList<ExpectedPokemonSlot> reference, string path)

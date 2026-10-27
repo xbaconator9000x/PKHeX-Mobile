@@ -18,4 +18,9 @@ public sealed record PokemonReadOnlyDetails(
     byte Form,
     PokemonMoveIds Moves,
     PokemonStatSpread IndividualValues,
-    PokemonStatSpread EffortValues);
+    PokemonStatSpread EffortValues)
+{
+    // 1/2 identifies original Game Boy mechanics; 0 means unknown/other.
+    // This is presentation context, NEVER format identity or write authority.
+    public int MechanicsGeneration { get; init; }
+}

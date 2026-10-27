@@ -119,24 +119,59 @@ public static class ReadOnlyProjectionPresenter
         if (pokemon.IsShiny) text.Append(" (Shiny)");
         if (pokemon.Details is { } details)
         {
-            text.AppendLine().Append("Nature (Core): ").Append(SanitizeLabel(details.Nature));
-            text.Append(" | Ability ID: ").Append(details.AbilityId);
-            text.Append(" | Held item ID: ").Append(details.HeldItemId);
-            text.AppendLine().Append("Gender code: ").Append(details.Gender);
-            text.Append(" | Form: ").Append(details.Form);
+            if (details.MechanicsGeneration is 1 or 2)
+            {
+                // Core exposes placeholder nature/ability and duplicated Special
+                // properties for Game Boy entities. Do not imply modern mechanics.
+                text.AppendLine().Append("Nature: N/A (introduced in Gen 3)");
+                text.Append(" | Ability: N/A (introduced in Gen 3)");
+                text.Append(" | Held item: ");
+                if (details.MechanicsGeneration == 1)
+                    text.Append("N/A (Gen 1)");
+                else
+                    text.Append("Core ID ").Append(details.HeldItemId);
+                text.AppendLine().Append("Gender: ");
+                if (details.MechanicsGeneration == 1)
+                    text.Append("N/A (Gen 1)");
+                else
+                    text.Append("Core code ").Append(details.Gender);
+                text.Append(" | Form (Core): ").Append(details.Form);
+            }
+            else
+            {
+                text.AppendLine().Append("Nature (Core): ").Append(SanitizeLabel(details.Nature));
+                text.Append(" | Ability ID: ").Append(details.AbilityId);
+                text.Append(" | Held item ID: ").Append(details.HeldItemId);
+                text.AppendLine().Append("Gender code: ").Append(details.Gender);
+                text.Append(" | Form: ").Append(details.Form);
+            }
             text.AppendLine().Append("Move IDs: ")
                 .Append(details.Moves.First).Append(", ")
                 .Append(details.Moves.Second).Append(", ")
                 .Append(details.Moves.Third).Append(", ")
                 .Append(details.Moves.Fourth);
-            text.AppendLine().Append("Core IV/DV values (game-dependent): ")
-                .Append(FormatSpread(details.IndividualValues));
-            text.AppendLine().Append("Core EV/stat-exp values (game-dependent): ")
-                .Append(FormatSpread(details.EffortValues));
+            if (details.MechanicsGeneration is 1 or 2)
+            {
+                text.AppendLine().Append("DVs (0-15; HP derived, Special shared): ")
+                    .Append(FormatClassicSpread(details.IndividualValues));
+                text.AppendLine().Append("Stat experience (0-65535; Special shared): ")
+                    .Append(FormatClassicSpread(details.EffortValues));
+            }
+            else
+            {
+                text.AppendLine().Append("Core IV/DV values (game-dependent): ")
+                    .Append(FormatSpread(details.IndividualValues));
+                text.AppendLine().Append("Core EV/stat-exp values (game-dependent): ")
+                    .Append(FormatSpread(details.EffortValues));
+            }
             text.AppendLine().Append("Values are provisional; legality is not evaluated.");
         }
         return text.ToString();
     }
+
+    private static string FormatClassicSpread(PokemonStatSpread s) =>
+        "HP " + s.HP + ", Atk " + s.Attack + ", Def " + s.Defense +
+        ", Special " + s.SpecialAttack + ", Spe " + s.Speed;
 
     private static string FormatSpread(PokemonStatSpread s) =>
         "HP " + s.HP + ", Atk " + s.Attack + ", Def " + s.Defense +
