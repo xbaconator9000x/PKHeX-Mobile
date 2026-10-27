@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using PKHeXMobile.ReadOnly;
+using PKHeXMobile.Verify;
 
 if (args.Length == 1 && args[0] is "--help" or "-h")
 {
@@ -28,8 +29,7 @@ try
         return 64;
     }
 
-    var root = Path.GetFullPath(Path.GetDirectoryName(manifestPath)!) + Path.DirectorySeparatorChar;
-    var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    var root = Path.GetDirectoryName(manifestPath)!;
     int passed = 0;
     int failed = 0;
     for (int i = 0; i < manifest.Fixtures.Count; i++)
@@ -44,16 +44,9 @@ try
             failed++;
             continue;
         }
-        var path = Path.GetFullPath(Path.Combine(root, fixture.Path));
-        if (!path.StartsWith(root, pathComparison))
-        {
-            Console.Error.WriteLine($"Fixture {i + 1}: path escapes the manifest directory.");
-            failed++;
-            continue;
-        }
-
         try
         {
+            var path = FixturePathPolicy.ResolveForRead(root, fixture.Path);
             var inspected = await ReadOnlyDocumentService.InspectAsync(cancellationToken =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
