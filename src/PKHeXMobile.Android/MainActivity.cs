@@ -208,7 +208,7 @@ public sealed class MainActivity : Activity
                 }
             }
         }
-        catch (OperationCanceledException) when (operation.IsCancellationRequested)
+        catch (System.OperationCanceledException) when (operation.IsCancellationRequested)
         {
             if (!_destroyed && ReferenceEquals(_activeInspection, operation))
             {
