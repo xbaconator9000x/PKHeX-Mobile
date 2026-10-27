@@ -1,5 +1,9 @@
 # Source-level comparison plan
 
+> [Ribbon, mark, memory, Pokérus and cosmetics source audit, pass K (2026-10-28)](UPSTREAM_RIBBON_MEMORY_REVIEW_2026-10-28.md) — 28 pinned findings; Core 111-entry ribbon enum, MAUI off-by-one and memory picker hazards, Forge typed awards and licensing obligations.
+> [Ribbon and memory execution gates, pass K (2026-10-28)](PARITY_RIBBON_MEMORY_GATES_2026-10-28.md) — 36 proposed scenarios; none executed or certified.
+
+
 > [Text encoding, trash bytes, Unicode and mobile editor lifecycle, pass J (2026-10-28)](UPSTREAM_TEXT_ENCODING_REVIEW_2026-10-28.md) — 26 source-backed findings, 15 identical pinned Core source blobs, with MAUI cancel/spin and string-integrity handoff.
 > [Text encoding and lifecycle execution gates, pass J (2026-10-28)](PARITY_TEXT_ENCODING_GATES_2026-10-28.md) — 40 proposed acceptance scenarios; none executed or certified.
 
