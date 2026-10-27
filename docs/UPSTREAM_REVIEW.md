@@ -1,5 +1,9 @@
 # Source-level comparison plan
 
+> [Legality, encounter and batch source audit, pass G (2026-10-28)](UPSTREAM_LEGALITY_ENCOUNTER_REVIEW_2026-10-28.md) — 22 pinned, actionable findings, with global legality context and batch-write safety risks.
+> [Legality/encounter/batch execution gates, pass G (2026-10-28)](PARITY_LEGALITY_ENCOUNTER_GATES_2026-10-28.md) — 30 proposed tests; none executed or certified.
+
+
 > [Editor-dispatch, world-service and transfer audit, pass F (2026-10-28)](UPSTREAM_EDITOR_DISPATCH_REVIEW_2026-10-28.md) — 24 source-grounded findings with exact pinned routes, version-aware coverage and write-safety handoff.
 > [Editor/transfer execution gates, pass F (2026-10-28)](PARITY_EDITOR_DISPATCH_GATES_2026-10-28.md) — 28 proposed cases; none executed or certified.
 
