@@ -197,8 +197,8 @@ public static class SaveProjectionVerifier
 /// </summary>
 public static class MysteryGiftCloneIdentity
 {
-    public static bool TryClonePreservingIdentity(PKHeX.Core.MysteryGift original,
-        out PKHeX.Core.MysteryGift? clone)
+    public static bool TryClonePreservingIdentity(PKHeX.Core.DataMysteryGift original,
+        out PKHeX.Core.DataMysteryGift? clone)
     {
         ArgumentNullException.ThrowIfNull(original);
         clone = null;
