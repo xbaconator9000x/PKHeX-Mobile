@@ -140,6 +140,27 @@ if (view.CoreSaveType != nameof(SAV1) || view.Generation != 1 || view.TrainerId 
 if (!syntheticSnapshot.Matches(syntheticBytes))
     throw new Exception("Inspection modified its source snapshot.");
 
+// The published projection must be truly immutable, not a mutable array
+// hidden behind IReadOnlyList. A caller cannot alter another view/session.
+static void MustRefuseCollectionMutation<T>(IReadOnlyList<T> source, T candidate)
+{
+    if (source is not IList<T> list)
+        return; // A genuinely read-only custom collection is also acceptable.
+    try
+    {
+        list.Add(candidate);
+        throw new Exception("Read-only projection exposed a mutable collection.");
+    }
+    catch (NotSupportedException) { }
+}
+MustRefuseCollectionMutation(view.Party, new PokemonSlot(0, 25, "TEST", 5, false, false));
+MustRefuseCollectionMutation(view.Boxes, new BoxSnapshot(0, []));
+MustRefuseCollectionMutation(view.Boxes[0].OccupiedSlots,
+    new PokemonSlot(0, 25, "TEST", 5, false, false));
+if (!syntheticSnapshot.Matches(syntheticBytes) || view.Boxes.Count != 12 ||
+    view.Boxes[0].OccupiedSlots.Count != 0)
+    throw new Exception("Attempted projection mutation changed the save or slots.");
+
 // Project actual pinned-Core PKM fields into immutable scalars without mutating
 // the source. This is not an independent desktop parity or legal-Pokémon fixture.
 var syntheticPokemon = new PK1 { Species = 25, Move1 = 33, Move2 = 45, EV_HP = 123 };
