@@ -1,13 +1,15 @@
 using Android.Content;
 using Android.Content.Res;
 using Android.OS;
+using PKHeXMobile.ReadOnly;
 
 namespace PKHeXMobile.Android;
 
 /// <summary>
 /// Read-only SAF descriptor opening with a provider-visible cancellation signal.
 /// Ownership of the descriptor and stream transfers together to the caller.
-/// Providers can ignore cancellation or block reads; device fault tests are still required.
+/// The lifetime wrapper also attempts descriptor closure during blocked reads.
+/// Providers can ignore cancellation and closure; device fault tests are required.
 /// </summary>
 internal static class SafReadStream
 {
@@ -30,7 +32,7 @@ internal static class SafReadStream
             token.ThrowIfCancellationRequested();
             var stream = descriptor.CreateInputStream()
                 ?? throw new IOException("The provider returned no read stream.");
-            return new OwnedReadStream(stream, descriptor);
+            return new CancellationBoundReadStream(new OwnedReadStream(stream, descriptor), token);
         }
         catch
         {

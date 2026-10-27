@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using PKHeXMobile.Domain;
 using PKHeXMobile.ReadOnly;
 using PKHeX.Core;
+using PKHeXMobile.ReadOnly.Smoke;
 
 static void MustReject(byte[] bytes)
 {
@@ -377,6 +378,46 @@ if (ReadOnlyProjectionPresenter.FormatCellDetails(
     new BoxCell(3, new PokemonSlot(3, 25, "A\u202EB", 10, false, true)))
     .Contains('\u202E'))
     throw new Exception("Accessibility slot details contain bidi override.");
+
+
+// A provider may ignore ReadAsync cancellation. Closing the owned descriptor
+// off the UI thread should unblock cooperative providers and never publish a
+// successful inspection after cancellation. This is a synthetic stream test,
+// not a claim about actual SAF providers or a bounded cancellation deadline.
+using (var cancellation = new CancellationTokenSource())
+{
+    var blocked = new BlockingReadStream();
+    await using var bound = new CancellationBoundReadStream(blocked, cancellation.Token);
+    var pendingRead = bound.ReadAsync(new byte[8].AsMemory()).AsTask();
+    await blocked.Started.WaitAsync(TimeSpan.FromSeconds(5));
+    cancellation.Cancel();
+    if (await Task.WhenAny(pendingRead, Task.Delay(TimeSpan.FromSeconds(5))) != pendingRead)
+        throw new Exception("Cancellation did not close the synthetic blocked provider.");
+    await MustThrowAsync<OperationCanceledException>(() => pendingRead);
+    if (!blocked.WasDisposed)
+        throw new Exception("Provider descriptor was not closed on cancellation.");
+}
+using (var cancellation = new CancellationTokenSource())
+{
+    var inner = new MemoryStream(new byte[] { 1, 2, 3 }, writable: false);
+    await using (var bound = new CancellationBoundReadStream(inner, cancellation.Token))
+    {
+        var bytes = new byte[3];
+        if (await bound.ReadAsync(bytes.AsMemory()) != 3 || !bytes.SequenceEqual(new byte[] { 1, 2, 3 }))
+            throw new Exception("Normal read-through changed provider bytes.");
+        if (bound.CanWrite || bound.CanSeek)
+            throw new Exception("Read-only wrapper exposed write or seek capability.");
+    }
+    if (inner.CanRead)
+        throw new Exception("Normal disposal did not close the underlying provider.");
+}
+if (ReadOnlyGridLayout.ColumnsForWidth(400, 1f) != 6 ||
+    ReadOnlyGridLayout.ColumnsForWidth(288, 1f) != 4 ||
+    ReadOnlyGridLayout.ColumnsForWidth(288, 2f) != 2 ||
+    ReadOnlyGridLayout.ColumnsForWidth(120, 2.5f) != 1 ||
+    ReadOnlyGridLayout.ColumnsForWidth(0, 1f) != 1 ||
+    ReadOnlyGridLayout.ColumnsForWidth(288, float.NaN) != 4)
+    throw new Exception("Responsive grid column policy failed.");
 
 Console.WriteLine("Pinned Core reader: synthetic negatives, RZIP and hack-risk cases, near-miss checks and 1 same-Core synthetic Gen 1 positive.");
 Console.WriteLine("Provider-neutral read service: two-open success, identity-aware same-byte replacement refusal, missing identity, null stream, stale bytes, revoked provider and cancellation passed.");

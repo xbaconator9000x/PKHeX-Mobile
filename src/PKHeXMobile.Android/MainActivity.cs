@@ -36,7 +36,8 @@ public sealed class MainActivity : Activity
     {
         base.OnCreate(savedInstanceState);
         var layout = new LinearLayout(this) { Orientation = Orientation.Vertical };
-        layout.SetPadding(24, 24, 24, 24);
+        int padding = (int)Math.Ceiling(16 * (Resources?.DisplayMetrics?.Density ?? 1f));
+        layout.SetPadding(padding, padding, padding, padding);
 
         layout.AddView(new TextView(this)
         {
@@ -284,7 +285,13 @@ public sealed class MainActivity : Activity
         _boxGrid.Visibility = ViewStates.Visible;
         _boxDetails.Text = "Select a slot to inspect it. Editing is disabled.";
 
-        const int columns = 6;
+        // Recalculate for the current width and font scale. Never reorder cells.
+        var configuration = Resources?.Configuration;
+        int widthDp = configuration?.ScreenWidthDp ?? 320;
+        float fontScale = configuration?.FontScale ?? 1f;
+        int columns = ReadOnlyGridLayout.ColumnsForWidth(
+            Math.Max(0, widthDp - 32), fontScale);
+        int minTouchPx = (int)Math.Ceiling(48 * (Resources?.DisplayMetrics?.Density ?? 1f));
         for (int start = 0; start < cells.Count; start += columns)
         {
             var row = new TableRow(this);
@@ -303,6 +310,7 @@ public sealed class MainActivity : Activity
                     Clickable = true,
                     Focusable = true,
                 };
+                slot.SetMinimumHeight(minTouchPx);
                 slot.SetPadding(4, 12, 4, 12);
                 slot.Click += (_, _) =>
                 {
