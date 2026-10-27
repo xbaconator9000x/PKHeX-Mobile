@@ -180,8 +180,10 @@ public sealed class MainActivity : Activity
                 {
                     readToken.ThrowIfCancellationRequested();
                     var identity = GetDocumentIdentity(uri);
-                    Stream stream = resolver.OpenInputStream(uri)
-                        ?? throw new IOException("The provider returned no read stream.");
+                    // Unlike OpenInputStream, the descriptor open receives a
+                    // CancellationSignal. Providers may still ignore cancellation;
+                    // this is not a latency or device-compatibility guarantee.
+                    Stream stream = SafReadStream.Open(resolver, uri, readToken);
                     return ValueTask.FromResult(new DocumentReadHandle(stream, identity));
                 }, token), token);
 
@@ -224,6 +226,22 @@ public sealed class MainActivity : Activity
                 ClearProjection();
                 if (_status is not null) _status.Text = "Inspection cancelled. No file was changed.";
             }
+        }
+        catch (global::Android.OS.OperationCanceledException) when (operation.IsCancellationRequested)
+        {
+            if (!_destroyed && ReferenceEquals(_activeInspection, operation))
+            {
+                ClearProjection();
+                if (_status is not null) _status.Text = "Inspection cancelled. No file was changed.";
+            }
+        }
+        catch (Java.Lang.SecurityException)
+        {
+            ShowReadFailure(operation, "Document access was denied or revoked.");
+        }
+        catch (Java.Lang.IllegalArgumentException)
+        {
+            ShowReadFailure(operation, "The document provider rejected this request.");
         }
         catch (UnauthorizedAccessException)
         {
