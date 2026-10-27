@@ -302,7 +302,7 @@ catch (System.Text.Json.JsonException) { }
 var sparse = view with
 {
     PartyCount = 2,
-    Party = [new PokemonSlot(0, 25, "A\\nB", 5, false, true)],
+    Party = [new PokemonSlot(0, 25, "A\nB", 5, false, true)],
     BoxCount = 2,
     BoxSlotCount = 30,
     Boxes =
@@ -319,10 +319,10 @@ if (!ReadOnlyProjectionPresenter.FormatBox(sparse, 0).Contains("No occupied slot
     !ReadOnlyProjectionPresenter.FormatBox(sparse, 1).Contains("Slot 30: #133 EEVEE") ||
     ReadOnlyProjectionPresenter.FormatBox(sparse, 1).Contains("Box 1"))
     throw new Exception("Single-box projection lost its original slot mapping.");
-if (!ReadOnlyProjectionPresenter.FormatParty(sparse).Contains("A\\nB".Replace("\\n", " ")) ||
-    ReadOnlyProjectionPresenter.FormatParty(sparse).Contains("A\\nB"))
+if (!ReadOnlyProjectionPresenter.FormatParty(sparse).Contains("A\nB".Replace("\n", " ")) ||
+    ReadOnlyProjectionPresenter.FormatParty(sparse).Contains("A\nB"))
     throw new Exception("Untrusted nickname controls were not sanitized.");
-if (!ReadOnlyProjectionPresenter.FormatTrainer(sparse, false).Contains("not certified"))
+if (!ReadOnlyProjectionPresenter.FormatTrainer(sparse, false).Contains("no game format is certified"))
     throw new Exception("Provisional presentation warning missing.");
 try
 {
