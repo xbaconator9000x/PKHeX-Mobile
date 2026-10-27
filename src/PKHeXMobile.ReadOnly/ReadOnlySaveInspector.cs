@@ -47,10 +47,11 @@ public static class ReadOnlySaveInspector
         result = null;
         var bytes = snapshot.CopyBytes();
 
-        // Do not allow the Core ZIP handler to expand an untrusted archive in this initial reader.
-        if (IsCompressedContainer(bytes))
+        // Recognized high-risk hack markers must never be passed through a retail
+        // parser and shown as though its species/party/box interpretation is reliable.
+        if (SaveInputRiskAnalyzer.Assess(bytes) is { } risk)
         {
-            reason = "Compressed containers are not enabled for inspection.";
+            reason = risk.Explanation;
             return false;
         }
 
@@ -132,9 +133,4 @@ public static class ReadOnlySaveInspector
 
     private static PokemonSlot ToSlot(int slot, PKM pokemon) =>
         new(slot, pokemon.Species, pokemon.Nickname, pokemon.CurrentLevel, pokemon.IsEgg, pokemon.IsShiny);
-
-    private static bool IsCompressedContainer(ReadOnlySpan<byte> data) =>
-        (data.Length >= 4 && data[0] == 0x50 && data[1] == 0x4B &&
-         data[2] is 0x03 or 0x05 or 0x07 && data[3] is 0x04 or 0x06 or 0x08) ||
-        (data.Length >= 2 && data[0] == 0x1F && data[1] == 0x8B);
 }

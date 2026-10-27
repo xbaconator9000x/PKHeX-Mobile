@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using PKHeXMobile.Domain;
 using PKHeXMobile.ReadOnly;
 
 // Diagnostic harness only. Android UI and verified game-format support are not yet implemented.
@@ -20,7 +19,7 @@ if (args.Length != 1)
 try
 {
     var path = args[0];
-    var session = await SaveDocumentSession.OpenAsync(cancellationToken =>
+    var inspection = await ReadOnlyDocumentService.InspectAsync(cancellationToken =>
     {
         cancellationToken.ThrowIfCancellationRequested();
         Stream stream = new FileStream(
@@ -29,17 +28,15 @@ try
         return ValueTask.FromResult(stream);
     });
 
-    if (!ReadOnlySaveInspector.TryInspect(session.Original, out var view, out var reason))
+    if (!inspection.IsRecognized)
     {
-        Console.Error.WriteLine($"Read-only inspection rejected the input: {reason}");
+        Console.Error.WriteLine($"Read-only inspection rejected the input: {inspection.RejectionReason}");
         return 2;
     }
 
-    // Detect changes during parsing before publishing even a read-only projection.
-    await session.VerifySourceUnchangedAsync();
     var options = new JsonSerializerOptions { WriteIndented = true };
     options.Converters.Add(new JsonStringEnumConverter());
-    Console.WriteLine(JsonSerializer.Serialize(view, options));
+    Console.WriteLine(JsonSerializer.Serialize(inspection.Result, options));
     return 0;
 }
 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
