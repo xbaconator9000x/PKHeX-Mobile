@@ -38,7 +38,7 @@ Use **same-version desktop PKHeX 26.10.18** for mobile Core comparisons; repeat 
 | B-07 | P1 | Bank index.json corrupt, .bak valid but entity blob changed | Index fallback alone insufficient; blob hash mismatch detected and write locked | unit |
 | L-01 | P1 | MAUI 26.7.7, our 26.10.18 and official newer audited source on same independent fixture | Engine versions reported separately; no cross-version parity pass | desktop |
 
-**24 rows**: C-01–C-10 (10), S-01–S-07 (7), B-01–B-07 (7), L-01 (1) = **25 rows**. Treat the explicit row IDs as authoritative; the total is 25.
+**25 scenarios total:** C-01–C-10 (10), S-01–S-07 (7), B-01–B-07 (7), L-01 (1). The explicit row IDs are authoritative.
 
 ## Execution order, ownership and stopping rules
 
