@@ -1,22 +1,40 @@
+using System.Text.Json.Serialization;
+
 namespace PKHeXMobile.ReadOnly;
+
+/// <summary>
+/// Strict manifest-only types: every expected field must be present in JSON,
+/// including zero/false and empty arrays. A missing field must never silently
+/// become a matching default value.
+/// </summary>
+public sealed record ExpectedPokemonSlot(
+    [property: JsonRequired] int SlotIndex,
+    [property: JsonRequired] ushort Species,
+    [property: JsonRequired] string Nickname,
+    [property: JsonRequired] int Level,
+    [property: JsonRequired] bool IsEgg,
+    [property: JsonRequired] bool IsShiny);
+
+public sealed record ExpectedBoxSnapshot(
+    [property: JsonRequired] int BoxIndex,
+    [property: JsonRequired] IReadOnlyList<ExpectedPokemonSlot> OccupiedSlots);
 
 /// <summary>
 /// A full expected read-only projection supplied independently of this adapter,
 /// ideally captured from desktop PKHeX using the EXACT matching Core version.
-/// No expected fields are optional; missing fields must fail deserialization or comparison.
 /// </summary>
 public sealed record ExpectedSaveProjection(
-    string CoreSaveType,
-    string GameVersion,
-    int Generation,
-    string TrainerName,
-    ushort TrainerId,
-    ushort SecretId,
-    int PartyCount,
-    int BoxCount,
-    int BoxSlotCount,
-    IReadOnlyList<PokemonSlot> Party,
-    IReadOnlyList<BoxSnapshot> Boxes);
+    [property: JsonRequired] string CoreSaveType,
+    [property: JsonRequired] string GameVersion,
+    [property: JsonRequired] int Generation,
+    [property: JsonRequired] string TrainerName,
+    [property: JsonRequired] ushort TrainerId,
+    [property: JsonRequired] ushort SecretId,
+    [property: JsonRequired] int PartyCount,
+    [property: JsonRequired] int BoxCount,
+    [property: JsonRequired] int BoxSlotCount,
+    [property: JsonRequired] IReadOnlyList<ExpectedPokemonSlot> Party,
+    [property: JsonRequired] IReadOnlyList<ExpectedBoxSnapshot> Boxes);
 
 /// <summary>
 /// Field-by-field read-only comparison. Reports only field paths, never trainer
@@ -76,7 +94,7 @@ public static class SaveProjectionVerifier
                 errors.Add($"{path} mismatch");
         }
 
-        void CompareSlots(IReadOnlyList<PokemonSlot> observed, IReadOnlyList<PokemonSlot> reference, string path)
+        void CompareSlots(IReadOnlyList<PokemonSlot> observed, IReadOnlyList<ExpectedPokemonSlot> reference, string path)
         {
             Check(observed.Count == reference.Count, $"{path}.Count");
             for (int i = 0; i < Math.Min(observed.Count, reference.Count); i++)

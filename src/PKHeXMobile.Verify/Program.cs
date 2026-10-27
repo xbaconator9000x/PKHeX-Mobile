@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using PKHeXMobile.ReadOnly;
 
 if (args.Length == 1 && args[0] is "--help" or "-h")
@@ -101,5 +102,12 @@ catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or J
     return 64;
 }
 
-internal sealed record FixtureManifest(int SchemaVersion, string CoreVersion, IReadOnlyList<FixtureCase> Fixtures);
-internal sealed record FixtureCase(string Path, string Sha256, ExpectedSaveProjection Expected);
+internal sealed record FixtureManifest(
+    [property: JsonRequired] int SchemaVersion,
+    [property: JsonRequired] string CoreVersion,
+    [property: JsonRequired] IReadOnlyList<FixtureCase> Fixtures);
+
+internal sealed record FixtureCase(
+    [property: JsonRequired] string Path,
+    [property: JsonRequired] string Sha256,
+    [property: JsonRequired] ExpectedSaveProjection Expected);

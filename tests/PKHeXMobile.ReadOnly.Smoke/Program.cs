@@ -183,10 +183,15 @@ catch (InvalidOperationException) { }
 
 // A manifest verifier must compare every field and every occupied slot; this
 // same-Core synthetic expectation is NOT an independently authored baseline.
+var expectedParty = view.Party.Select(p =>
+    new ExpectedPokemonSlot(p.SlotIndex, p.Species, p.Nickname, p.Level, p.IsEgg, p.IsShiny)).ToArray();
+var expectedBoxes = view.Boxes.Select(b => new ExpectedBoxSnapshot(b.BoxIndex,
+    b.OccupiedSlots.Select(p =>
+        new ExpectedPokemonSlot(p.SlotIndex, p.Species, p.Nickname, p.Level, p.IsEgg, p.IsShiny)).ToArray())).ToArray();
 var expectation = new ExpectedSaveProjection(
     view.CoreSaveType, view.GameVersion, view.Generation, view.TrainerName,
     view.TrainerId, view.SecretId, view.PartyCount, view.BoxCount,
-    view.BoxSlotCount, view.Party, view.Boxes);
+    view.BoxSlotCount, expectedParty, expectedBoxes);
 if (SaveProjectionVerifier.Compare(view, expectation).Count != 0)
     throw new Exception("Identical expected projection should match.");
 if (!SaveProjectionVerifier.Compare(view, expectation with { TrainerId = 4321 }).Contains("TrainerId mismatch"))
@@ -197,9 +202,25 @@ var fakeSlot = new PokemonSlot(0, 25, "TEST", 5, false, false);
 var occupied = view with { Party = [fakeSlot] };
 if (!SaveProjectionVerifier.Compare(occupied, expectation).Contains("Party.Count mismatch"))
     throw new Exception("Verifier missed an occupied-slot mismatch.");
-if (!SaveProjectionVerifier.Compare(occupied, expectation with { Party = [fakeSlot with { Species = 26 }] })
+if (!SaveProjectionVerifier.Compare(occupied, expectation with { Party = [new ExpectedPokemonSlot(0, 26, "TEST", 5, false, false)] })
     .Contains("Party[0].Species mismatch"))
     throw new Exception("Verifier missed a species mismatch.");
+
+// Missing expected JSON fields must be rejected even when a default value would
+// otherwise happen to match an empty save. This prevents false parity passes.
+try
+{
+    System.Text.Json.JsonSerializer.Deserialize<ExpectedSaveProjection>("{}");
+    throw new Exception("Incomplete expected projection JSON was accepted.");
+}
+catch (System.Text.Json.JsonException) { }
+try
+{
+    System.Text.Json.JsonSerializer.Deserialize<ExpectedPokemonSlot>("{\\"slotIndex\\":0}");
+    throw new Exception("Incomplete expected Pokémon JSON was accepted.");
+}
+catch (System.Text.Json.JsonException) { }
+
 
 Console.WriteLine("Pinned Core reader: 5 original negatives, 6 hack-risk cases, 5 near-miss checks and 1 same-Core synthetic Gen 1 positive.");
 Console.WriteLine("Provider-neutral read service: two-open success, rejection, stale bytes, revoked provider and cancellation passed.");
