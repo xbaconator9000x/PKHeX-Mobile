@@ -155,6 +155,7 @@ public static class ReadOnlySaveInspector
                     pokemon.EV_SPA, pokemon.EV_SPD, pokemon.EV_SPE))
             {
                 MechanicsGeneration = pokemon is PK1 ? 1 : pokemon is PK2 ? 2 : 0,
+                Awards = PokemonAwardsReadOnly.Project(pokemon),
             });
     }
 
