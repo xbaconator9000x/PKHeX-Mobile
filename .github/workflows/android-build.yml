@@ -3,6 +3,7 @@ name: Android read-only prototype build
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - 'src/PKHeXMobile.Android/**'
       - 'src/PKHeXMobile.ReadOnly/**'

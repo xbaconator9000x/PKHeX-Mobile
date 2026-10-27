@@ -2,10 +2,17 @@ name: Foundation checks
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
+
+# One PR validation run per revision; avoid paying for branch-push and PR
+# duplicates, while preserving validation on merges to main.
+concurrency:
+  group: foundation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   documentation-and-hygiene:
