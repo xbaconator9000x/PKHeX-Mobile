@@ -1,5 +1,7 @@
 # Source-level comparison plan
 
+> [Fork delta and source-level disposition, pass B (2026-10-28)](UPSTREAM_FORK_DELTA_2026-10-28.md) — all 21 fork-side changed paths, checksum caveats and pinned package drift.
+> [Parity verification and test gates, pass B (2026-10-28)](PARITY_VERIFICATION_PLAN_2026-10-28.md) — source-level MAUI/Forge defects, Android/provider scenarios and independent test protocol.
 > [Pinned source audit, pass A (2026-10-27)](UPSTREAM_SOURCE_AUDIT_2026-10-27.md) — verified fork divergence, Android write hazards, licensing and implementer tickets.
 >
 > [Desktop/mobile parity crosswalk, pass A (2026-10-27)](PARITY_MATRIX_2026-10-27.md) — 28 representative capability rows, source links and untested gates.
