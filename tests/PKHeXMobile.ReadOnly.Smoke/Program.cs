@@ -216,7 +216,7 @@ try
 catch (System.Text.Json.JsonException) { }
 try
 {
-    System.Text.Json.JsonSerializer.Deserialize<ExpectedPokemonSlot>("{\\"slotIndex\\":0}");
+    System.Text.Json.JsonSerializer.Deserialize<ExpectedPokemonSlot>("{\"slotIndex\":0}");
     throw new Exception("Incomplete expected Pokémon JSON was accepted.");
 }
 catch (System.Text.Json.JsonException) { }
