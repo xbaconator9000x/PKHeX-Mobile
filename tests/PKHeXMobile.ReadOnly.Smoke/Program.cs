@@ -331,6 +331,53 @@ try
 }
 catch (ArgumentOutOfRangeException) { }
 
+// E-15/E-16: stable empty/occupied slot mapping and Unicode-safe labels.
+var sparseCells = ReadOnlyProjectionPresenter.BoxCells(sparse, 1);
+if (sparseCells.Count != 30 || sparseCells[0].SlotIndex != 0 ||
+    sparseCells[0].Pokemon is not null || sparseCells[29].Pokemon?.Species != 133 ||
+    ReadOnlyProjectionPresenter.FormatCellDetails(sparseCells[0]) != "Slot 1: empty" ||
+    !ReadOnlyProjectionPresenter.FormatCellDetails(sparseCells[29]).Contains("Slot 30: #133"))
+    throw new Exception("Stable slot-grid projection lost empty or occupied positions.");
+if (ReadOnlyProjectionPresenter.BoxCells(sparse, 0).Any(cell => cell.Pokemon is not null))
+    throw new Exception("Empty box gained phantom occupied cells.");
+try
+{
+    ReadOnlyProjectionPresenter.BoxCells(sparse with
+    {
+        Boxes = [new BoxSnapshot(0, [new PokemonSlot(30, 25, "X", 5, false, false)])],
+    }, 0);
+    throw new Exception("Out-of-range source slot was accepted.");
+}
+catch (InvalidDataException) { }
+try
+{
+    ReadOnlyProjectionPresenter.BoxCells(sparse with
+    {
+        Boxes = [new BoxSnapshot(0,
+        [
+            new PokemonSlot(0, 25, "A", 5, false, false),
+            new PokemonSlot(0, 26, "B", 5, false, false),
+        ])],
+    }, 0);
+    throw new Exception("Repeated source slot was accepted.");
+}
+catch (InvalidDataException) { }
+if (ReadOnlyProjectionPresenter.SanitizeLabel("A\u202EB\u2066C") != "A B C" ||
+    ReadOnlyProjectionPresenter.SanitizeLabel("A\nB") != "A B" ||
+    ReadOnlyProjectionPresenter.SanitizeLabel("A\uD800B") != "A B" ||
+    ReadOnlyProjectionPresenter.SanitizeLabel("A\u0301") != "A\u0301" ||
+    ReadOnlyProjectionPresenter.SanitizeLabel("\U0001F600") != "\U0001F600" ||
+    ReadOnlyProjectionPresenter.SanitizeLabel(new string('x', 81)) !=
+        new string('x', 80) + "…")
+    throw new Exception("Unicode-safe text sanitization failed.");
+if (ReadOnlyProjectionPresenter.SanitizeLabel(new string('a', 79) + "A\u0301B") !=
+    new string('a', 79) + "A\u0301…")
+    throw new Exception("Grapheme truncation split a combining sequence.");
+if (ReadOnlyProjectionPresenter.FormatCellDetails(
+    new BoxCell(3, new PokemonSlot(3, 25, "A\u202EB", 10, false, true)))
+    .Contains('\u202E'))
+    throw new Exception("Accessibility slot details contain bidi override.");
+
 Console.WriteLine("Pinned Core reader: synthetic negatives, RZIP and hack-risk cases, near-miss checks and 1 same-Core synthetic Gen 1 positive.");
 Console.WriteLine("Provider-neutral read service: two-open success, identity-aware same-byte replacement refusal, missing identity, null stream, stale bytes, revoked provider and cancellation passed.");
 Console.WriteLine("No independently verified real-world fixture, Android device, format certification or export has been tested.");

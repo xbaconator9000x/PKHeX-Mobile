@@ -28,6 +28,7 @@ public sealed class MainActivity : Activity
     private TextView? _trainer;
     private TextView? _party;
     private TextView? _boxDetails;
+    private TableLayout? _boxGrid;
     private Spinner? _boxSelector;
     private SaveReadOnlyResult? _currentResult;
 
@@ -82,10 +83,18 @@ public sealed class MainActivity : Activity
         };
         _boxSelector.ItemSelected += (_, args) =>
         {
-            if (_currentResult is not null && _boxDetails is not null)
-                _boxDetails.Text = ReadOnlyProjectionPresenter.FormatBox(_currentResult, args.Position);
+            if (_currentResult is not null)
+                RenderSelectedBox(args.Position);
         };
         layout.AddView(_boxSelector);
+
+        _boxGrid = new TableLayout(this)
+        {
+            Visibility = ViewStates.Gone,
+            StretchAllColumns = true,
+            ContentDescription = "Read-only Pokémon storage slots",
+        };
+        layout.AddView(_boxGrid);
 
         _boxDetails = new TextView(this) { TextSize = 16 };
         layout.AddView(_boxDetails);
@@ -204,7 +213,7 @@ public sealed class MainActivity : Activity
                     _boxSelector.Adapter = adapter;
                     _boxSelector.Visibility = ViewStates.Visible;
                     _boxSelector.SetSelection(0);
-                    _boxDetails.Text = ReadOnlyProjectionPresenter.FormatBox(inspection.Result, 0);
+                    RenderSelectedBox(0);
                 }
             }
         }
@@ -246,6 +255,49 @@ public sealed class MainActivity : Activity
         }
     }
 
+    // Each visible cell represents its original slot index, including empties.
+    // This is a navigation-only grid: no drag, drop, import or write affordance.
+    private void RenderSelectedBox(int selectedIndex)
+    {
+        if (_currentResult is null || _boxGrid is null || _boxDetails is null)
+            return;
+        _boxGrid.RemoveAllViews();
+        var cells = ReadOnlyProjectionPresenter.BoxCells(_currentResult, selectedIndex);
+        _boxGrid.Visibility = ViewStates.Visible;
+        _boxDetails.Text = "Select a slot to inspect it. Editing is disabled.";
+
+        const int columns = 6;
+        for (int start = 0; start < cells.Count; start += columns)
+        {
+            var row = new TableRow(this);
+            for (int i = start; i < Math.Min(start + columns, cells.Count); i++)
+            {
+                var cell = cells[i];
+                var pokemon = cell.Pokemon;
+                var detail = ReadOnlyProjectionPresenter.FormatCellDetails(cell);
+                var slot = new TextView(this)
+                {
+                    Text = (cell.SlotIndex + 1) + "\n" +
+                        (pokemon is null ? "—" : "#" + pokemon.Species),
+                    ContentDescription = detail + ". Read-only.",
+                    TextSize = 14,
+                    Gravity = GravityFlags.Center,
+                    Clickable = true,
+                    Focusable = true,
+                };
+                slot.SetPadding(4, 12, 4, 12);
+                slot.Click += (_, _) =>
+                {
+                    if (_currentResult is not null && _boxDetails is not null)
+                        _boxDetails.Text = detail;
+                };
+                row.AddView(slot, new TableRow.LayoutParams(
+                    0, ViewGroup.LayoutParams.WrapContent, 1f));
+            }
+            _boxGrid.AddView(row);
+        }
+    }
+
     private bool IsCurrent(CancellationTokenSource operation) =>
         !_destroyed && !operation.IsCancellationRequested &&
         ReferenceEquals(_activeInspection, operation);
@@ -264,6 +316,11 @@ public sealed class MainActivity : Activity
         if (_trainer is not null) _trainer.Text = string.Empty;
         if (_party is not null) _party.Text = string.Empty;
         if (_boxDetails is not null) _boxDetails.Text = string.Empty;
+        if (_boxGrid is not null)
+        {
+            _boxGrid.RemoveAllViews();
+            _boxGrid.Visibility = ViewStates.Gone;
+        }
         if (_boxSelector is not null)
         {
             _boxSelector.Visibility = ViewStates.Gone;
