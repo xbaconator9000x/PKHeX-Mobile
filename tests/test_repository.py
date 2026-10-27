@@ -68,11 +68,24 @@ class ScaffoldTests(unittest.TestCase):
         source = (ROOT / "src/PKHeXMobile.Android/MainActivity.cs").read_text()
         self.assertIn("CancelInspection()", source)
         self.assertIn("ReferenceEquals(_activeInspection, operation)", source)
-        self.assertIn("ReadOnlyProjectionPresenter.FormatBox", source)
+        self.assertIn("ReadOnlyProjectionPresenter.BoxCells", source)
+        self.assertIn("ReadOnlyProjectionPresenter.FormatCellDetails", source)
+        self.assertIn("new TableRow(this)", source)
         self.assertIn("ReadOnlyProjectionPresenter.BoxLabels", source)
         self.assertIn("ReadOnlyProjectionPresenter.FormatParty", source)
         self.assertNotIn("OpenOutputStream(", source)
         self.assertNotIn("TakePersistableUriPermission", source)
+
+    def test_android_provider_open_is_read_only_and_cancellable(self):
+        activity = (ROOT / "src/PKHeXMobile.Android/MainActivity.cs").read_text()
+        provider = (ROOT / "src/PKHeXMobile.Android/SafReadStream.cs").read_text()
+        self.assertIn("SafReadStream.Open(resolver, uri, readToken)", activity)
+        self.assertIn('OpenAssetFileDescriptor(uri, "r", signal)', provider)
+        self.assertIn("token.Register(", provider)
+        self.assertIn("descriptor.CreateInputStream()", provider)
+        self.assertIn("_descriptor.Close()", provider)
+        self.assertNotIn("OpenOutputStream(", provider)
+        self.assertNotIn('"rwt"', provider)
 
     def test_binary_files_must_not_be_committed(self):
         self.assertTrue({".gba", ".sav", ".apk", ".jks"}.issubset(FORBIDDEN_SUFFIXES))

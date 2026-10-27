@@ -2,7 +2,7 @@
 
 **Porting environment** for a complete, Android-first Pokémon save editor, with the long-term goal of desktop PKHeX feature parity and optional integration with PokéBacon Studio.
 
-> **Status: initial foundation only. There is no usable save editor or APK yet.** This is an independent project, not endorsed by PKHeX's maintainers, Nintendo, Game Freak or The Pokémon Company.
+> **Status: experimental read-only Android debug APK builds in CI, not device-certified. There is no save editor or export yet.** This is an independent project, not endorsed by PKHeX's maintainers, Nintendo, Game Freak or The Pokémon Company.
 
 ## Goals
 
@@ -18,7 +18,10 @@
 
 ## Repository
 
-- `src/PKHeXMobile.Domain`: a **contract-only** fail-closed save-write guard; not a save parser or exporter.
+- `src/PKHeXMobile.Domain`: bounded, immutable input snapshots and fail-closed save-write contracts.
+- `src/PKHeXMobile.ReadOnly`: official PKHeX.Core 26.10.18 read-only adapter and two-open document verification.
+- `src/PKHeXMobile.Android`: experimental scoped-storage Android picker, trainer/party view and read-only box slot grid.
+- `src/PKHeXMobile.Inspect` and `src/PKHeXMobile.Verify`: desktop diagnostics and private-fixture comparison tools.
 - `tests/PKHeXMobile.Domain.Smoke`: simple domain contract checks.
 - `docs/ROADMAP.md`: milestone acceptance criteria.
 - `docs/ARCHITECTURE.md`: candidate subsystems and trust boundaries.
@@ -38,7 +41,7 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 scripts/check_repository.py
 ```
 
-The Android UI, PKHeX.Core dependency, real save fixtures and format adapters **have not yet been added**. These tests cannot establish that any Pokémon save will open or export successfully.
+The Android UI and pinned PKHeX.Core adapter are present, but **independently validated real-save fixtures, physical-device/provider tests and any safe save writer are still missing**. CI compilation and same-Core synthetic smoke tests do not certify game compatibility or export safety.
 
 ## Licence and safety
 
