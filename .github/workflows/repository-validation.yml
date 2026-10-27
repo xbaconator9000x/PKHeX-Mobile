@@ -28,3 +28,4 @@ jobs:
       - run: dotnet build src/PKHeXMobile.Domain/PKHeXMobile.Domain.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Domain.Smoke/PKHeXMobile.Domain.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.ReadOnly.Smoke/PKHeXMobile.ReadOnly.Smoke.csproj --configuration Release
+      - run: dotnet run --project src/PKHeXMobile.Inspect/PKHeXMobile.Inspect.csproj --configuration Release -- --help
