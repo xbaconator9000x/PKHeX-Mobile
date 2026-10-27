@@ -68,6 +68,19 @@ MustReject(new byte[0x20000]); // A Gen 3-sized all-zero buffer must not count a
 MustReject(new byte[0x8000]);  // A Gen 1-sized all-zero buffer must not count as a valid save.
 RequireRisk([0x50, 0x4B, 0x03, 0x04, 0x00, 0x00], SaveInputRiskCode.CompressedContainer);
 RequireRisk([0x1F, 0x8B, 0x08, 0x00], SaveInputRiskCode.CompressedContainer);
+// C-08: all RetroArch #RZIP prefixes, including truncated/invalid headers,
+// are refused before any retail Core parsing. These are not decoder tests.
+RequireRisk([0x23, 0x52, 0x5A, 0x49, 0x50], SaveInputRiskCode.RetroArchRzipContainer);
+var rzipHeader = new byte[20];
+new byte[] { 0x23, 0x52, 0x5A, 0x49, 0x50, 0x76, 0x01, 0x23 }.CopyTo(rzipHeader, 0);
+BinaryPrimitives.WriteUInt32LittleEndian(rzipHeader.AsSpan(8, 4), 131072);
+BinaryPrimitives.WriteUInt64LittleEndian(rzipHeader.AsSpan(12, 8), 512);
+RequireRisk(rzipHeader, SaveInputRiskCode.RetroArchRzipContainer);
+rzipHeader[6] = 0x02; // unsupported version still refused
+RequireRisk(rzipHeader, SaveInputRiskCode.RetroArchRzipContainer);
+if (SaveInputRiskAnalyzer.Assess([0x23, 0x52, 0x5A, 0x49]) is not null)
+    throw new Exception("Partial non-RZIP prefix was incorrectly classified.");
+
 RequireRisk(StampedGen3(0x01121999, 8), SaveInputRiskCode.PossibleUnbound);
 RequireRisk(StampedGen3(0x66290096, 8), SaveInputRiskCode.PossibleGsChronicles);
 var conflict = StampedGen3(0x01121999, 8);
@@ -137,6 +150,69 @@ if (!inspected.IsRecognized || inspected.Result?.TrainerId != 1234 ||
     inspected.RejectionReason is not null || inspected.Fingerprint != syntheticSnapshot.Fingerprint ||
     opens != 2)
     throw new Exception("Document service failed its two-open read-only positive case.");
+
+if (inspected.SourceIdentity is not null || inspected.SourceIdentityConfirmed)
+    throw new Exception("Stream-only provider must not claim verified document identity.");
+
+// S-01/S-04: a content provider can supply streams without filesystem paths.
+// Same bytes under a different provider/document ID must be refused.
+var stableIdentity = new DocumentSourceIdentity("org.example.documents", "opaque:42");
+int identityOpens = 0;
+var identityInspected = await ReadOnlyDocumentService.InspectWithIdentityAsync(_ =>
+{
+    identityOpens++;
+    return ValueTask.FromResult(new DocumentReadHandle(
+        new MemoryStream(syntheticBytes, writable: false),
+        new DocumentSourceIdentity("org.example.documents", "opaque:42")));
+});
+if (!identityInspected.IsRecognized || identityInspected.Result?.TrainerId != 1234 ||
+    !identityInspected.SourceIdentityConfirmed ||
+    identityInspected.SourceIdentity != stableIdentity || identityOpens != 2)
+    throw new Exception("Identity-aware read failed its two-open positive case.");
+
+int replacementOpens = 0;
+MemoryStream? replacementStream = null;
+await MustThrowAsync<InvalidOperationException>(async () =>
+{
+    await ReadOnlyDocumentService.InspectWithIdentityAsync(_ =>
+    {
+        replacementOpens++;
+        replacementStream = new MemoryStream(syntheticBytes, writable: false);
+        return ValueTask.FromResult(new DocumentReadHandle(replacementStream,
+            new DocumentSourceIdentity("org.example.documents",
+                replacementOpens == 1 ? "opaque:42" : "opaque:99")));
+    });
+});
+if (replacementOpens != 2 || replacementStream?.CanRead != false)
+    throw new Exception("Same-byte document replacement must fail and dispose its stream.");
+
+// Missing identity cannot be silently promoted to a verified one.
+int ambiguousOpens = 0;
+await MustThrowAsync<InvalidOperationException>(async () =>
+{
+    await ReadOnlyDocumentService.InspectWithIdentityAsync(_ =>
+    {
+        ambiguousOpens++;
+        return ValueTask.FromResult(new DocumentReadHandle(
+            new MemoryStream(syntheticBytes, writable: false),
+            ambiguousOpens == 1 ? null : stableIdentity));
+    });
+});
+if (ambiguousOpens != 2)
+    throw new Exception("Ambiguous provider identity did not reach the second open.");
+
+var unknownIdentity = await ReadOnlyDocumentService.InspectWithIdentityAsync(_ =>
+    ValueTask.FromResult(new DocumentReadHandle(
+        new MemoryStream(syntheticBytes, writable: false), null)));
+if (!unknownIdentity.IsRecognized || unknownIdentity.SourceIdentityConfirmed)
+    throw new Exception("An unverified provider identity must remain unverified.");
+
+await MustThrowAsync<InvalidDataException>(async () =>
+{
+    await ReadOnlyDocumentService.InspectWithIdentityAsync(_ =>
+        ValueTask.FromResult(new DocumentReadHandle(null!, stableIdentity)));
+});
+
 
 var refused = await ReadOnlyDocumentService.InspectAsync(_ =>
     ValueTask.FromResult<Stream>(new MemoryStream(new byte[512], writable: false)));
@@ -222,6 +298,6 @@ try
 catch (System.Text.Json.JsonException) { }
 
 
-Console.WriteLine("Pinned Core reader: 5 original negatives, 6 hack-risk cases, 5 near-miss checks and 1 same-Core synthetic Gen 1 positive.");
-Console.WriteLine("Provider-neutral read service: two-open success, rejection, stale bytes, revoked provider and cancellation passed.");
+Console.WriteLine("Pinned Core reader: synthetic negatives, RZIP and hack-risk cases, near-miss checks and 1 same-Core synthetic Gen 1 positive.");
+Console.WriteLine("Provider-neutral read service: two-open success, identity-aware same-byte replacement refusal, missing identity, null stream, stale bytes, revoked provider and cancellation passed.");
 Console.WriteLine("No independently verified real-world fixture, Android device, format certification or export has been tested.");

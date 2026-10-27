@@ -43,6 +43,29 @@ var providerBytes = original.CopyBytes();
 var session = await SaveDocumentSession.OpenAsync(_ =>
     ValueTask.FromResult<Stream>(new MemoryStream(providerBytes, writable: false)));
 await session.VerifySourceUnchangedAsync();
+
+var providerIdentity = new DocumentSourceIdentity("org.example.provider", "opaque-id");
+var identifiedSession = await SaveDocumentSession.OpenWithIdentityAsync(_ =>
+    ValueTask.FromResult(new DocumentReadHandle(
+        new NonSeekableReadStream(original.CopyBytes()), providerIdentity)));
+if (identifiedSession.SourceIdentity != providerIdentity || identifiedSession.SourceIdentityConfirmed)
+    throw new Exception("Provider identity must not be confirmed before re-opening.");
+await identifiedSession.VerifySourceUnchangedAsync();
+if (!identifiedSession.SourceIdentityConfirmed)
+    throw new Exception("Stable provider identity should be confirmed after a second read.");
+try
+{
+    _ = new DocumentSourceIdentity("", "opaque-id");
+    throw new Exception("Empty provider key must be rejected.");
+}
+catch (ArgumentException) { }
+try
+{
+    _ = new DocumentSourceIdentity("org.example.provider", " ");
+    throw new Exception("Empty document key must be rejected.");
+}
+catch (ArgumentException) { }
+
 providerBytes[4] ^= 0x40;
 await MustRejectAsync<InvalidOperationException>(() => session.VerifySourceUnchangedAsync());
 await MustRejectAsync<IOException>(() =>
@@ -65,4 +88,4 @@ using (var cancelled = new CancellationTokenSource())
     await MustRejectAsync<OperationCanceledException>(() =>
         SaveInputSnapshot.ReadAsync(new NonSeekableReadStream(original.CopyBytes()), cancelled.Token));
 }
-Console.WriteLine("Domain contract, bounded input, short non-seekable provider, cancellation, copy isolation, stale-provider and failure tests passed.");
+Console.WriteLine("Domain contract, bounded input, non-seekable and identity-aware provider, cancellation, copy isolation, stale-provider and failure tests passed.");
