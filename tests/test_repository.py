@@ -27,6 +27,7 @@ class ScaffoldTests(unittest.TestCase):
 
     def test_read_only_projection_has_no_save_writer(self):
         source = (ROOT / "src/PKHeXMobile.ReadOnly/ReadOnlySaveInspector.cs").read_text()
+        source = "\n".join(line.split("//", 1)[0] for line in source.splitlines())
         for forbidden in ("SaveFile.Write(", "save.Write(", "File.Write", "SetBoxSlotAtIndex(", "SetPartySlotAtIndex("):
             self.assertNotIn(forbidden, source)
 
