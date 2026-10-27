@@ -30,6 +30,10 @@ var synthetic = new SAV1(LanguageID.English, GameVersion.RB)
     OT = "TEST",
     TID16 = 1234,
 };
+// A freshly constructed empty SAV1 does not initialize empty party/current-box
+// list sentinels. The pinned Core's Gen 1 detector requires both valid list headers.
+synthetic.Data[0x2F2D] = 0xFF; // INT Gen 1 party: count 0, end marker.
+synthetic.Data[0x30C1] = 0xFF; // INT Gen 1 current box: count 0, end marker.
 var syntheticBytes = synthetic.Write().ToArray();
 var syntheticSnapshot = SaveInputSnapshot.FromBytes(syntheticBytes);
 if (!ReadOnlySaveInspector.TryInspect(syntheticSnapshot, out var view, out var failure) || view is null)
