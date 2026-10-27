@@ -1,5 +1,9 @@
 # Source-level comparison plan
 
+> [Mystery Gift, stored-card and event archive source audit, pass H (2026-10-28)](UPSTREAM_MYSTERY_GIFT_REVIEW_2026-10-28.md) — 20 pinned source findings including WA9 clone/context, Gen5 encryption, mobile gesture routing and gift delivery transactions.
+> [Mystery Gift execution gates, pass H (2026-10-28)](PARITY_MYSTERY_GIFT_GATES_2026-10-28.md) — 27 proposed tests; none executed or certified.
+
+
 > [Legality, encounter and batch source audit, pass G (2026-10-28)](UPSTREAM_LEGALITY_ENCOUNTER_REVIEW_2026-10-28.md) — 22 pinned, actionable findings, with global legality context and batch-write safety risks.
 > [Legality/encounter/batch execution gates, pass G (2026-10-28)](PARITY_LEGALITY_ENCOUNTER_GATES_2026-10-28.md) — 30 proposed tests; none executed or certified.
 
