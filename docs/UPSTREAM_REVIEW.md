@@ -1,5 +1,7 @@
 # Source-level comparison plan
 
+> [Initial pinned source findings (2026-10-27)](UPSTREAM_CHECKPOINT_2026-10-27.md) — does not yet satisfy the full build or parity audit.
+
 This is a work plan, **not a completed source audit**. Exact references to commits, classes, tests and reproducible observed behavior are still required.
 
 | Project | Role | Current knowledge | Key verification |
