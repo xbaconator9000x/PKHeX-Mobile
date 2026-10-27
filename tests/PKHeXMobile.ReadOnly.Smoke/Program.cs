@@ -385,11 +385,11 @@ var reorderedBoxes = expectation with
     Boxes = expectedBoxes.Select((b, i) => i == 1 ? b with { BoxIndex = 0 } : b).ToArray(),
 };
 if (!SaveProjectionVerifier.Compare(view, reorderedBoxes)
-    .Contains("Boxes[1].BoxIndex expected out of order"))
+    .Contains("Boxes[1].BoxIndex expected out of order mismatch"))
     throw new Exception("Duplicate or reordered oracle box index was accepted.");
 var wrongBoxCount = expectation with { BoxCount = expectation.BoxCount + 1 };
 if (!SaveProjectionVerifier.Compare(view, wrongBoxCount)
-    .Contains("Boxes expected count inconsistent"))
+    .Contains("Boxes expected count inconsistent mismatch"))
     throw new Exception("Oracle box-count inconsistency was accepted.");
 
 // Missing expected JSON fields must be rejected even when a default value would
