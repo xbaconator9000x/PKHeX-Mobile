@@ -53,6 +53,17 @@ class ScaffoldTests(unittest.TestCase):
                           "TakePersistableUriPermission"):
             self.assertNotIn(forbidden, source)
 
+    def test_android_ci_tracks_transitive_build_inputs(self):
+        workflow = (ROOT / ".github/workflows/android-build.yml").read_text()
+        for path in ("src/PKHeXMobile.Android/**", "src/PKHeXMobile.ReadOnly/**",
+                     "src/PKHeXMobile.Domain/**", "global.json",
+                     "Directory.Build.*", "Directory.Packages.props",
+                     "NuGet.Config"):
+            self.assertEqual(2, workflow.count(f"'{path}'"),
+                             f"Android build must trigger on push and PR for {path}")
+        self.assertIn("android-debug-apk.sha256", workflow)
+        self.assertIn("android-build-provenance.txt", workflow)
+
     def test_binary_files_must_not_be_committed(self):
         self.assertTrue({".gba", ".sav", ".apk", ".jks"}.issubset(FORBIDDEN_SUFFIXES))
 
