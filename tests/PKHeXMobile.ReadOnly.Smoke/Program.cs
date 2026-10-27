@@ -148,7 +148,7 @@ var projectedPokemon = ReadOnlySaveInspector.ProjectPokemon(2, syntheticPokemon)
 if (projectedPokemon.SlotIndex != 2 || projectedPokemon.Species != 25 ||
     projectedPokemon.Details is not { } coreDetails ||
     coreDetails.Moves.First != 33 || coreDetails.Moves.Second != 45 ||
-    coreDetails.EffortValues.HP != 123 ||
+    coreDetails.EffortValues.HP != 123 || coreDetails.MechanicsGeneration != 1 ||
     !syntheticPokemon.Data.SequenceEqual(beforeProjection))
     throw new Exception("Pinned-Core scalar projection lost data or modified the PKM.");
 try
@@ -157,6 +157,35 @@ try
     throw new Exception("Negative source slot index must be rejected.");
 }
 catch (ArgumentOutOfRangeException) { }
+
+// I-11/I-12: Game Boy entity projection must distinguish unavailable modern
+// mechanics and shared Special DV/stat experience without modifying bytes.
+var classicText = ReadOnlyProjectionPresenter.FormatPartySlotDetails(new BoxCell(2, projectedPokemon));
+if (!classicText.Contains("Nature: N/A (introduced in Gen 3)") ||
+    !classicText.Contains("Ability: N/A (introduced in Gen 3)") ||
+    !classicText.Contains("Held item: N/A (Gen 1)") ||
+    !classicText.Contains("Gender: N/A (Gen 1)") ||
+    !classicText.Contains("DVs (0-15; HP derived, Special shared)") ||
+    !classicText.Contains("Stat experience (0-65535; Special shared)") ||
+    classicText.Contains("SpD ") || classicText.Contains("Nature (Core):"))
+    throw new Exception("Gen 1 view invented modern mechanics or duplicate Special stats.");
+var syntheticGen2 = new PK2 { Species = 25 };
+var gen2Bytes = syntheticGen2.Data.ToArray();
+var gen2Projected = ReadOnlySaveInspector.ProjectPokemon(0, syntheticGen2);
+var gen2Text = ReadOnlyProjectionPresenter.FormatPartySlotDetails(new BoxCell(0, gen2Projected));
+if (gen2Projected.Details?.MechanicsGeneration != 2 ||
+    !gen2Text.Contains("Held item: Core ID") ||
+    !gen2Text.Contains("Gender: Core code") ||
+    !gen2Text.Contains("DVs (0-15; HP derived, Special shared)") ||
+    !syntheticGen2.Data.SequenceEqual(gen2Bytes))
+    throw new Exception("Gen 2 mechanics or immutable projection failed.");
+var modernPlaceholder = projectedPokemon with
+{
+    Details = coreDetails with { MechanicsGeneration = 0 },
+};
+if (!ReadOnlyProjectionPresenter.FormatCellDetails(new BoxCell(2, modernPlaceholder))
+    .Contains("Nature (Core):"))
+    throw new Exception("Modern/unknown mechanics lost provisional raw Core presentation.");
 
 // H-01/HG-01: synthetic ZA gift cloning must be rejected if pinned Core
 // changes the card type/context. This is a source-matched package diagnostic,
@@ -323,6 +352,45 @@ if (!SaveProjectionVerifier.Compare(occupied, expectation).Contains("Party.Count
 if (!SaveProjectionVerifier.Compare(occupied, expectation with { Party = [new ExpectedPokemonSlot(0, 26, "TEST", 5, false, false)] })
     .Contains("Party[0].Species mismatch"))
     throw new Exception("Verifier missed a species mismatch.");
+
+// I-14: equal-value but malformed slot or box metadata must never yield
+// a parity PASS, including when the expected oracle is malformed too.
+var duplicatedObserved = view with
+{
+    PartyCount = 2,
+    Party = [fakeSlot, fakeSlot],
+};
+var duplicatedExpected = expectation with
+{
+    PartyCount = 2,
+    Party = [
+        new ExpectedPokemonSlot(0, 25, "TEST", 5, false, false),
+        new ExpectedPokemonSlot(0, 25, "TEST", 5, false, false),
+    ],
+};
+if (!SaveProjectionVerifier.Compare(duplicatedObserved, duplicatedExpected)
+    .Contains("Party observed duplicate slot index 0") ||
+    !SaveProjectionVerifier.Compare(duplicatedObserved, duplicatedExpected)
+    .Contains("Party expected duplicate slot index 0"))
+    throw new Exception("Duplicate slots falsely passed comparison.");
+var invalidExpected = duplicatedExpected with
+{
+    Party = [new ExpectedPokemonSlot(2, 25, "TEST", 5, false, false)],
+};
+if (!SaveProjectionVerifier.Compare(duplicatedObserved, invalidExpected)
+    .Contains("Party expected slot index out of range"))
+    throw new Exception("Out-of-range oracle slot was not rejected.");
+var reorderedBoxes = expectation with
+{
+    Boxes = expectedBoxes.Select((b, i) => i == 1 ? b with { BoxIndex = 0 } : b).ToArray(),
+};
+if (!SaveProjectionVerifier.Compare(view, reorderedBoxes)
+    .Contains("Boxes[1].BoxIndex expected out of order mismatch"))
+    throw new Exception("Duplicate or reordered oracle box index was accepted.");
+var wrongBoxCount = expectation with { BoxCount = expectation.BoxCount + 1 };
+if (!SaveProjectionVerifier.Compare(view, wrongBoxCount)
+    .Contains("Boxes expected count inconsistent mismatch"))
+    throw new Exception("Oracle box-count inconsistency was accepted.");
 
 // Missing expected JSON fields must be rejected even when a default value would
 // otherwise happen to match an empty save. This prevents false parity passes.

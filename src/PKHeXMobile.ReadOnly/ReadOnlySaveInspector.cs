@@ -151,7 +151,10 @@ public static class ReadOnlySaveInspector
                 new PokemonStatSpread(pokemon.IV_HP, pokemon.IV_ATK, pokemon.IV_DEF,
                     pokemon.IV_SPA, pokemon.IV_SPD, pokemon.IV_SPE),
                 new PokemonStatSpread(pokemon.EV_HP, pokemon.EV_ATK, pokemon.EV_DEF,
-                    pokemon.EV_SPA, pokemon.EV_SPD, pokemon.EV_SPE)));
+                    pokemon.EV_SPA, pokemon.EV_SPD, pokemon.EV_SPE))
+            {
+                MechanicsGeneration = pokemon is PK1 ? 1 : pokemon is PK2 ? 2 : 0,
+            });
     }
 
     private static PokemonSlot ToSlot(int slot, PKM pokemon) => ProjectPokemon(slot, pokemon);
