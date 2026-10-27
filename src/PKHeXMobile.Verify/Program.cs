@@ -6,6 +6,7 @@ using PKHeXMobile.Verify;
 if (args.Length == 1 && args[0] is "--help" or "-h")
 {
     Console.WriteLine("Usage: PKHeXMobile.Verify <local-fixture-manifest.json>");
+    Console.WriteLine("Schema 1 compares basic slots; schema 2 requires every occupied Pokémon detail field.");
     Console.WriteLine("Compares consented local save projections to separately supplied expected values.");
     Console.WriteLine("Never modifies or exports saves. Never commit real save files or private manifests.");
     return 0;
@@ -22,10 +23,10 @@ try
     var manifest = JsonSerializer.Deserialize<FixtureManifest>(
         await File.ReadAllTextAsync(manifestPath),
         new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-    if (manifest is null || manifest.SchemaVersion != 1 || manifest.CoreVersion != "26.10.18" ||
+    if (manifest is null || manifest.SchemaVersion is not (1 or 2) || manifest.CoreVersion != "26.10.18" ||
         manifest.Fixtures is null || manifest.Fixtures.Count == 0)
     {
-        Console.Error.WriteLine("Manifest must declare schemaVersion=1, coreVersion=26.10.18 and nonempty fixtures.");
+        Console.Error.WriteLine("Manifest must declare schemaVersion=1 or 2, coreVersion=26.10.18 and nonempty fixtures.");
         return 64;
     }
 
@@ -69,7 +70,8 @@ try
                 continue;
             }
 
-            var differences = SaveProjectionVerifier.Compare(inspected.Result, fixture.Expected);
+            var differences = SaveProjectionVerifier.Compare(inspected.Result, fixture.Expected,
+                requireDetails: manifest.SchemaVersion == 2);
             if (differences.Count != 0)
             {
                 Console.Error.WriteLine($"Fixture {i + 1}: {differences.Count} projection differences: {string.Join(", ", differences)}");

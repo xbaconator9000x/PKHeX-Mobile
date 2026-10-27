@@ -158,6 +158,29 @@ try
 }
 catch (ArgumentOutOfRangeException) { }
 
+// H-01/HG-01: synthetic ZA gift cloning must be rejected if pinned Core
+// changes the card type/context. This is a source-matched package diagnostic,
+// not gift import, save editing or a real event distribution fixture.
+var zaGift = new WA9 { CardID = 17, CardType = WA9.GiftType.Item };
+var zaOriginalBytes = zaGift.Data.ToArray();
+var nativeZaClone = zaGift.Clone();
+var nativePreservesIdentity = nativeZaClone.GetType() == zaGift.GetType() &&
+    nativeZaClone.Context == zaGift.Context &&
+    nativeZaClone.Data.SequenceEqual(zaGift.Data);
+var guardedZaClone = MysteryGiftCloneIdentity.TryClonePreservingIdentity(zaGift, out var safeZaClone);
+if (guardedZaClone != nativePreservesIdentity ||
+    (guardedZaClone && (safeZaClone is null || safeZaClone.Context != EntityContext.Gen9a)) ||
+    (!guardedZaClone && safeZaClone is not null) ||
+    !zaGift.Data.SequenceEqual(zaOriginalBytes))
+    throw new Exception("ZA gift clone identity guard failed or modified its source.");
+var svGift = new WC9 { CardID = 18 };
+if (!MysteryGiftCloneIdentity.TryClonePreservingIdentity(svGift, out var safeSvClone) ||
+    safeSvClone is not WC9 || safeSvClone.Context != EntityContext.Gen9)
+    throw new Exception("Identity-preserving Gen9 gift clone was refused.");
+Console.WriteLine(nativePreservesIdentity
+    ? "Pinned-Core WA9 clone preserves identity in this binary."
+    : "Pinned-Core WA9 clone loses type/context; guarded clone path refuses it.");
+
 // Provider-neutral end-to-end path: exactly two independent read opens, same bytes.
 int opens = 0;
 var inspected = await ReadOnlyDocumentService.InspectAsync(_ =>
@@ -316,6 +339,68 @@ try
 }
 catch (System.Text.Json.JsonException) { }
 
+
+// Schema v2 independently compares every projected Pokémon detail field.
+// The baseline below is deliberately same-Core synthetic, NOT desktop evidence.
+var d = projectedPokemon.Details!;
+static ExpectedPokemonStatSpread ExpectSpread(PokemonStatSpread x) =>
+    new(x.HP, x.Attack, x.Defense, x.SpecialAttack, x.SpecialDefense, x.Speed);
+var expectedDetails = new ExpectedPokemonReadOnlyDetails(
+    d.Nature, d.AbilityId, d.HeldItemId, d.Gender, d.Form,
+    new ExpectedPokemonMoveIds(d.Moves.First, d.Moves.Second, d.Moves.Third, d.Moves.Fourth),
+    ExpectSpread(d.IndividualValues), ExpectSpread(d.EffortValues));
+var detailExpectedSlot = new ExpectedPokemonSlot(
+    projectedPokemon.SlotIndex, projectedPokemon.Species, projectedPokemon.Nickname,
+    projectedPokemon.Level, projectedPokemon.IsEgg, projectedPokemon.IsShiny)
+{ Details = expectedDetails };
+var detailActual = view with { PartyCount = 3, Party = [projectedPokemon] };
+var detailBaseline = expectation with { PartyCount = 3, Party = [detailExpectedSlot] };
+if (SaveProjectionVerifier.Compare(detailActual, detailBaseline, requireDetails: true).Count != 0)
+    throw new Exception("Schema v2 identical detailed projection did not match.");
+var legacySlot = detailExpectedSlot with { Details = null };
+var legacyBaseline = detailBaseline with { Party = [legacySlot] };
+if (SaveProjectionVerifier.Compare(detailActual, legacyBaseline).Count != 0 ||
+    !SaveProjectionVerifier.Compare(detailActual, legacyBaseline, requireDetails: true)
+        .Contains("Party[0].Details missing"))
+    throw new Exception("Schema v1/v2 detail compatibility or strictness failed.");
+var mutations = new (string Path, ExpectedPokemonReadOnlyDetails Changed)[]
+{
+    ("Nature", expectedDetails with { Nature = "MISMATCH" }),
+    ("AbilityId", expectedDetails with { AbilityId = expectedDetails.AbilityId + 1 }),
+    ("HeldItemId", expectedDetails with { HeldItemId = expectedDetails.HeldItemId + 1 }),
+    ("Gender", expectedDetails with { Gender = (byte)(expectedDetails.Gender + 1) }),
+    ("Form", expectedDetails with { Form = (byte)(expectedDetails.Form + 1) }),
+    ("Moves.First", expectedDetails with { Moves = expectedDetails.Moves with { First = (ushort)(expectedDetails.Moves.First + 1) } }),
+    ("Moves.Second", expectedDetails with { Moves = expectedDetails.Moves with { Second = (ushort)(expectedDetails.Moves.Second + 1) } }),
+    ("Moves.Third", expectedDetails with { Moves = expectedDetails.Moves with { Third = (ushort)(expectedDetails.Moves.Third + 1) } }),
+    ("Moves.Fourth", expectedDetails with { Moves = expectedDetails.Moves with { Fourth = (ushort)(expectedDetails.Moves.Fourth + 1) } }),
+    ("IndividualValues.HP", expectedDetails with { IndividualValues = expectedDetails.IndividualValues with { HP = expectedDetails.IndividualValues.HP + 1 } }),
+    ("IndividualValues.Attack", expectedDetails with { IndividualValues = expectedDetails.IndividualValues with { Attack = expectedDetails.IndividualValues.Attack + 1 } }),
+    ("IndividualValues.Defense", expectedDetails with { IndividualValues = expectedDetails.IndividualValues with { Defense = expectedDetails.IndividualValues.Defense + 1 } }),
+    ("IndividualValues.SpecialAttack", expectedDetails with { IndividualValues = expectedDetails.IndividualValues with { SpecialAttack = expectedDetails.IndividualValues.SpecialAttack + 1 } }),
+    ("IndividualValues.SpecialDefense", expectedDetails with { IndividualValues = expectedDetails.IndividualValues with { SpecialDefense = expectedDetails.IndividualValues.SpecialDefense + 1 } }),
+    ("IndividualValues.Speed", expectedDetails with { IndividualValues = expectedDetails.IndividualValues with { Speed = expectedDetails.IndividualValues.Speed + 1 } }),
+    ("EffortValues.HP", expectedDetails with { EffortValues = expectedDetails.EffortValues with { HP = expectedDetails.EffortValues.HP + 1 } }),
+    ("EffortValues.Attack", expectedDetails with { EffortValues = expectedDetails.EffortValues with { Attack = expectedDetails.EffortValues.Attack + 1 } }),
+    ("EffortValues.Defense", expectedDetails with { EffortValues = expectedDetails.EffortValues with { Defense = expectedDetails.EffortValues.Defense + 1 } }),
+    ("EffortValues.SpecialAttack", expectedDetails with { EffortValues = expectedDetails.EffortValues with { SpecialAttack = expectedDetails.EffortValues.SpecialAttack + 1 } }),
+    ("EffortValues.SpecialDefense", expectedDetails with { EffortValues = expectedDetails.EffortValues with { SpecialDefense = expectedDetails.EffortValues.SpecialDefense + 1 } }),
+    ("EffortValues.Speed", expectedDetails with { EffortValues = expectedDetails.EffortValues with { Speed = expectedDetails.EffortValues.Speed + 1 } }),
+};
+foreach (var (field, changedDetails) in mutations)
+{
+    var changedBaseline = detailBaseline with
+    { Party = [detailExpectedSlot with { Details = changedDetails }] };
+    if (!SaveProjectionVerifier.Compare(detailActual, changedBaseline, requireDetails: true)
+        .Contains("Party[0].Details." + field + " mismatch"))
+        throw new Exception("Schema v2 failed to detect mismatch: " + field);
+}
+try
+{
+    System.Text.Json.JsonSerializer.Deserialize<ExpectedPokemonReadOnlyDetails>("{\"nature\":\"TEST\"}");
+    throw new Exception("Incomplete nested detail JSON was accepted.");
+}
+catch (System.Text.Json.JsonException) { }
 
 // Pure presentation is bounded to one box and must preserve source slot indices.
 var sparse = view with

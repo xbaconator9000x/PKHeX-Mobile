@@ -13,7 +13,35 @@ public sealed record ExpectedPokemonSlot(
     [property: JsonRequired] string Nickname,
     [property: JsonRequired] int Level,
     [property: JsonRequired] bool IsEgg,
-    [property: JsonRequired] bool IsShiny);
+    [property: JsonRequired] bool IsShiny)
+{
+    // Optional in schema v1; required and fully compared in schema v2.
+    public ExpectedPokemonReadOnlyDetails? Details { get; init; }
+}
+
+public sealed record ExpectedPokemonMoveIds(
+    [property: JsonRequired] ushort First,
+    [property: JsonRequired] ushort Second,
+    [property: JsonRequired] ushort Third,
+    [property: JsonRequired] ushort Fourth);
+
+public sealed record ExpectedPokemonStatSpread(
+    [property: JsonRequired] int HP,
+    [property: JsonRequired] int Attack,
+    [property: JsonRequired] int Defense,
+    [property: JsonRequired] int SpecialAttack,
+    [property: JsonRequired] int SpecialDefense,
+    [property: JsonRequired] int Speed);
+
+public sealed record ExpectedPokemonReadOnlyDetails(
+    [property: JsonRequired] string Nature,
+    [property: JsonRequired] int AbilityId,
+    [property: JsonRequired] int HeldItemId,
+    [property: JsonRequired] byte Gender,
+    [property: JsonRequired] byte Form,
+    [property: JsonRequired] ExpectedPokemonMoveIds Moves,
+    [property: JsonRequired] ExpectedPokemonStatSpread IndividualValues,
+    [property: JsonRequired] ExpectedPokemonStatSpread EffortValues);
 
 public sealed record ExpectedBoxSnapshot(
     [property: JsonRequired] int BoxIndex,
@@ -43,7 +71,7 @@ public sealed record ExpectedSaveProjection(
 /// </summary>
 public static class SaveProjectionVerifier
 {
-    public static IReadOnlyList<string> Compare(SaveReadOnlyResult actual, ExpectedSaveProjection expected)
+    public static IReadOnlyList<string> Compare(SaveReadOnlyResult actual, ExpectedSaveProjection expected, bool requireDetails = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -112,7 +140,74 @@ public static class SaveProjectionVerifier
                 Check(a.Level == e.Level, $"{path}[{i}].Level");
                 Check(a.IsEgg == e.IsEgg, $"{path}[{i}].IsEgg");
                 Check(a.IsShiny == e.IsShiny, $"{path}[{i}].IsShiny");
+                var detailPath = $"{path}[{i}].Details";
+                if (e.Details is null)
+                {
+                    if (requireDetails)
+                        errors.Add($"{detailPath} missing");
+                }
+                else if (a.Details is null)
+                    errors.Add($"{detailPath} missing from observed projection");
+                else
+                    CompareDetails(a.Details, e.Details, detailPath);
             }
         }
+
+        void CompareDetails(PokemonReadOnlyDetails a, ExpectedPokemonReadOnlyDetails e, string path)
+        {
+            Check(a.Nature == e.Nature, $"{path}.Nature");
+            Check(a.AbilityId == e.AbilityId, $"{path}.AbilityId");
+            Check(a.HeldItemId == e.HeldItemId, $"{path}.HeldItemId");
+            Check(a.Gender == e.Gender, $"{path}.Gender");
+            Check(a.Form == e.Form, $"{path}.Form");
+            if (e.Moves is null)
+                errors.Add($"{path}.Moves missing");
+            else
+            {
+                Check(a.Moves.First == e.Moves.First, $"{path}.Moves.First");
+                Check(a.Moves.Second == e.Moves.Second, $"{path}.Moves.Second");
+                Check(a.Moves.Third == e.Moves.Third, $"{path}.Moves.Third");
+                Check(a.Moves.Fourth == e.Moves.Fourth, $"{path}.Moves.Fourth");
+            }
+            CompareSpread(a.IndividualValues, e.IndividualValues, $"{path}.IndividualValues");
+            CompareSpread(a.EffortValues, e.EffortValues, $"{path}.EffortValues");
+        }
+
+        void CompareSpread(PokemonStatSpread a, ExpectedPokemonStatSpread? e, string path)
+        {
+            if (e is null)
+            {
+                errors.Add($"{path} missing");
+                return;
+            }
+            Check(a.HP == e.HP, $"{path}.HP");
+            Check(a.Attack == e.Attack, $"{path}.Attack");
+            Check(a.Defense == e.Defense, $"{path}.Defense");
+            Check(a.SpecialAttack == e.SpecialAttack, $"{path}.SpecialAttack");
+            Check(a.SpecialDefense == e.SpecialDefense, $"{path}.SpecialDefense");
+            Check(a.Speed == e.Speed, $"{path}.Speed");
+        }
+    }
+}
+
+/// <summary>
+/// Fail-closed guard for future read-only gift inspection. Core's clone method
+/// is not assumed to preserve the template type or game context (notably WA9).
+/// Never authorize a gift edit, import or export based on a successful clone.
+/// </summary>
+public static class MysteryGiftCloneIdentity
+{
+    public static bool TryClonePreservingIdentity(PKHeX.Core.MysteryGift original,
+        out PKHeX.Core.MysteryGift? clone)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        clone = null;
+        var candidate = original.Clone();
+        if (candidate.GetType() != original.GetType() ||
+            candidate.Context != original.Context ||
+            !candidate.Data.SequenceEqual(original.Data))
+            return false;
+        clone = candidate;
+        return true;
     }
 }
