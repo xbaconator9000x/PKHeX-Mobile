@@ -16,6 +16,11 @@ class ScaffoldTests(unittest.TestCase):
         self.assertIn("Version 3, 29 June 2007", body)
         self.assertGreater(len(body), 30000)
 
+    def test_readme_stays_nondescript(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertTrue(readme.startswith("# This is a test.\n\n"),
+                        "Keep the README's public-facing opening generic.")
+
     def test_binary_files_must_not_be_committed(self):
         self.assertTrue({".gba", ".sav", ".apk", ".jks"}.issubset(FORBIDDEN_SUFFIXES))
 
