@@ -1,5 +1,7 @@
 # Source-level comparison plan
 
+> [Android follow-up source audit, pass E (2026-10-28)](UPSTREAM_ANDROID_FOLLOWUP_REVIEW_2026-10-28.md) — 16 source-backed findings, updated Android cancellation/box/CI status and upstream transaction risks.
+> [Android follow-up execution gates, pass E (2026-10-28)](PARITY_ANDROID_FOLLOWUP_GATES_2026-10-28.md) — 24 targeted unexecuted acceptance scenarios; no device/desktop certification.
 > [Android prototype, lifecycle, build and UI source audit, pass D (2026-10-28)](UPSTREAM_ANDROID_PROTOTYPE_REVIEW_2026-10-28.md) — verified first Android build, CI trigger gap, URI identity limitations, lifecycle and source-level UI comparisons.
 > [Android device, lifecycle and reproducibility gates, pass D (2026-10-28)](PARITY_ANDROID_DEVICE_GATES_2026-10-28.md) — 22 proposed provider, lifecycle, UI and build acceptance scenarios; none claimed device-executed.
 > [Pinned I/O, container and bank integrity audit, pass C (2026-10-28)](UPSTREAM_IO_BANK_REVIEW_2026-10-28.md) — source-backed SAF publication, bank replacement, backup durability and emulator-envelope findings.
