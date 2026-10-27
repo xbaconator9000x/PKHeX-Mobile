@@ -1,5 +1,9 @@
 # Source-level comparison plan
 
+> [Entity identity, conversion and PKM field semantics, pass I (2026-10-28)](UPSTREAM_ENTITY_CONVERSION_REVIEW_2026-10-28.md) — 24 source-backed findings, eight same-source Git blobs verified against Core 26.10.18 and Gen 1/2 field caveats.
+> [Entity conversion and format acceptance gates, pass I (2026-10-28)](PARITY_ENTITY_CONVERSION_GATES_2026-10-28.md) — 32 proposed tests; none executed or certified.
+
+
 > [Mystery Gift, stored-card and event archive source audit, pass H (2026-10-28)](UPSTREAM_MYSTERY_GIFT_REVIEW_2026-10-28.md) — 20 pinned source findings including WA9 clone/context, Gen5 encryption, mobile gesture routing and gift delivery transactions.
 > [Mystery Gift execution gates, pass H (2026-10-28)](PARITY_MYSTERY_GIFT_GATES_2026-10-28.md) — 27 proposed tests; none executed or certified.
 
