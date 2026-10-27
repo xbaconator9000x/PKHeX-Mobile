@@ -15,6 +15,10 @@ The mobile adapter uses **PKHeX.Core 26.10.18** (source release `bfe89c74a3f5265
 
 **Verified source counts:** **20 findings** (7 P0, 13 P1); **27 proposed, unexecuted gates**; 15 explicit extension-aware gift parser switch arms; 9 Forge event database context routes (Gen4, 5, 6, 7, 7b, 8, 8a, 8b, 9; **no Gen9a**). Counts refer only to the cited source bodies, not working features or tested parity.
 
+### Same-version Core source reconciliation (important H-01 refinement)
+
+The **PKHeX.Core 26.10.18 source-release commit** [`bfe89c74a3f5265805e364b79bc04ad38ebbc5ea`](https://github.com/kwsch/PKHeX/tree/bfe89c74a3f5265805e364b79bc04ad38ebbc5ea) contains the **same Git blob SHA `1f3ce0ceb2d322e98841dc37191aa9d0f94d4f36`** for [`WA9.cs` lines 10–22](https://github.com/kwsch/PKHeX/blob/bfe89c74a3f5265805e364b79bc04ad38ebbc5ea/PKHeX.Core/MysteryGifts/WA9.cs#L10-L22) as the newer audited commit. Both source revisions declare `WA9.Clone(): WC9` and `EntityContext.Gen9a`. This raises H-01 from a newer-source-only concern to a **source-matched concern for the mobile package version**, but it is **still not a verified NuGet-binary behavior or executed failing test**. The implementation watchdog should prioritize the HG-01 synthetic runtime check against the resolved 26.10.18 package and isolate any ZA card clone operations until it passes.
+
 ## Source findings and implementer handoff
 
 | ID | Priority | Observed source behavior / bounded risk | Immutable evidence | Actionable implementer task |
