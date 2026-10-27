@@ -102,7 +102,8 @@ public static class ReadOnlySaveInspector
                         if (pokemon.Species != 0)
                             occupied.Add(ToSlot(slot, pokemon));
                     }
-                    boxes.Add(new BoxSnapshot(box, occupied.ToArray()));
+                    // Do not expose a mutable array behind IReadOnlyList.
+                    boxes.Add(new BoxSnapshot(box, occupied.AsReadOnly()));
                 }
             }
 
@@ -116,8 +117,8 @@ public static class ReadOnlySaveInspector
                 save.PartyCount,
                 save.BoxCount,
                 save.BoxSlotCount,
-                party.ToArray(),
-                boxes.ToArray(),
+                party.AsReadOnly(),
+                boxes.AsReadOnly(),
                 snapshot.Fingerprint);
             reason = string.Empty;
             return true;

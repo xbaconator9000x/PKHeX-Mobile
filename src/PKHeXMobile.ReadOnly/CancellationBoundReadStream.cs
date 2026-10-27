@@ -23,14 +23,7 @@ public sealed class CancellationBoundReadStream : Stream
         _inner = inner;
         _lifetime = lifetime;
         _registration = lifetime.Register(static state =>
-        {
-            // Do not block Android's Cancel button on a misbehaving provider.
-            ThreadPool.QueueUserWorkItem(static item =>
-            {
-                try { ((CancellationBoundReadStream)item!).CloseInner(); }
-                catch (Exception) { /* provider cleanup must not crash the process */ }
-            }, state);
-        }, this);
+            ((CancellationBoundReadStream)state!).QueueCloseInner(), this);
     }
 
     public override bool CanRead => Volatile.Read(ref _innerClosed) == 0 && _inner.CanRead;
@@ -81,8 +74,13 @@ public sealed class CancellationBoundReadStream : Stream
         _lifetime.ThrowIfCancellationRequested();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             _lifetime, cancellationToken);
+        // A SAF provider may ignore per-call cancellation until its descriptor
+        // closes. Queue closure without blocking the caller or Android UI.
+        using var readRegistration = cancellationToken.Register(static state =>
+            ((CancellationBoundReadStream)state!).QueueCloseInner(), this);
         try
         {
+            linked.Token.ThrowIfCancellationRequested();
             int read = await _inner.ReadAsync(buffer, linked.Token).ConfigureAwait(false);
             linked.Token.ThrowIfCancellationRequested();
             return read;
@@ -103,6 +101,15 @@ public sealed class CancellationBoundReadStream : Stream
     public override void SetLength(long value) => throw new NotSupportedException();
     public override void Write(byte[] buffer, int offset, int count) =>
         throw new NotSupportedException();
+
+    private void QueueCloseInner()
+    {
+        ThreadPool.QueueUserWorkItem(static state =>
+        {
+            try { ((CancellationBoundReadStream)state!).CloseInner(); }
+            catch (Exception) { /* provider cleanup must not crash the process */ }
+        }, this);
+    }
 
     private void CloseInner()
     {

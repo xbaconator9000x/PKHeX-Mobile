@@ -116,6 +116,9 @@ public sealed class MainActivity : Activity
         if (_destroyed || _pickerPending || _activeInspection is not null)
             return;
 
+        // Never retain the previous save's private data when a new picker is
+        // opened, including when that picker is subsequently cancelled.
+        ClearProjection();
         // Never infer a filesystem path, persist URI grants or request writes.
         var intent = new Intent(Intent.ActionOpenDocument);
         intent.AddCategory(Intent.CategoryOpenable);
@@ -313,7 +316,8 @@ public sealed class MainActivity : Activity
         if (_currentResult is null || _boxGrid is null || _boxDetails is null)
             return;
         _boxGrid.RemoveAllViews();
-        var cells = ReadOnlyProjectionPresenter.BoxCells(_currentResult, selectedIndex);
+        var displayedResult = _currentResult;
+        var cells = ReadOnlyProjectionPresenter.BoxCells(displayedResult, selectedIndex);
         _boxGrid.Visibility = ViewStates.Visible;
         _boxDetails.Text = "Select a slot to inspect it. Editing is disabled.";
 
@@ -346,7 +350,8 @@ public sealed class MainActivity : Activity
                 slot.SetPadding(4, 12, 4, 12);
                 slot.Click += (_, _) =>
                 {
-                    if (_currentResult is not null && _boxDetails is not null)
+                    // Refuse queued clicks from a previously inspected document.
+                    if (ReferenceEquals(_currentResult, displayedResult) && _boxDetails is not null)
                         _boxDetails.Text = detail;
                 };
                 row.AddView(slot, new TableRow.LayoutParams(

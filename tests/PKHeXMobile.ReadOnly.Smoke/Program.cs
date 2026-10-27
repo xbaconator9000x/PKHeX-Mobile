@@ -140,6 +140,27 @@ if (view.CoreSaveType != nameof(SAV1) || view.Generation != 1 || view.TrainerId 
 if (!syntheticSnapshot.Matches(syntheticBytes))
     throw new Exception("Inspection modified its source snapshot.");
 
+// The published projection must be truly immutable, not a mutable array
+// hidden behind IReadOnlyList. A caller cannot alter another view/session.
+static void MustRefuseCollectionMutation<T>(IReadOnlyList<T> source, T candidate)
+{
+    if (source is not IList<T> list)
+        return; // A genuinely read-only custom collection is also acceptable.
+    try
+    {
+        list.Add(candidate);
+        throw new Exception("Read-only projection exposed a mutable collection.");
+    }
+    catch (NotSupportedException) { }
+}
+MustRefuseCollectionMutation(view.Party, new PokemonSlot(0, 25, "TEST", 5, false, false));
+MustRefuseCollectionMutation(view.Boxes, new BoxSnapshot(0, []));
+MustRefuseCollectionMutation(view.Boxes[0].OccupiedSlots,
+    new PokemonSlot(0, 25, "TEST", 5, false, false));
+if (!syntheticSnapshot.Matches(syntheticBytes) || view.Boxes.Count != 12 ||
+    view.Boxes[0].OccupiedSlots.Count != 0)
+    throw new Exception("Attempted projection mutation changed the save or slots.");
+
 // Project actual pinned-Core PKM fields into immutable scalars without mutating
 // the source. This is not an independent desktop parity or legal-Pokémon fixture.
 var syntheticPokemon = new PK1 { Species = 25, Move1 = 33, Move2 = 45, EV_HP = 123 };
@@ -392,6 +413,30 @@ if (!SaveProjectionVerifier.Compare(view, wrongBoxCount)
     .Contains("Boxes expected count inconsistent mismatch"))
     throw new Exception("Oracle box-count inconsistency was accepted.");
 
+// JsonRequired does not reject explicit null values; malformed projections
+// must fail cleanly, even when both sides contain matching nulls.
+if (!SaveProjectionVerifier.Compare(view, expectation with { Party = null! })
+    .Contains("Party missing from expectation"))
+    throw new Exception("Null expected party was not rejected.");
+if (!SaveProjectionVerifier.Compare(view with { Boxes = null! }, expectation)
+    .Contains("Boxes missing from observed projection"))
+    throw new Exception("Null observed boxes were not rejected.");
+if (!SaveProjectionVerifier.Compare(occupied, expectation with { Party = [null!] })
+    .Any(x => x.Contains("null occupied slot")))
+    throw new Exception("Null occupied Pokémon was not rejected.");
+if (!SaveProjectionVerifier.Compare(view, expectation with { Boxes = [null!] })
+    .Contains("Projection contains a null box or occupied slot list"))
+    throw new Exception("Null box was not rejected.");
+if (!SaveProjectionVerifier.Compare(view with { TrainerName = null! },
+        expectation with { TrainerName = null! }).Contains("TrainerName null mismatch"))
+    throw new Exception("Matching null trainer names falsely passed.");
+var nullNicknameObserved = occupied with { Party = [fakeSlot with { Nickname = null! }] };
+var nullNicknameExpected = expectation with
+{ Party = [new ExpectedPokemonSlot(0, 25, null!, 5, false, false)] };
+if (!SaveProjectionVerifier.Compare(nullNicknameObserved, nullNicknameExpected)
+    .Contains("Party[0].Nickname null mismatch"))
+    throw new Exception("Matching null nicknames falsely passed.");
+
 // Missing expected JSON fields must be rejected even when a default value would
 // otherwise happen to match an empty save. This prevents false parity passes.
 try
@@ -601,6 +646,22 @@ using (var cancellation = new CancellationTokenSource())
     await MustThrowAsync<OperationCanceledException>(() => pendingRead);
     if (!blocked.WasDisposed)
         throw new Exception("Provider descriptor was not closed on cancellation.");
+}
+// A separate per-call token must close a blocked provider even when the
+// Activity lifetime remains live. This is synthetic, not a device guarantee.
+using (var lifetime = new CancellationTokenSource())
+using (var readCancellation = new CancellationTokenSource())
+{
+    var blocked = new BlockingReadStream();
+    await using var bound = new CancellationBoundReadStream(blocked, lifetime.Token);
+    var pendingRead = bound.ReadAsync(new byte[8].AsMemory(), readCancellation.Token).AsTask();
+    await blocked.Started.WaitAsync(TimeSpan.FromSeconds(5));
+    readCancellation.Cancel();
+    if (await Task.WhenAny(pendingRead, Task.Delay(TimeSpan.FromSeconds(5))) != pendingRead)
+        throw new Exception("Per-call cancellation did not close the synthetic provider.");
+    await MustThrowAsync<OperationCanceledException>(() => pendingRead);
+    if (!blocked.WasDisposed || lifetime.IsCancellationRequested)
+        throw new Exception("Per-call cancellation did not independently close the descriptor.");
 }
 using (var cancellation = new CancellationTokenSource())
 {
