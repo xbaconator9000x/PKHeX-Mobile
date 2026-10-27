@@ -515,6 +515,114 @@ try
 }
 catch (System.Text.Json.JsonException) { }
 
+// RMG-36: typed, immutable, explicitly partial Gen 9 award/memory inspection.
+// This is same-Core synthetic coverage, NOT an independent desktop fixture.
+var awardPokemon = new PK9 { Species = 25 };
+awardPokemon.RibbonChampionPaldea = true;
+awardPokemon.RibbonPartner = true; // index 110, omitted by the audited MAUI loop.
+awardPokemon.RibbonMarkJumbo = true;
+awardPokemon.RibbonMarkPartner = true;
+awardPokemon.RibbonCountMemoryContest = 7;
+awardPokemon.RibbonCountMemoryBattle = 3;
+awardPokemon.HasContestMemoryRibbon = true;
+awardPokemon.HasBattleMemoryRibbon = true;
+awardPokemon.AffixedRibbon = 110;
+awardPokemon.OriginalTrainerMemory = 5;
+awardPokemon.OriginalTrainerMemoryIntensity = 2;
+awardPokemon.OriginalTrainerMemoryFeeling = 3;
+awardPokemon.OriginalTrainerMemoryVariable = 12;
+awardPokemon.HandlingTrainerMemory = 4;
+awardPokemon.HandlingTrainerMemoryIntensity = 1;
+awardPokemon.HandlingTrainerMemoryFeeling = 2;
+awardPokemon.HandlingTrainerMemoryVariable = 9;
+var awardBytes = awardPokemon.Data.ToArray();
+var awardProjected = ReadOnlySaveInspector.ProjectPokemon(0, awardPokemon);
+var awardView = awardProjected.Details!.Awards;
+if (!awardPokemon.Data.SequenceEqual(awardBytes) ||
+    awardView.Gen9Flags.Count != 11 ||
+    awardView.Gen9Flags.Count(f => f.Owned) != 4 ||
+    !awardView.Gen9Flags.Any(f => f.Name == "RibbonPartner" && f.Owned) ||
+    awardView.ContestMemoryCount != 7 || awardView.BattleMemoryCount != 3 ||
+    awardView.AffixedRibbon != 110 ||
+    awardView.OriginalTrainerMemory?.Feeling != 3 ||
+    awardView.HandlingTrainerMemory?.Variable != 9)
+    throw new Exception("Typed Gen9 awards/memories lost fields or changed source bytes.");
+if (awardView.Gen9Flags is List<PokemonAwardFlag> ||
+    awardView.Gen9Flags is PokemonAwardFlag[])
+    throw new Exception("Award flags expose a mutable collection.");
+var awardText = ReadOnlyProjectionPresenter.FormatPartySlotDetails(new BoxCell(0, awardProjected));
+if (!awardText.Contains("Gen 9 typed ribbon/mark subset") ||
+    !awardText.Contains("RibbonPartner") ||
+    !awardText.Contains("Affixed ribbon index (raw; -1 means none): 110") ||
+    !awardText.Contains("OT memory (raw): ID 5"))
+    throw new Exception("Read-only award/memory presentation is missing or misleading.");
+if (projectedPokemon.Details!.Awards.Gen9Flags.Count != 0 ||
+    projectedPokemon.Details.Awards.AffixedRibbon is not null)
+    throw new Exception("Gen1 was incorrectly assigned Gen9 ribbon mechanics.");
+// Verify no memory or ribbon projection is changed by later mutation of source.
+awardPokemon.RibbonPartner = false;
+awardPokemon.OriginalTrainerMemoryFeeling = 8;
+if (!awardView.Gen9Flags.Any(f => f.Name == "RibbonPartner" && f.Owned) ||
+    awardView.OriginalTrainerMemory?.Feeling != 3)
+    throw new Exception("Award snapshot was not detached from the mutable Core entity.");
+
+// Schema v3 field-level mutation checks. This oracle is same-Core synthetic;
+// it MUST NOT be counted as independent desktop parity.
+static ExpectedPokemonMemoryReadOnly? ExpectMemory(PokemonMemoryReadOnly? m) =>
+    m is null ? null : new(m.Memory, m.Intensity, m.Feeling, m.Variable);
+var awardExpected = new ExpectedPokemonAwardsReadOnly(
+    awardView.Gen9Flags.Select(f => new ExpectedPokemonAwardFlag(f.Name, f.Owned)).ToArray(),
+    awardView.ContestMemoryCount, awardView.BattleMemoryCount,
+    awardView.HasContestMemoryRibbon, awardView.HasBattleMemoryRibbon,
+    awardView.AffixedRibbon, ExpectMemory(awardView.OriginalTrainerMemory),
+    ExpectMemory(awardView.HandlingTrainerMemory));
+var awardDetails = awardProjected.Details!;
+var awardExpectedDetails = new ExpectedPokemonReadOnlyDetails(
+    awardDetails.Nature, awardDetails.AbilityId, awardDetails.HeldItemId,
+    awardDetails.Gender, awardDetails.Form,
+    new ExpectedPokemonMoveIds(awardDetails.Moves.First, awardDetails.Moves.Second,
+        awardDetails.Moves.Third, awardDetails.Moves.Fourth),
+    ExpectSpread(awardDetails.IndividualValues), ExpectSpread(awardDetails.EffortValues))
+{ Awards = awardExpected };
+var awardExpectedSlot = new ExpectedPokemonSlot(0, awardProjected.Species,
+    awardProjected.Nickname, awardProjected.Level, awardProjected.IsEgg, awardProjected.IsShiny)
+{ Details = awardExpectedDetails };
+var awardActualSave = view with { PartyCount = 1, Party = [awardProjected] };
+var awardExpectedSave = expectation with { PartyCount = 1, Party = [awardExpectedSlot] };
+if (SaveProjectionVerifier.Compare(awardActualSave, awardExpectedSave,
+    requireAwards: true).Count != 0)
+    throw new Exception("Schema v3 typed award parity baseline failed.");
+void MustDetectAwardChange(ExpectedPokemonAwardsReadOnly changed, string field)
+{
+    var changedExpected = awardExpectedSave with { Party = [awardExpectedSlot with
+        { Details = awardExpectedDetails with { Awards = changed } }] };
+    if (!SaveProjectionVerifier.Compare(awardActualSave, changedExpected,
+        requireAwards: true).Any(error => error.Contains(field)))
+        throw new Exception("Schema v3 missed award mismatch: " + field);
+}
+MustDetectAwardChange(awardExpected with { AffixedRibbon = -1 }, "AffixedRibbon");
+MustDetectAwardChange(awardExpected with { ContestMemoryCount = 8 }, "ContestMemoryCount");
+MustDetectAwardChange(awardExpected with { BattleMemoryCount = 4 }, "BattleMemoryCount");
+MustDetectAwardChange(awardExpected with { HasContestMemoryRibbon = false }, "HasContestMemoryRibbon");
+MustDetectAwardChange(awardExpected with { HasBattleMemoryRibbon = false }, "HasBattleMemoryRibbon");
+MustDetectAwardChange(awardExpected with { OriginalTrainerMemory = awardExpected.OriginalTrainerMemory! with { Feeling = 4 } }, "OriginalTrainerMemory.Feeling");
+MustDetectAwardChange(awardExpected with { HandlingTrainerMemory = awardExpected.HandlingTrainerMemory! with { Variable = 10 } }, "HandlingTrainerMemory.Variable");
+MustDetectAwardChange(awardExpected with { Gen9Flags = awardExpected.Gen9Flags.Select((f, i) =>
+    i == 2 ? f with { Owned = false } : f).ToArray() }, "Gen9Flags[2].Owned");
+MustDetectAwardChange(awardExpected with { Gen9Flags = [new ExpectedPokemonAwardFlag("RibbonFake", true)] }, "invalid typed subset");
+MustDetectAwardChange(awardExpected with { Gen9Flags = null! }, "Gen9Flags missing");
+var absentAwards = awardExpectedSave with { Party = [awardExpectedSlot with
+    { Details = awardExpectedDetails with { Awards = null } }] };
+if (!SaveProjectionVerifier.Compare(awardActualSave, absentAwards,
+    requireAwards: true).Contains("Party[0].Details.Awards missing"))
+    throw new Exception("Schema v3 accepted absent award details.");
+try
+{
+    System.Text.Json.JsonSerializer.Deserialize<ExpectedPokemonAwardsReadOnly>("{\"gen9Flags\":[]}");
+    throw new Exception("Schema v3 accepted incomplete award JSON.");
+}
+catch (System.Text.Json.JsonException) { }
+
 // Pure presentation is bounded to one box and must preserve source slot indices.
 var sparse = view with
 {
@@ -687,4 +795,5 @@ if (ReadOnlyGridLayout.ColumnsForWidth(400, 1f) != 6 ||
 
 Console.WriteLine("Pinned Core reader: synthetic negatives, RZIP and hack-risk cases, near-miss checks, 1 same-Core synthetic Gen 1 positive and PK1 scalar detail projection.");
 Console.WriteLine("Provider-neutral read service: two-open success, identity-aware same-byte replacement refusal, missing identity, null stream, stale bytes, revoked provider and cancellation passed.");
+Console.WriteLine("Typed Gen9 award/memory subset: synthetic projection, immutable flags, display and schema v3 mutation checks passed.");
 Console.WriteLine("No independently verified real-world fixture, Android device, format certification or export has been tested.");

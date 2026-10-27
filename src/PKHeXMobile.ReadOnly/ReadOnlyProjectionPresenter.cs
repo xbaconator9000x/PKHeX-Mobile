@@ -164,10 +164,41 @@ public static class ReadOnlyProjectionPresenter
                 text.AppendLine().Append("Core EV/stat-exp values (game-dependent): ")
                     .Append(FormatSpread(details.EffortValues));
             }
+            AppendTypedAwards(text, details.Awards);
             text.AppendLine().Append("Values are provisional; legality is not evaluated.");
         }
         return text.ToString();
     }
+
+    private static void AppendTypedAwards(StringBuilder text, PokemonAwardsReadOnly awards)
+    {
+        // A typed subset only; missing interfaces do not mean missing ribbons.
+        if (awards.Gen9Flags.Count != 0)
+        {
+            var owned = awards.Gen9Flags.Where(flag => flag.Owned).Select(flag => flag.Name).ToArray();
+            text.AppendLine().Append("Gen 9 typed ribbon/mark subset (not full inventory or legality): ")
+                .Append(owned.Length).Append('/').Append(awards.Gen9Flags.Count).Append(" owned");
+            if (owned.Length != 0)
+                text.Append(" [").Append(string.Join(", ", owned)).Append(']');
+        }
+        if (awards.ContestMemoryCount is { } contest && awards.BattleMemoryCount is { } battle)
+            text.AppendLine().Append("Memory ribbon counts (raw): contest ").Append(contest)
+                .Append(", battle ").Append(battle)
+                .Append("; presence flags ").Append(awards.HasContestMemoryRibbon)
+                .Append('/').Append(awards.HasBattleMemoryRibbon);
+        if (awards.AffixedRibbon is { } affixed)
+            text.AppendLine().Append("Affixed ribbon index (raw; -1 means none): ").Append(affixed);
+        if (awards.OriginalTrainerMemory is { } ot)
+            AppendMemory(text, "OT memory (raw)", ot);
+        if (awards.HandlingTrainerMemory is { } ht)
+            AppendMemory(text, "HT memory (raw)", ht);
+    }
+
+    private static void AppendMemory(StringBuilder text, string label, PokemonMemoryReadOnly memory) =>
+        text.AppendLine().Append(label).Append(": ID ").Append(memory.Memory)
+            .Append(", intensity ").Append(memory.Intensity)
+            .Append(", feeling ").Append(memory.Feeling)
+            .Append(", variable ").Append(memory.Variable);
 
     private static string FormatClassicSpread(PokemonStatSpread s) =>
         "HP " + s.HP + ", Atk " + s.Attack + ", Def " + s.Defense +

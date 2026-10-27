@@ -23,4 +23,7 @@ public sealed record PokemonReadOnlyDetails(
     // 1/2 identifies original Game Boy mechanics; 0 means unknown/other.
     // This is presentation context, NEVER format identity or write authority.
     public int MechanicsGeneration { get; init; }
+
+    // Explicitly partial, typed, read-only subset. Never a legality verdict.
+    public PokemonAwardsReadOnly Awards { get; init; } = PokemonAwardsReadOnly.Empty;
 }
