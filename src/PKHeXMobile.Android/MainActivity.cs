@@ -92,25 +92,19 @@ public sealed class MainActivity : Activity
 
         try
         {
-            // A provider's authority/document ID is only an identity hint.
-            // The service still requires two independent byte-identical reads.
-            DocumentSourceIdentity? identity = null;
-            if (!string.IsNullOrWhiteSpace(uri.Authority) &&
-                DocumentsContract.IsDocumentUri(this, uri))
-            {
-                var documentId = DocumentsContract.GetDocumentId(uri);
-                if (!string.IsNullOrWhiteSpace(documentId))
-                    identity = new DocumentSourceIdentity(uri.Authority!, documentId);
-            }
-
             var resolver = ContentResolver ?? throw new IOException("No content resolver.");
-            var inspection = await ReadOnlyDocumentService.InspectWithIdentityAsync(token =>
-            {
-                token.ThrowIfCancellationRequested();
-                Stream stream = resolver.OpenInputStream(uri)
-                    ?? throw new IOException("The selected provider returned no read stream.");
-                return ValueTask.FromResult(new DocumentReadHandle(stream, identity));
-            }, _lifetime.Token);
+            // Core parsing and provider I/O must not block the Android UI thread.
+            // The URI-derived document ID is re-evaluated on each open; it is
+            // only an identity hint, never a trusted provider revision token.
+            var inspection = await Task.Run(() =>
+                ReadOnlyDocumentService.InspectWithIdentityAsync(token =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    var identity = GetDocumentIdentity(uri);
+                    Stream stream = resolver.OpenInputStream(uri)
+                        ?? throw new IOException("The selected provider returned no read stream.");
+                    return ValueTask.FromResult(new DocumentReadHandle(stream, identity));
+                }, _lifetime.Token), _lifetime.Token);
 
             if (_lifetime.IsCancellationRequested)
                 return;
@@ -129,7 +123,7 @@ public sealed class MainActivity : Activity
             if (_details is not null)
                 _details.Text = FormatResult(inspection);
         }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        catch (System.OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
             // The activity was destroyed; do not publish stale results.
         }
@@ -150,12 +144,25 @@ public sealed class MainActivity : Activity
         }
     }
 
+    private DocumentSourceIdentity? GetDocumentIdentity(global::Android.Net.Uri uri)
+    {
+        // The document ID is encoded in the selected URI. Re-reading it does
+        // not prove the provider has not silently replaced the document; byte
+        // equality remains mandatory and no write authorization follows.
+        if (string.IsNullOrWhiteSpace(uri.Authority) ||
+            !DocumentsContract.IsDocumentUri(this, uri))
+            return null;
+        var documentId = DocumentsContract.GetDocumentId(uri);
+        return string.IsNullOrWhiteSpace(documentId)
+            ? null : new DocumentSourceIdentity(uri.Authority!, documentId);
+    }
+
     private static string FormatResult(ReadOnlyDocumentInspection inspection)
     {
         var save = inspection.Result!;
         var text = new StringBuilder();
-        text.AppendLine("Provider identity checked twice: " +
-            (inspection.SourceIdentityConfirmed ? "yes (not authenticated)" : "unavailable"));
+        text.AppendLine("URI document-ID hint stable across opens: " +
+            (inspection.SourceIdentityConfirmed ? "yes (not authoritative)" : "unavailable"));
         text.AppendLine("Core type: " + save.CoreSaveType);
         text.AppendLine("Game: " + save.GameVersion + " | Generation: " + save.Generation);
         text.AppendLine("Trainer: " + save.TrainerName);

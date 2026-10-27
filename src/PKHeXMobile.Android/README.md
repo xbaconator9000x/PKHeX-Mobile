@@ -14,6 +14,6 @@ dotnet workload install android
 dotnet build src/PKHeXMobile.Android/PKHeXMobile.Android.csproj -c Debug
 ```
 
-The separate Android CI workflow runs only for changes to this project or on manual dispatch, with a bounded job timeout to avoid imposing a full Android workload on every documentation commit. CI compilation alone does not prove that a picker, provider or UI works on a physical device.
+The separate Android CI workflow runs only for changes to this project or on manual dispatch, with a bounded job timeout to avoid imposing a full Android workload on every documentation commit. A successful Android CI run retains a short-lived **debug** APK artifact for manual testing; it is not a signed release or evidence of device compatibility. CI compilation alone does not prove that a picker, provider or UI works on a physical device. The document ID shown by the read-only boundary is derived from the selected URI, not an independently authenticated provider revision.
 
 The independent UI strategy is **provisional** while Milestone 0 architecture and device gates remain open. Source references: [official .NET Android samples](https://github.com/dotnet/android-samples) and [Android ACTION_OPEN_DOCUMENT documentation](https://developer.android.com/training/data-storage/shared/documents-files).

@@ -42,6 +42,17 @@ class ScaffoldTests(unittest.TestCase):
         verifier = (ROOT / "src/PKHeXMobile.ReadOnly/SaveProjectionVerifier.cs").read_text()
         self.assertIn("[property: JsonRequired]", verifier)
 
+    def test_android_prototype_is_read_only(self):
+        manifest = (ROOT / "src/PKHeXMobile.Android/AndroidManifest.xml").read_text()
+        source = (ROOT / "src/PKHeXMobile.Android/MainActivity.cs").read_text()
+        self.assertNotIn("<uses-permission", manifest)
+        self.assertIn("Intent.ActionOpenDocument", source)
+        self.assertIn("ReadOnlyDocumentService.InspectWithIdentityAsync", source)
+        for forbidden in ("OpenOutputStream(", "FileAccess.Write", "File.WriteAll",
+                          "GrantWriteUriPermission", "Intent.ActionCreateDocument",
+                          "TakePersistableUriPermission"):
+            self.assertNotIn(forbidden, source)
+
     def test_binary_files_must_not_be_committed(self):
         self.assertTrue({".gba", ".sav", ".apk", ".jks"}.issubset(FORBIDDEN_SUFFIXES))
 
