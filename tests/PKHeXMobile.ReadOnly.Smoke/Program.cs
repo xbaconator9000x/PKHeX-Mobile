@@ -181,6 +181,26 @@ try
 }
 catch (InvalidOperationException) { }
 
+// A manifest verifier must compare every field and every occupied slot; this
+// same-Core synthetic expectation is NOT an independently authored baseline.
+var expectation = new ExpectedSaveProjection(
+    view.CoreSaveType, view.GameVersion, view.Generation, view.TrainerName,
+    view.TrainerId, view.SecretId, view.PartyCount, view.BoxCount,
+    view.BoxSlotCount, view.Party, view.Boxes);
+if (SaveProjectionVerifier.Compare(view, expectation).Count != 0)
+    throw new Exception("Identical expected projection should match.");
+if (!SaveProjectionVerifier.Compare(view, expectation with { TrainerId = 4321 }).Contains("TrainerId mismatch"))
+    throw new Exception("Verifier missed a trainer mismatch.");
+if (!SaveProjectionVerifier.Compare(view, expectation with { Boxes = [] }).Contains("Boxes.Count mismatch"))
+    throw new Exception("Verifier missed a box-count mismatch.");
+var fakeSlot = new PokemonSlot(0, 25, "TEST", 5, false, false);
+var occupied = view with { Party = [fakeSlot] };
+if (!SaveProjectionVerifier.Compare(occupied, expectation).Contains("Party.Count mismatch"))
+    throw new Exception("Verifier missed an occupied-slot mismatch.");
+if (!SaveProjectionVerifier.Compare(occupied, expectation with { Party = [fakeSlot with { Species = 26 }] })
+    .Contains("Party[0].Species mismatch"))
+    throw new Exception("Verifier missed a species mismatch.");
+
 Console.WriteLine("Pinned Core reader: 5 original negatives, 6 hack-risk cases, 5 near-miss checks and 1 same-Core synthetic Gen 1 positive.");
 Console.WriteLine("Provider-neutral read service: two-open success, rejection, stale bytes, revoked provider and cancellation passed.");
 Console.WriteLine("No independently verified real-world fixture, Android device, format certification or export has been tested.");
