@@ -31,6 +31,17 @@ class ScaffoldTests(unittest.TestCase):
         for forbidden in ("SaveFile.Write(", "save.Write(", "File.Write", "SetBoxSlotAtIndex(", "SetPartySlotAtIndex("):
             self.assertNotIn(forbidden, source)
 
+    def test_read_only_tools_do_not_open_files_for_writing(self):
+        for name in ("src/PKHeXMobile.Inspect/Program.cs",
+                     "src/PKHeXMobile.Verify/Program.cs"):
+            source = (ROOT / name).read_text()
+            self.assertIn("FileAccess.Read", source)
+            self.assertNotIn("FileAccess.Write", source)
+            self.assertNotIn("FileMode.Create", source)
+            self.assertNotIn("File.WriteAll", source)
+        verifier = (ROOT / "src/PKHeXMobile.ReadOnly/SaveProjectionVerifier.cs").read_text()
+        self.assertIn("[property: JsonRequired]", verifier)
+
     def test_binary_files_must_not_be_committed(self):
         self.assertTrue({".gba", ".sav", ".apk", ".jks"}.issubset(FORBIDDEN_SUFFIXES))
 

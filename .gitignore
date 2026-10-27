@@ -44,3 +44,8 @@
 *.log
 __pycache__/
 .pytest_cache/
+# Private fixture manifests and local verification workspaces
+/private-fixtures/
+/fixtures-private/
+*.fixture-manifest.json
+*.private-fixture.json
