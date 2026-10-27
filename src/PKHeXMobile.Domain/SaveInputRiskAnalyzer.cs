@@ -13,6 +13,7 @@ public enum SaveInputRiskCode
     PossibleGsChronicles,
     ConflictingGen3Signatures,
     PossibleLuminescentPlatinum,
+    PossibleCfruSectorLayout,
 }
 
 public sealed record SaveInputRisk(SaveInputRiskCode Code, string Explanation);
@@ -24,6 +25,22 @@ public static class SaveInputRiskAnalyzer
     private const int Gen3SignatureOffset = 0xFF8;
     private const uint UnboundSignature = 0x01121999;
     private const uint GsChroniclesSignature = 0x66290096;
+
+    // Exact pinned PKForge-PKHeX/RadicalRedFormat.cs source tables (GPLv3).
+    // https://github.com/sofianeelhor/PKForge/blob/2df04430e532b78c247f45b936f3068d8f824987/src/PKForge.Engine/RadicalRed/RadicalRedFormat.cs
+    // Reimplemented as a negative-only risk screen, not a Radical Red parser.
+    private static ReadOnlySpan<ushort> CfruWindows =>
+    [
+        0xF24, 0xFF0, 0xFF0, 0xFF0, 0xD98,
+        0xFF0, 0xFF0, 0xFF0, 0xFF0, 0xFF0,
+        0xFF0, 0xFF0, 0xFF0, 0x450,
+    ];
+    private static ReadOnlySpan<ushort> RetailFrlgWindows =>
+    [
+        0xF2C, 0xF80, 0xF80, 0xF80, 0xF08,
+        0xF80, 0xF80, 0xF80, 0xF80, 0xF80,
+        0xF80, 0xF80, 0xF80, 0x7D0,
+    ];
 
     /// <summary>
     /// Check only documented high-risk envelopes before invoking the retail Core parser.
@@ -69,7 +86,64 @@ public static class SaveInputRiskAnalyzer
         if (chronicles >= 8)
             return new(SaveInputRiskCode.PossibleGsChronicles,
                 "Possible GS Chronicles sector signatures: the retail Gen 3 reader is not safe for this layout.");
+
+        if (LooksLikeCfruWindowLayout(data))
+            return new(SaveInputRiskCode.PossibleCfruSectorLayout,
+                "The Gen 3 sector checksums match a CFRU-style window layout but differ from retail FireRed/LeafGreen; do not interpret this as a retail save.");
+
         return null;
+    }
+
+    private static bool LooksLikeCfruWindowLayout(ReadOnlySpan<byte> data)
+    {
+        // Scan only sectors with retail-family signatures; extras and raw CFRU
+        // sector 30/31 payloads are not regular save fragments.
+        Span<int> offsets = stackalloc int[14];
+        Span<uint> indices = stackalloc uint[14];
+        offsets.Fill(-1);
+        for (int sector = 0; sector < 32; sector++)
+        {
+            int off = sector * Gen3SectorSize;
+            uint signature = BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(off + Gen3SignatureOffset, 4));
+            if ((signature & 0xFFFFFF00u) != 0x08012000u)
+                continue;
+            int id = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(off + 0xFF4, 2));
+            if (id >= 14)
+                continue;
+            uint index = BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(off + 0xFFC, 4));
+            if (offsets[id] < 0 || index >= indices[id])
+            {
+                indices[id] = index;
+                offsets[id] = off;
+            }
+        }
+
+        int retailMismatches = 0;
+        for (int id = 0; id < 14; id++)
+        {
+            int off = offsets[id];
+            if (off < 0)
+                return false;
+            ushort stored = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(off + 0xFF6, 2));
+            if (Checksum(data.Slice(off, CfruWindows[id])) != stored)
+                return false;
+            if (Checksum(data.Slice(off, RetailFrlgWindows[id])) != stored)
+                retailMismatches++;
+        }
+
+        if (retailMismatches == 0)
+            return false;
+        int partyOffset = offsets[1];
+        uint count = BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(partyOffset + 0x34, 4));
+        return count <= 6;
+    }
+
+    private static ushort Checksum(ReadOnlySpan<byte> data)
+    {
+        uint total = 0;
+        for (int i = 0; i < (data.Length & ~3); i += 4)
+            total = unchecked(total + BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(i, 4)));
+        return unchecked((ushort)(total + (total >> 16)));
     }
 
     private static bool IsArchive(ReadOnlySpan<byte> data) =>
