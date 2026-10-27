@@ -4,7 +4,7 @@ using PKHeXMobile.Domain;
 namespace PKHeXMobile.ReadOnly;
 
 /// <summary>A displayed occupied slot. Indexes are zero-based and refer to the original save.</summary>
-public sealed record PokemonSlot(int SlotIndex, ushort Species, string Nickname, int Level, bool IsEgg, bool IsShiny);
+public sealed record PokemonSlot(int SlotIndex, ushort Species, string Nickname, int Level, bool IsEgg, bool IsShiny, PokemonReadOnlyDetails? Details = null);
 
 /// <summary>Occupied slots only; missing indexes are empty or unreported.</summary>
 public sealed record BoxSnapshot(int BoxIndex, IReadOnlyList<PokemonSlot> OccupiedSlots);
@@ -131,6 +131,28 @@ public static class ReadOnlySaveInspector
         }
     }
 
-    private static PokemonSlot ToSlot(int slot, PKM pokemon) =>
-        new(slot, pokemon.Species, pokemon.Nickname, pokemon.CurrentLevel, pokemon.IsEgg, pokemon.IsShiny);
+    /// <summary>
+    /// Extract only immutable scalar data from a Core entity. Does not mutate the
+    /// PKM, retain it, or infer game legality or a write-safe save layout.
+    /// Numeric move/ability/item IDs are Core IDs, not localized names.
+    /// </summary>
+    public static PokemonSlot ProjectPokemon(int slot, PKM pokemon)
+    {
+        ArgumentNullException.ThrowIfNull(pokemon);
+        if (slot < 0)
+            throw new ArgumentOutOfRangeException(nameof(slot));
+        return new PokemonSlot(
+            slot, pokemon.Species, pokemon.Nickname, pokemon.CurrentLevel,
+            pokemon.IsEgg, pokemon.IsShiny,
+            new PokemonReadOnlyDetails(
+                pokemon.Nature.ToString(), pokemon.Ability, pokemon.HeldItem,
+                pokemon.Gender, pokemon.Form,
+                new PokemonMoveIds(pokemon.Move1, pokemon.Move2, pokemon.Move3, pokemon.Move4),
+                new PokemonStatSpread(pokemon.IV_HP, pokemon.IV_ATK, pokemon.IV_DEF,
+                    pokemon.IV_SPA, pokemon.IV_SPD, pokemon.IV_SPE),
+                new PokemonStatSpread(pokemon.EV_HP, pokemon.EV_ATK, pokemon.EV_DEF,
+                    pokemon.EV_SPA, pokemon.EV_SPD, pokemon.EV_SPE)));
+    }
+
+    private static PokemonSlot ToSlot(int slot, PKM pokemon) => ProjectPokemon(slot, pokemon);
 }

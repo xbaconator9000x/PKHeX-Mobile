@@ -71,19 +71,77 @@ public static class ReadOnlyProjectionPresenter
             .Select(index => new BoxCell(index, occupied[index])).ToArray();
     }
 
+    /// <summary>Index-stable party view, including empty positions.</summary>
+    public static IReadOnlyList<BoxCell> PartyCells(SaveReadOnlyResult save)
+    {
+        ArgumentNullException.ThrowIfNull(save);
+        if (save.PartyCount is < 0 or > 6)
+            throw new InvalidDataException("Party capacity exceeds the read-only display limit.");
+        var slots = new PokemonSlot?[save.PartyCount];
+        foreach (var pokemon in save.Party)
+        {
+            if ((uint)pokemon.SlotIndex >= (uint)slots.Length ||
+                slots[pokemon.SlotIndex] is not null)
+                throw new InvalidDataException("Invalid or repeated party slot index.");
+            slots[pokemon.SlotIndex] = pokemon;
+        }
+        return Enumerable.Range(0, slots.Length)
+            .Select(index => new BoxCell(index, slots[index])).ToArray();
+    }
+
+    /// <summary>Compact, safe label for the Android party slot selector.</summary>
+    public static string FormatPartySlotLabel(BoxCell cell)
+    {
+        ArgumentNullException.ThrowIfNull(cell);
+        return cell.Pokemon is { } pokemon
+            ? "Party " + (cell.SlotIndex + 1) + ": #" + pokemon.Species + " " +
+                SanitizeLabel(pokemon.Nickname)
+            : "Party " + (cell.SlotIndex + 1) + ": empty";
+    }
+
     /// <summary>Safe, read-only detail for a single original source slot.</summary>
-    public static string FormatCellDetails(BoxCell cell)
+    public static string FormatCellDetails(BoxCell cell) => FormatSlotDetails(cell, "Slot");
+
+    public static string FormatPartySlotDetails(BoxCell cell) =>
+        FormatSlotDetails(cell, "Party slot");
+
+    private static string FormatSlotDetails(BoxCell cell, string label)
     {
         ArgumentNullException.ThrowIfNull(cell);
         var pokemon = cell.Pokemon;
         if (pokemon is null)
-            return "Slot " + (cell.SlotIndex + 1) + ": empty";
-        var detail = "Slot " + (cell.SlotIndex + 1) + ": #" + pokemon.Species +
-            " " + SanitizeLabel(pokemon.Nickname) + " Lv." + pokemon.Level;
-        if (pokemon.IsEgg) detail += " (Egg)";
-        if (pokemon.IsShiny) detail += " (Shiny)";
-        return detail;
+            return label + " " + (cell.SlotIndex + 1) + ": empty";
+        var text = new StringBuilder();
+        text.Append(label).Append(' ').Append(cell.SlotIndex + 1)
+            .Append(": #").Append(pokemon.Species).Append(' ')
+            .Append(SanitizeLabel(pokemon.Nickname)).Append(" Lv.").Append(pokemon.Level);
+        if (pokemon.IsEgg) text.Append(" (Egg)");
+        if (pokemon.IsShiny) text.Append(" (Shiny)");
+        if (pokemon.Details is { } details)
+        {
+            text.AppendLine().Append("Nature (Core): ").Append(SanitizeLabel(details.Nature));
+            text.Append(" | Ability ID: ").Append(details.AbilityId);
+            text.Append(" | Held item ID: ").Append(details.HeldItemId);
+            text.AppendLine().Append("Gender code: ").Append(details.Gender);
+            text.Append(" | Form: ").Append(details.Form);
+            text.AppendLine().Append("Move IDs: ")
+                .Append(details.Moves.First).Append(", ")
+                .Append(details.Moves.Second).Append(", ")
+                .Append(details.Moves.Third).Append(", ")
+                .Append(details.Moves.Fourth);
+            text.AppendLine().Append("Core IV/DV values (game-dependent): ")
+                .Append(FormatSpread(details.IndividualValues));
+            text.AppendLine().Append("Core EV/stat-exp values (game-dependent): ")
+                .Append(FormatSpread(details.EffortValues));
+            text.AppendLine().Append("Values are provisional; legality is not evaluated.");
+        }
+        return text.ToString();
     }
+
+    private static string FormatSpread(PokemonStatSpread s) =>
+        "HP " + s.HP + ", Atk " + s.Attack + ", Def " + s.Defense +
+        ", SpA " + s.SpecialAttack + ", SpD " + s.SpecialDefense +
+        ", Spe " + s.Speed;
 
     /// <summary>Render only the requested box, not all 64 x 64 potential slots.</summary>
     public static string FormatBox(SaveReadOnlyResult save, int selectedIndex)

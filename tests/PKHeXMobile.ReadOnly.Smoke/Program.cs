@@ -140,6 +140,24 @@ if (view.CoreSaveType != nameof(SAV1) || view.Generation != 1 || view.TrainerId 
 if (!syntheticSnapshot.Matches(syntheticBytes))
     throw new Exception("Inspection modified its source snapshot.");
 
+// Project actual pinned-Core PKM fields into immutable scalars without mutating
+// the source. This is not an independent desktop parity or legal-Pokémon fixture.
+var syntheticPokemon = new PK1 { Species = 25, Move1 = 33, Move2 = 45, EV_HP = 123 };
+var beforeProjection = syntheticPokemon.Data.ToArray();
+var projectedPokemon = ReadOnlySaveInspector.ProjectPokemon(2, syntheticPokemon);
+if (projectedPokemon.SlotIndex != 2 || projectedPokemon.Species != 25 ||
+    projectedPokemon.Details is not { } coreDetails ||
+    coreDetails.Moves.First != 33 || coreDetails.Moves.Second != 45 ||
+    coreDetails.EffortValues.HP != 123 ||
+    !syntheticPokemon.Data.Span.SequenceEqual(beforeProjection))
+    throw new Exception("Pinned-Core scalar projection lost data or modified the PKM.");
+try
+{
+    ReadOnlySaveInspector.ProjectPokemon(-1, syntheticPokemon);
+    throw new Exception("Negative source slot index must be rejected.");
+}
+catch (ArgumentOutOfRangeException) { }
+
 // Provider-neutral end-to-end path: exactly two independent read opens, same bytes.
 int opens = 0;
 var inspected = await ReadOnlyDocumentService.InspectAsync(_ =>
@@ -380,6 +398,40 @@ if (ReadOnlyProjectionPresenter.FormatCellDetails(
     throw new Exception("Accessibility slot details contain bidi override.");
 
 
+// Party selection preserves original positions, rejects duplicates and exposes
+// immutable, game-dependent Core fields without suggesting legality or edits.
+var partyWithGap = sparse with
+{
+    PartyCount = 3,
+    Party = [projectedPokemon],
+};
+var partyCells = ReadOnlyProjectionPresenter.PartyCells(partyWithGap);
+if (partyCells.Count != 3 || partyCells[0].Pokemon is not null ||
+    partyCells[2].Pokemon?.Species != 25 ||
+    ReadOnlyProjectionPresenter.FormatPartySlotLabel(partyCells[0]) != "Party 1: empty" ||
+    !ReadOnlyProjectionPresenter.FormatPartySlotDetails(partyCells[2]).Contains("Move IDs: 33, 45") ||
+    !ReadOnlyProjectionPresenter.FormatPartySlotDetails(partyCells[2]).Contains("HP 123") ||
+    !ReadOnlyProjectionPresenter.FormatPartySlotDetails(partyCells[2]).Contains("legality is not evaluated"))
+    throw new Exception("Read-only party details or source positions are incorrect.");
+try
+{
+    ReadOnlyProjectionPresenter.PartyCells(partyWithGap with
+    {
+        Party = [projectedPokemon, projectedPokemon],
+    });
+    throw new Exception("Repeated party slot was accepted.");
+}
+catch (InvalidDataException) { }
+try
+{
+    ReadOnlyProjectionPresenter.PartyCells(partyWithGap with { PartyCount = 7 });
+    throw new Exception("Oversized party capacity was accepted.");
+}
+catch (InvalidDataException) { }
+if (ReadOnlyProjectionPresenter.FormatCellDetails(
+    new BoxCell(2, projectedPokemon)).Contains("safe to export", StringComparison.OrdinalIgnoreCase))
+    throw new Exception("Scalar detail presentation implied write authorization.");
+
 // A provider may ignore ReadAsync cancellation. Closing the owned descriptor
 // off the UI thread should unblock cooperative providers and never publish a
 // successful inspection after cancellation. This is a synthetic stream test,
@@ -419,6 +471,6 @@ if (ReadOnlyGridLayout.ColumnsForWidth(400, 1f) != 6 ||
     ReadOnlyGridLayout.ColumnsForWidth(288, float.NaN) != 4)
     throw new Exception("Responsive grid column policy failed.");
 
-Console.WriteLine("Pinned Core reader: synthetic negatives, RZIP and hack-risk cases, near-miss checks and 1 same-Core synthetic Gen 1 positive.");
+Console.WriteLine("Pinned Core reader: synthetic negatives, RZIP and hack-risk cases, near-miss checks, 1 same-Core synthetic Gen 1 positive and PK1 scalar detail projection.");
 Console.WriteLine("Provider-neutral read service: two-open success, identity-aware same-byte replacement refusal, missing identity, null stream, stale bytes, revoked provider and cancellation passed.");
 Console.WriteLine("No independently verified real-world fixture, Android device, format certification or export has been tested.");

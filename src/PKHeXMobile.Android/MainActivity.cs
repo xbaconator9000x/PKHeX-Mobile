@@ -27,6 +27,8 @@ public sealed class MainActivity : Activity
     private TextView? _status;
     private TextView? _trainer;
     private TextView? _party;
+    private LinearLayout? _partySlots;
+    private TextView? _partyDetails;
     private TextView? _boxDetails;
     private TableLayout? _boxGrid;
     private Spinner? _boxSelector;
@@ -76,6 +78,10 @@ public sealed class MainActivity : Activity
 
         _party = new TextView(this) { TextSize = 16 };
         layout.AddView(_party);
+        _partySlots = new LinearLayout(this) { Orientation = Orientation.Vertical };
+        layout.AddView(_partySlots);
+        _partyDetails = new TextView(this) { TextSize = 16 };
+        layout.AddView(_partyDetails);
 
         _boxSelector = new Spinner(this)
         {
@@ -205,6 +211,7 @@ public sealed class MainActivity : Activity
                     inspection.Result, inspection.SourceIdentityConfirmed);
             if (_party is not null)
                 _party.Text = ReadOnlyProjectionPresenter.FormatParty(inspection.Result);
+            RenderParty(inspection.Result);
             if (_boxSelector is not null && _boxDetails is not null)
             {
                 var labels = ReadOnlyProjectionPresenter.BoxLabels(inspection.Result);
@@ -271,6 +278,31 @@ public sealed class MainActivity : Activity
                     if (_cancelButton is not null) _cancelButton.Visibility = ViewStates.Gone;
                 }
             }
+        }
+    }
+
+    // Native touch targets retain the original party slot index. These buttons
+    // only reveal immutable scalar details; no PKM or SaveFile reaches the UI.
+    private void RenderParty(SaveReadOnlyResult result)
+    {
+        if (_partySlots is null || _partyDetails is null)
+            return;
+        _partySlots.RemoveAllViews();
+        _partyDetails.Text = "Select a party slot for Core-reported details (read-only).";
+        foreach (var cell in ReadOnlyProjectionPresenter.PartyCells(result))
+        {
+            var detail = ReadOnlyProjectionPresenter.FormatPartySlotDetails(cell);
+            var button = new Button(this)
+            {
+                Text = ReadOnlyProjectionPresenter.FormatPartySlotLabel(cell),
+                ContentDescription = detail + ". Read-only.",
+            };
+            button.Click += (_, _) =>
+            {
+                if (ReferenceEquals(_currentResult, result) && _partyDetails is not null)
+                    _partyDetails.Text = detail;
+            };
+            _partySlots.AddView(button);
         }
     }
 
@@ -341,6 +373,8 @@ public sealed class MainActivity : Activity
         _currentResult = null;
         if (_trainer is not null) _trainer.Text = string.Empty;
         if (_party is not null) _party.Text = string.Empty;
+        if (_partySlots is not null) _partySlots.RemoveAllViews();
+        if (_partyDetails is not null) _partyDetails.Text = string.Empty;
         if (_boxDetails is not null) _boxDetails.Text = string.Empty;
         if (_boxGrid is not null)
         {
