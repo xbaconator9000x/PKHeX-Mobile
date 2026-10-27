@@ -149,7 +149,7 @@ if (projectedPokemon.SlotIndex != 2 || projectedPokemon.Species != 25 ||
     projectedPokemon.Details is not { } coreDetails ||
     coreDetails.Moves.First != 33 || coreDetails.Moves.Second != 45 ||
     coreDetails.EffortValues.HP != 123 ||
-    !syntheticPokemon.Data.Span.SequenceEqual(beforeProjection))
+    !syntheticPokemon.Data.SequenceEqual(beforeProjection))
     throw new Exception("Pinned-Core scalar projection lost data or modified the PKM.");
 try
 {
