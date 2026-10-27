@@ -20,3 +20,11 @@ Use `schemaVersion: 2` with the same pinned `coreVersion: "26.10.18"` to **requi
 Record each expectation independently using the matching desktop PKHeX build and the exact game/generation semantics. In Gen 1–2, Core's IV/EV properties may represent DV/stat experience, not modern per-stat mechanics. A schema v2 PASS demonstrates only the compared read-only projection, not complete legality, format identity, source provenance or write safety. Never derive expected values from this same mobile reader and call the result independent parity.
 
 The synthetic smoke suite mutates each of the 21 detail fields and verifies that every mismatch is detected. It also exercises a synthetic `WA9` clone through an identity-preserving guard: pinned Core's source-level `WA9.Clone()` may return a `WC9` with the wrong game context. That check does not enable Mystery Gift import or saving.
+
+## Typed ribbon, mark and memory subset (manifest schema v3)
+
+Schema v3 requires all v2 detail fields plus an `awards` object for **every occupied Pokémon**. This is deliberately **not complete ribbon parity**. It projects only three typed Gen 9 common ribbons, eight typed Gen 9 marks, raw memory-ribbon counts and presence flags, the affixed ribbon index when supported, and raw OT/HT memory fields when supported.
+
+The `awards` object must include `gen9Flags` (an ordered list of `name` and `owned` objects), `contestMemoryCount`, `battleMemoryCount`, `hasContestMemoryRibbon`, `hasBattleMemoryRibbon`, `affixedRibbon`, `originalTrainerMemory`, and `handlingTrainerMemory`. Every key is mandatory even if its value is JSON `null`. Each non-null trainer memory requires `memory`, `intensity`, `feeling`, and `variable`. Missing, duplicated, unknown or reordered flag names are rejected. Types without the relevant Core interfaces have empty flag lists and null corresponding values; null does not mean the ribbon is absent.
+
+Expected values must be obtained independently from same-version desktop PKHeX to count as parity evidence. A synthetic schema v3 PASS proves only field-comparison logic, not desktop equivalence, game-format certification, Android trimming, legality or write safety.

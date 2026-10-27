@@ -41,7 +41,11 @@ public sealed record ExpectedPokemonReadOnlyDetails(
     [property: JsonRequired] byte Form,
     [property: JsonRequired] ExpectedPokemonMoveIds Moves,
     [property: JsonRequired] ExpectedPokemonStatSpread IndividualValues,
-    [property: JsonRequired] ExpectedPokemonStatSpread EffortValues);
+    [property: JsonRequired] ExpectedPokemonStatSpread EffortValues)
+{
+    // Optional for schema v2; required for every occupied slot in schema v3.
+    public ExpectedPokemonAwardsReadOnly? Awards { get; init; }
+}
 
 public sealed record ExpectedBoxSnapshot(
     [property: JsonRequired] int BoxIndex,
@@ -71,10 +75,12 @@ public sealed record ExpectedSaveProjection(
 /// </summary>
 public static class SaveProjectionVerifier
 {
-    public static IReadOnlyList<string> Compare(SaveReadOnlyResult actual, ExpectedSaveProjection expected, bool requireDetails = false)
+    public static IReadOnlyList<string> Compare(SaveReadOnlyResult actual, ExpectedSaveProjection expected,
+        bool requireDetails = false, bool requireAwards = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
+        if (requireAwards) requireDetails = true;
         var errors = new List<string>();
 
         // Required JSON members can explicitly be null. A malformed expected
@@ -254,6 +260,14 @@ public static class SaveProjectionVerifier
             }
             CompareSpread(a.IndividualValues, e.IndividualValues, $"{path}.IndividualValues");
             CompareSpread(a.EffortValues, e.EffortValues, $"{path}.EffortValues");
+            if (e.Awards is null)
+            {
+                if (requireAwards) errors.Add($"{path}.Awards missing");
+            }
+            else if (a.Awards is null)
+                errors.Add($"{path}.Awards missing from observed projection");
+            else
+                AwardProjectionVerifier.Compare(a.Awards, e.Awards, $"{path}.Awards", errors);
         }
 
         void CompareSpread(PokemonStatSpread a, ExpectedPokemonStatSpread? e, string path)
