@@ -49,4 +49,18 @@ finally
     Directory.Delete(root, recursive: true);
     Directory.Delete(outside, recursive: true);
 }
-Console.WriteLine("Fixture path policy: nested relative path, traversal, cross-platform absolute paths, missing files and symlink escapes passed.");
+foreach (long bytes in new long[] { -1, 0, FixtureManifestLimits.MaxManifestBytes + 1 })
+{
+    try { FixtureManifestLimits.ValidateFileSize(bytes); throw new Exception("Invalid manifest size accepted."); }
+    catch (InvalidDataException) { }
+}
+FixtureManifestLimits.ValidateFileSize(1);
+FixtureManifestLimits.ValidateFileSize(FixtureManifestLimits.MaxManifestBytes);
+foreach (int count in new[] { -1, 0, FixtureManifestLimits.MaxFixtures + 1 })
+{
+    try { FixtureManifestLimits.ValidateFixtureCount(count); throw new Exception("Invalid fixture count accepted."); }
+    catch (InvalidDataException) { }
+}
+FixtureManifestLimits.ValidateFixtureCount(1);
+FixtureManifestLimits.ValidateFixtureCount(FixtureManifestLimits.MaxFixtures);
+Console.WriteLine("Fixture path policy and manifest bounds: traversal, symlinks, size and fixture count passed.");

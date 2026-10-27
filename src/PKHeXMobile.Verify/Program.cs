@@ -20,16 +20,18 @@ if (args.Length != 1)
 try
 {
     string manifestPath = Path.GetFullPath(args[0]);
+    FixtureManifestLimits.ValidateFileSize(new FileInfo(manifestPath).Length);
     var manifest = JsonSerializer.Deserialize<FixtureManifest>(
         await File.ReadAllTextAsync(manifestPath),
         new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     if (manifest is null || manifest.SchemaVersion is not (1 or 2) || manifest.CoreVersion != "26.10.18" ||
-        manifest.Fixtures is null || manifest.Fixtures.Count == 0)
+        manifest.Fixtures is null)
     {
         Console.Error.WriteLine("Manifest must declare schemaVersion=1 or 2, coreVersion=26.10.18 and nonempty fixtures.");
         return 64;
     }
 
+    FixtureManifestLimits.ValidateFixtureCount(manifest.Fixtures.Count);
     var root = Path.GetDirectoryName(manifestPath)!;
     int passed = 0;
     int failed = 0;
@@ -91,7 +93,7 @@ try
     Console.WriteLine($"Result: {passed} passed, {failed} failed. Baseline provenance remains externally verifiable.");
     return failed == 0 ? 0 : 1;
 }
-catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidDataException)
 {
     Console.Error.WriteLine("Cannot read or parse the local manifest.");
     return 64;

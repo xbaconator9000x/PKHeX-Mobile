@@ -77,6 +77,32 @@ public static class SaveProjectionVerifier
         ArgumentNullException.ThrowIfNull(expected);
         var errors = new List<string>();
 
+        // Required JSON members can explicitly be null. A malformed expected
+        // OR observed projection must not crash or yield a false parity PASS.
+        if (actual.Party is null) errors.Add("Party missing from observed projection");
+        if (actual.Boxes is null) errors.Add("Boxes missing from observed projection");
+        if (expected.Party is null) errors.Add("Party missing from expectation");
+        if (expected.Boxes is null) errors.Add("Boxes missing from expectation");
+        if (errors.Count != 0) return errors;
+        if (actual.Party.Count > 6 || expected.Party.Count > 6 ||
+            actual.Boxes.Count > 64 || expected.Boxes.Count > 64)
+        {
+            errors.Add("Projection collection exceeds bounded read-only limits");
+            return errors;
+        }
+        if (actual.Boxes.Any(box => box is null || box.OccupiedSlots is null) ||
+            expected.Boxes.Any(box => box is null || box.OccupiedSlots is null))
+        {
+            errors.Add("Projection contains a null box or occupied slot list");
+            return errors;
+        }
+
+        Check(!string.IsNullOrWhiteSpace(actual.CoreSaveType) &&
+            !string.IsNullOrWhiteSpace(expected.CoreSaveType), "CoreSaveType missing");
+        Check(!string.IsNullOrWhiteSpace(actual.GameVersion) &&
+            !string.IsNullOrWhiteSpace(expected.GameVersion), "GameVersion missing");
+        Check(actual.TrainerName is not null && expected.TrainerName is not null, "TrainerName null");
+
         Check(actual.CoreSaveType == expected.CoreSaveType, "CoreSaveType");
         Check(actual.GameVersion == expected.GameVersion, "GameVersion");
         Check(actual.Generation == expected.Generation, "Generation");
@@ -99,6 +125,7 @@ public static class SaveProjectionVerifier
         }
 
         Check(actual.BoxCount == actual.Boxes.Count, "Boxes observed count inconsistent");
+        Check(actual.BoxCount is >= 0 and <= 64, "BoxCount observed out of range");
         Check(actual.BoxSlotCount is >= 0 and <= 64, "BoxSlotCount observed out of range");
         Check(expected.BoxCount is >= 0 and <= 64, "BoxCount expected out of range");
         Check(expected.BoxSlotCount is >= 0 and <= 64, "BoxSlotCount expected out of range");
@@ -172,6 +199,11 @@ public static class SaveProjectionVerifier
 
         void CompareSlots(IReadOnlyList<PokemonSlot> observed, IReadOnlyList<ExpectedPokemonSlot> reference, string path)
         {
+            if (observed.Any(slot => slot is null) || reference.Any(slot => slot is null))
+            {
+                errors.Add($"{path} contains a null occupied slot");
+                return;
+            }
             Check(observed.Count == reference.Count, $"{path}.Count");
             for (int i = 0; i < Math.Min(observed.Count, reference.Count); i++)
             {
@@ -184,6 +216,8 @@ public static class SaveProjectionVerifier
                 }
                 Check(a.SlotIndex == e.SlotIndex, $"{path}[{i}].SlotIndex");
                 Check(a.Species == e.Species, $"{path}[{i}].Species");
+                Check(a.Nickname is not null && e.Nickname is not null,
+                    $"{path}[{i}].Nickname null");
                 Check(a.Nickname == e.Nickname, $"{path}[{i}].Nickname");
                 Check(a.Level == e.Level, $"{path}[{i}].Level");
                 Check(a.IsEgg == e.IsEgg, $"{path}[{i}].IsEgg");
@@ -203,6 +237,7 @@ public static class SaveProjectionVerifier
 
         void CompareDetails(PokemonReadOnlyDetails a, ExpectedPokemonReadOnlyDetails e, string path)
         {
+            Check(a.Nature is not null && e.Nature is not null, $"{path}.Nature null");
             Check(a.Nature == e.Nature, $"{path}.Nature");
             Check(a.AbilityId == e.AbilityId, $"{path}.AbilityId");
             Check(a.HeldItemId == e.HeldItemId, $"{path}.HeldItemId");
