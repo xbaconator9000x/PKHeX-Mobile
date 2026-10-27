@@ -4,36 +4,36 @@ This is a **test plan, not an execution report**. Evidence is anchored in [sourc
 
 ## 28 proposed acceptance cases
 
-| ID | Priority | Component | Reproducible input / action and required outcome | Evidence required | Status |
+| Gate ID | Source finding(s) | Priority | Component | Reproducible input / action and required outcome | Evidence required | Status |
 | --- | --- | --- | --- | --- | --- |
-| F-01 | P1 | Trainer routing | For each desktop typed trainer route, verify corresponding mobile capability or explicit unsupported message; include 7b, SWSH, BDSP, LA, SV, ZA, BR. | source/unit | not executed |
-| F-02 | P1 | Visibility | On every MAUI supported SaveFile type, compare visible Trainer Info to a real navigation action; assert no silent tap. | source/unit | not executed |
-| F-03 | P1 | Dex routing | Exercise 14 desktop Pokédex switch arms with positive/negative revision fixtures; mark mobile unsupported until matching behavior exists. | desktop fixture | not executed |
-| F-04 | P1 | DLC raids | SV/SWSH revision 0/1/2 expose correct raid origins and reject unavailable DLC edits. | desktop fixture | not executed |
-| F-05 | P1 | Event flags | LGPE, BDSP, ZA and classic flag/work editor dispatch with exact data widths; refuse unknown save types. | desktop fixture | not executed |
-| F-06 | P1 | Editor coverage | Inventory every desktop subeditor control and gate by game/revision, distinguishing UI route from functional save round trip. | audit | not executed |
-| F-07 | P1 | MAUI Gen9 timestamp | Set non-midnight LastSaved, change time only, save, reopen, compare full timestamp; no unrequested midnight reset. | upstream unit | not executed |
-| F-08 | P2 | MAUI Gen9 LP | MaxLP uses documented LP cap (not assumed money cap); verify boundary and overflow cases. | upstream unit | not executed |
-| F-09 | P1 | MAUI picker validation | Null language and -1 version selection leave source bytes unchanged and return validation feedback. | upstream unit | not executed |
-| F-10 | P1 | Inventory writes | For each claimed pouch, change one item and verify destination save block after serialization and independent reparse. | desktop fixture | not executed |
-| F-11 | P1 | World menu gates | 8 Forge menu options each has positive and negative game support case; no unsupported button offered. | unit | not executed |
-| F-12 | P1 | Clock support | R/S/E positive, FRLG and other Gen3 negative; unchanged clock bytes and no-op behavior verified. | fixture | not executed |
-| F-13 | P1 | Roamers | RS/E/FRLG, DP/Pt/HGSS, BW, XY cases: verify species/PID/IV/flags; XY reroll refused. | fixture | not executed |
-| F-14 | P1 | Entralink | BW vs B2W2 forest, powers, Funfest and encrypted end-access round trips; reject cross-game writes. | fixture | not executed |
-| F-15 | P1 | HGSS gadgets | Apricorn/Pokéwalker count and language-sensitive course constraints; non-HGSS refuses. | fixture | not executed |
-| F-16 | P1 | Honey trees | DP/Pt tree values, legal Munchlax and illegal trainer/tree combination, no unrelated changes. | fixture | not executed |
-| F-17 | P0 | Multi-field rollback | Inject exceptions after item, flag and work mutation; in-memory baseline and original on-disk hash unchanged. | fault injection | not executed |
-| F-18 | P0 | Hack risk bypass | For any CFRU/Unbound/RadicalRed-shaped unsupported save, user confirmation never unlocks write/export. | negative fixture | not executed |
-| F-19 | P1 | Showdown preview | Distinguish parsed-only hack sets from stock legality verdict; no green 'legal' without authenticated game rules. | unit | not executed |
-| F-20 | P1 | Showdown target race | After preview, occupy a target; placement cannot overwrite occupied party/box or silently redirect without consent. | unit | not executed |
-| F-21 | P1 | Showdown sparse party | Party with gaps and capacity boundary retains all prior Pokémon and reports actual appended slot. | unit | not executed |
-| F-22 | P1 | Bulk export collisions | Two same-named entities, pre-existing file, full disk, provider failure: no silent overwrite and manifest lists committed outputs. | fault injection | not executed |
-| F-23 | P1 | Android portrait | Install APK, rotate, use 200% font and TalkBack, navigate all six-column slots and inspect source index correctly. | device | not executed |
-| F-24 | P1 | Android lifecycle | Picker pending, rotation, process kill and cancelled descriptor open: no stale private data, no phantom result. | device | not executed |
-| F-25 | P1 | Asset rights | For each proposed image/font/DLL import require provenance, source/rights, licence compatibility and attribution manifest. | audit | not executed |
-| F-26 | P0 | Same-Core baseline | Independently produced Gen1/Gen3/Gen4–9 fixtures with SHA-256 and matching Core 26.10.18 desktop readout; no same-Core self-oracle. | desktop | not executed |
-| F-27 | P0 | Write gate | No writer enabled until exact layout identity, backup restore, staged serialization, independent reparse, provider failure tests pass. | safety | not executed |
-| F-28 | P1 | Architecture | Document why native Android + pinned Core adapter is retained over landscape Forge and MAUI, including versioned PokéBacon boundary. | decision | not executed |
+| FG-01 | F-01, F-02 | P1 | Trainer routing | For each desktop typed trainer route, verify corresponding mobile capability or explicit unsupported message; include 7b, SWSH, BDSP, LA, SV, ZA, BR. | source/unit | not executed |
+| FG-02 | F-02 | P1 | Visibility | On every MAUI supported SaveFile type, compare visible Trainer Info to a real navigation action; assert no silent tap. | source/unit | not executed |
+| FG-03 | F-03 | P1 | Dex routing | Exercise 14 desktop Pokédex switch arms with positive/negative revision fixtures; mark mobile unsupported until matching behavior exists. | desktop fixture | not executed |
+| FG-04 | F-04 | P1 | DLC raids | SV/SWSH revision 0/1/2 expose correct raid origins and reject unavailable DLC edits. | desktop fixture | not executed |
+| FG-05 | F-05 | P1 | Event flags | LGPE, BDSP, ZA and classic flag/work editor dispatch with exact data widths; refuse unknown save types. | desktop fixture | not executed |
+| FG-06 | F-06 | P1 | Editor coverage | Inventory every desktop subeditor control and gate by game/revision, distinguishing UI route from functional save round trip. | audit | not executed |
+| FG-07 | F-07 | P1 | MAUI Gen9 timestamp | Set non-midnight LastSaved, change time only, save, reopen, compare full timestamp; no unrequested midnight reset. | upstream unit | not executed |
+| FG-08 | F-08 | P2 | MAUI Gen9 LP | MaxLP uses documented LP cap (not assumed money cap); verify boundary and overflow cases. | upstream unit | not executed |
+| FG-09 | F-09 | P1 | MAUI picker validation | Null language and -1 version selection leave source bytes unchanged and return validation feedback. | upstream unit | not executed |
+| FG-10 | F-10 | P1 | Inventory writes | For each claimed pouch, change one item and verify destination save block after serialization and independent reparse. | desktop fixture | not executed |
+| FG-11 | F-11 | P1 | World menu gates | 8 Forge menu options each has positive and negative game support case; no unsupported button offered. | unit | not executed |
+| FG-12 | F-12 | P1 | Clock support | R/S/E positive, FRLG and other Gen3 negative; unchanged clock bytes and no-op behavior verified. | fixture | not executed |
+| FG-13 | F-13 | P1 | Roamers | RS/E/FRLG, DP/Pt/HGSS, BW, XY cases: verify species/PID/IV/flags; XY reroll refused. | fixture | not executed |
+| FG-14 | F-14 | P1 | Entralink | BW vs B2W2 forest, powers, Funfest and encrypted end-access round trips; reject cross-game writes. | fixture | not executed |
+| FG-15 | F-15 | P1 | HGSS gadgets | Apricorn/Pokéwalker count and language-sensitive course constraints; non-HGSS refuses. | fixture | not executed |
+| FG-16 | F-15 | P1 | Honey trees | DP/Pt tree values, legal Munchlax and illegal trainer/tree combination, no unrelated changes. | fixture | not executed |
+| FG-17 | F-16 | P0 | Multi-field rollback | Inject exceptions after item, flag and work mutation; in-memory baseline and original on-disk hash unchanged. | fault injection | not executed |
+| FG-18 | F-17 | P0 | Hack risk bypass | For any CFRU/Unbound/RadicalRed-shaped unsupported save, user confirmation never unlocks write/export. | negative fixture | not executed |
+| FG-19 | F-18 | P1 | Showdown preview | Distinguish parsed-only hack sets from stock legality verdict; no green 'legal' without authenticated game rules. | unit | not executed |
+| FG-20 | F-19 | P1 | Showdown target race | After preview, occupy a target; placement cannot overwrite occupied party/box or silently redirect without consent. | unit | not executed |
+| FG-21 | F-19 | P1 | Showdown sparse party | Party with gaps and capacity boundary retains all prior Pokémon and reports actual appended slot. | unit | not executed |
+| FG-22 | F-20 | P1 | Bulk export collisions | Two same-named entities, pre-existing file, full disk, provider failure: no silent overwrite and manifest lists committed outputs. | fault injection | not executed |
+| FG-23 | F-21, F-23 | P1 | Android portrait | Install APK, rotate, use 200% font and TalkBack, navigate all six-column slots and inspect source index correctly. | device | not executed |
+| FG-24 | F-23 | P1 | Android lifecycle | Picker pending, rotation, process kill and cancelled descriptor open: no stale private data, no phantom result. | device | not executed |
+| FG-25 | F-22 | P1 | Asset rights | For each proposed image/font/DLL import require provenance, source/rights, licence compatibility and attribution manifest. | audit | not executed |
+| FG-26 | F-23, F-24 | P0 | Same-Core baseline | Independently produced Gen1/Gen3/Gen4–9 fixtures with SHA-256 and matching Core 26.10.18 desktop readout; no same-Core self-oracle. | desktop | not executed |
+| FG-27 | F-17, F-24 | P0 | Write gate | No writer enabled until exact layout identity, backup restore, staged serialization, independent reparse, provider failure tests pass. | safety | not executed |
+| FG-28 | F-21–F-24 | P1 | Architecture | Document why native Android + pinned Core adapter is retained over landscape Forge and MAUI, including versioned PokéBacon boundary. | decision | not executed |
 
 ## Execution protocol and stop conditions
 
