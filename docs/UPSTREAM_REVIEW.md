@@ -2,7 +2,7 @@
 
 > [Pinned source audit, pass A (2026-10-27)](UPSTREAM_SOURCE_AUDIT_2026-10-27.md) — verified fork divergence, Android write hazards, licensing and implementer tickets.
 >
-> [Desktop/mobile parity crosswalk, pass A (2026-10-27)](PARITY_MATRIX_2026-10-27.md) — 27 representative capability rows, source links and untested gates.
+> [Desktop/mobile parity crosswalk, pass A (2026-10-27)](PARITY_MATRIX_2026-10-27.md) — 28 representative capability rows, source links and untested gates.
 >
 > [Initial pinned source findings (2026-10-27)](UPSTREAM_CHECKPOINT_2026-10-27.md) — does not yet satisfy the full build or parity audit.
 
