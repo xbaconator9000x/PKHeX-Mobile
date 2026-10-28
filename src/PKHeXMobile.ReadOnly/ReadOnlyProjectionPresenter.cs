@@ -106,6 +106,22 @@ public static class ReadOnlyProjectionPresenter
                     .Append(bdsp.Items.Count)
                     .AppendLine(" entries, signed counts and raw 32-bit flags; no edit authorization.");
         }
+        if (save.Hgss is { } hgss)
+        {
+            text.Append("HGSS gadgets (detached raw view): ")
+                .Append(hgss.Gadgets.ApricornCounts.Count).Append(" apricorn bytes, ")
+                .Append(hgss.Gadgets.PokegearCallerIds.Count)
+                .Append(" Pokégear caller bytes; Pokéwalker raw 32-bit flags 0x")
+                .Append(hgss.Gadgets.WalkerFlagsRaw.ToString("X8"))
+                .AppendLine(" (reserved bits preserved).");
+            text.Append("HGSS Pokéathlon (detached raw view): ")
+                .Append(hgss.Pokeathlon.ModeledMedalCount)
+                .Append(" modeled medal bits, ")
+                .Append(hgss.Pokeathlon.MedalEntriesWithReservedBits)
+                .Append(" entries with reserved bits; raw Data Card flags 0x")
+                .Append(hgss.Pokeathlon.DataCardFlagsRaw.ToString("X8"))
+                .AppendLine("; no edit authorization.");
+        }
         text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
         return text.ToString();
     }

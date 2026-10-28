@@ -40,6 +40,8 @@ public sealed record SaveReadOnlyResult(
     public WorldStateReadOnly? WorldState { get; init; }
     // Detached Gen4/BDSP Underground raw diagnostics, not save authentication.
     public UndergroundReadOnly? Underground { get; init; }
+    // HGSS-only raw Pokéathlon and gadget diagnostics; no write authorization.
+    public HgssReadOnly? Hgss { get; init; }
 }
 
 public static class ReadOnlySaveInspector
@@ -139,6 +141,7 @@ public static class ReadOnlySaveInspector
                 Daycare = DaycareReadOnly.Project(save),
                 WorldState = WorldStateReadOnly.Project(save),
                 Underground = UndergroundReadOnly.Project(save),
+                Hgss = HgssReadOnly.Project(save),
             };
             reason = string.Empty;
             return true;

@@ -6,7 +6,7 @@ using PKHeXMobile.Verify;
 if (args.Length == 1 && args[0] is "--help" or "-h")
 {
     Console.WriteLine("Usage: PKHeXMobile.Verify <local-fixture-manifest.json>");
-    Console.WriteLine("Schema 1: basic slots; schema 2: details; schema 3: awards; schema 4: national dex flags; schema 5: Core-enumerated inventory; schema 6: physical storage slot flags; schema 7: Core trainer progress scalars; schema 8: format-aware training diagnostics; schema 9: raw move PP, PP Ups and relearn getters; schema 10: raw identity and egg provenance; schema 11: bounded nursery metadata and parent-byte digests; schema 12: separate Gen2 egg-buffer fingerprint; schema 13: raw Gen4/BDSP Underground.");
+    Console.WriteLine("Schema 1: basic slots; schema 2: details; schema 3: awards; schema 4: national dex flags; schema 5: Core-enumerated inventory; schema 6: physical storage slot flags; schema 7: Core trainer progress scalars; schema 8: format-aware training diagnostics; schema 9: raw move PP, PP Ups and relearn getters; schema 10: raw identity and egg provenance; schema 11: bounded nursery metadata and parent-byte digests; schema 12: separate Gen2 egg-buffer fingerprint; schema 13: raw Gen4/BDSP Underground; schema 14: raw HGSS gadgets and Pokéathlon.");
     Console.WriteLine("Compares consented local save projections to separately supplied expected values.");
     Console.WriteLine("Never modifies or exports saves. Never commit real save files or private manifests.");
     return 0;
@@ -24,10 +24,10 @@ try
     var manifest = JsonSerializer.Deserialize<FixtureManifest>(
         await File.ReadAllTextAsync(manifestPath),
         new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-    if (manifest is null || manifest.SchemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13) || manifest.CoreVersion != "26.10.18" ||
+    if (manifest is null || manifest.SchemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14) || manifest.CoreVersion != "26.10.18" ||
         manifest.Fixtures is null)
     {
-        Console.Error.WriteLine("Manifest must declare schemaVersion=1–13, coreVersion=26.10.18 and nonempty fixtures.");
+        Console.Error.WriteLine("Manifest must declare schemaVersion=1–14, coreVersion=26.10.18 and nonempty fixtures.");
         return 64;
     }
 
@@ -85,7 +85,9 @@ try
                 requireDaycare: manifest.SchemaVersion >= 11,
                 requireGen2Egg: manifest.SchemaVersion >= 12,
                 requireUnderground: manifest.SchemaVersion >= 13 &&
-                    inspected.Result.Underground is not null);
+                    inspected.Result.Underground is not null,
+                requireHgss: manifest.SchemaVersion >= 14 &&
+                    inspected.Result.Hgss is not null);
             if (differences.Count != 0)
             {
                 Console.Error.WriteLine($"Fixture {i + 1}: {differences.Count} projection differences: {string.Join(", ", differences)}");
