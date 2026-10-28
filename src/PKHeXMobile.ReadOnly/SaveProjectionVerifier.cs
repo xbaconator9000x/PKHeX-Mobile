@@ -90,6 +90,8 @@ public sealed record ExpectedSaveProjection(
     public ExpectedTrainerProgressReadOnly? TrainerProgress { get; init; }
     // Schema v11: raw, bounded nursery metadata and parent digests.
     public ExpectedDaycareReadOnly? Daycare { get; init; }
+    // Schema v13: raw Gen4/BDSP Underground metadata.
+    public ExpectedUndergroundReadOnly? Underground { get; init; }
 }
 
 /// <summary>
@@ -104,7 +106,8 @@ public static class SaveProjectionVerifier
         bool requireInventory = false, bool requireStorage = false,
         bool requireTrainerProgress = false, bool requireTraining = false,
         bool requireMoveState = false, bool requireIdentity = false,
-        bool requireDaycare = false, bool requireGen2Egg = false)
+        bool requireDaycare = false, bool requireGen2Egg = false,
+        bool requireUnderground = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -215,6 +218,9 @@ public static class SaveProjectionVerifier
                 (actual.Daycare?.Gen2Egg is not null || expected.Daycare?.Gen2Egg is not null))
                 errors.Add("Daycare.Gen2Egg unexpected for non-Gen2 save");
         }
+
+        if (requireUnderground || expected.Underground is not null)
+            UndergroundProjectionVerifier.Compare(actual.Underground, expected.Underground, errors);
 
         return errors;
 
