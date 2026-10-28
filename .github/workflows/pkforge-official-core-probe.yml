@@ -9,6 +9,8 @@ on:
       - '.github/workflows/pkforge-official-core-probe.yml'
       - 'scripts/pkforge_official_core_probe.py'
       - 'tests/test_pkforge_official_core_probe.py'
+      - 'scripts/pkforge_retail_only_probe.py'
+      - 'tests/test_pkforge_retail_only_probe.py'
 
 permissions:
   contents: read
@@ -26,7 +28,9 @@ jobs:
         with:
           python-version: '3.13'
       - name: Validate safe project-reference substitution
-        run: python3 -m unittest discover -s tests -p 'test_pkforge_official_core_probe.py' -v
+        run: |
+          python3 -m unittest discover -s tests -p 'test_pkforge_official_core_probe.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_retail_only_probe.py' -v
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -44,6 +48,8 @@ jobs:
           git submodule update --init --recursive --depth=1
       - name: Adapt pinned fork references and AutoMod Seed64 API for official Core
         run: python3 scripts/pkforge_official_core_probe.py --repo /tmp/pkforge
+      - name: Isolate fork-only handlers in temporary retail-only checkout
+        run: python3 -m scripts.pkforge_retail_only_probe --repo /tmp/pkforge
       - name: Build portable PKForge engine against official Core
         id: engine
         continue-on-error: true
@@ -74,8 +80,12 @@ jobs:
             echo "Engine compile: $ENGINE"
             echo "Android compile: $ANDROID"
             if [ "$ENGINE" != success ] || [ "$ANDROID" != success ]; then
-              echo '**NOT COMPATIBLE AS-IS.** Inspect compiler diagnostics.'
+              echo '**OFFICIAL-CORE COMPILATION NOT PASSED.** Inspect compiler diagnostics.'
             else
               echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$ENGINE" != success ] || [ "$ANDROID" != success ]; then
+            echo 'Retail-only official-Core compatibility gate failed.' >&2
+            exit 1
+          fi
