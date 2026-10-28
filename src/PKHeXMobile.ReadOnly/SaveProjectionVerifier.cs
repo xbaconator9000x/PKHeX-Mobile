@@ -80,6 +80,8 @@ public sealed record ExpectedSaveProjection(
     public ExpectedInventoryReadOnly? Inventory { get; init; }
     // Required for schema v6: every box slot, including empty/locked slots.
     public ExpectedStorageFlagsReadOnly? Storage { get; init; }
+    // Schema v7: raw Core trainer progress scalars, not full trainer records.
+    public ExpectedTrainerProgressReadOnly? TrainerProgress { get; init; }
 }
 
 /// <summary>
@@ -91,7 +93,8 @@ public static class SaveProjectionVerifier
 {
     public static IReadOnlyList<string> Compare(SaveReadOnlyResult actual, ExpectedSaveProjection expected,
         bool requireDetails = false, bool requireAwards = false, bool requirePokedex = false,
-        bool requireInventory = false, bool requireStorage = false)
+        bool requireInventory = false, bool requireStorage = false,
+        bool requireTrainerProgress = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -191,6 +194,9 @@ public static class SaveProjectionVerifier
         if (requireStorage || expected.Storage is not null)
             StorageFlagsProjectionVerifier.Compare(actual.Storage, expected.Storage,
                 actual.BoxCount, actual.BoxSlotCount, errors);
+        if (requireTrainerProgress || expected.TrainerProgress is not null)
+            TrainerProgressProjectionVerifier.Compare(actual.TrainerProgress,
+                expected.TrainerProgress, actual.BoxCount, errors);
 
         return errors;
 

@@ -71,3 +71,20 @@ values. The synthetic storage tests cover flag enumeration, immutable snapshots,
 malformed expectations, changed values and read-only Android detail rendering;
 they do not certify MoveBox, SwapBox, pointer remapping, real-save parity or
 transactional export. All editing and export remain disabled.
+
+## Core trainer scalar subset (manifest schema v7)
+
+Schema v7 retains all schema v6 requirements and adds a non-null
+`trainerProgress` object. The object must explicitly contain `genderCode`,
+`languageCode`, `money`, `playedHours`, `playedMinutes`,
+`playedSeconds`, and `currentBox`. Numeric zero is meaningful and cannot
+be substituted for an omitted key. The comparison checks every field and
+refuses implausible clock values, language codes and current-box indices.
+
+These are **raw pinned-Core scalar getters**. Some formats inherit virtual
+defaults, so zero is not proof that a record exists or has that value.
+This is not parity for Gen6 records, fashion, trainer events, Gen9 currencies,
+last-saved timestamps, flags, DLC state, or any setter. A matching manifest
+must be independently produced with desktop PKHeX Core 26.10.18. Synthetic
+tests establish only immutable projection, source-byte preservation and
+field-level mismatch detection. Save editing/export remain disabled.

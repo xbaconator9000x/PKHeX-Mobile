@@ -26,6 +26,17 @@ public static class ReadOnlyProjectionPresenter
         text.Append("Trainer: ").AppendLine(Clean(save.TrainerName));
         text.Append("Trainer ID: ").Append(save.TrainerId)
             .Append(" / ").AppendLine(save.SecretId.ToString());
+        if (save.TrainerProgress is { } progress)
+        {
+            text.Append("Trainer progress (raw Core getters; not record/event parity): money ")
+                .Append(progress.Money)
+                .Append(", play time ").Append(progress.PlayedHours).Append(':')
+                .Append(progress.PlayedMinutes.ToString("D2", CultureInfo.InvariantCulture)).Append(':')
+                .Append(progress.PlayedSeconds.ToString("D2", CultureInfo.InvariantCulture))
+                .Append(", gender code ").Append(progress.GenderCode)
+                .Append(", language code ").Append(progress.LanguageCode)
+                .Append(", current box index ").AppendLine(progress.CurrentBox.ToString());
+        }
         text.Append("Party slots: ").Append(save.PartyCount)
             .Append(" | Boxes: ").Append(save.BoxCount)
             .Append(" x ").AppendLine(save.BoxSlotCount.ToString());
