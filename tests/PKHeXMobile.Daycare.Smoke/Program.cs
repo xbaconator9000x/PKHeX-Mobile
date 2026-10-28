@@ -52,6 +52,30 @@ Must(view.Facilities[0].Slots[0].RawSha256 == facility.Slots[0].RawSha256,
 Must(DaycareReadOnly.Project(usum).Facilities[0].Slots[0].RawSha256 !=
     facility.Slots[0].RawSha256, "Parent digest did not track changed fixture bytes.");
 
+// Gen1 has one daycare parent, not two. Gen2 has two parents and a
+// separate egg; this projection does not pretend the egg is a third parent.
+var red = new SAV1(LanguageID.English, GameVersion.RB);
+var redBefore = red.Data.ToArray();
+var redView = DaycareReadOnly.Project(red);
+Must(redView.Available && redView.Facilities.Count == 1 &&
+    redView.Facilities[0].Slots.Count == 1 &&
+    red.Data.SequenceEqual(redBefore), "Gen1 single-slot daycare failed.");
+var crystal = new SAV2();
+var crystalBefore = crystal.Data.ToArray();
+var crystalView = DaycareReadOnly.Project(crystal);
+Must(crystalView.Facilities.Count == 1 &&
+    crystalView.Facilities[0].Slots.Count == 2 &&
+    crystalView.Facilities[0].EggAvailable is not null &&
+    crystal.Data.SequenceEqual(crystalBefore), "Gen2 daycare parents or egg flag lost.");
+
+// Gen4's Core seed uses 32 bits, unlike Gen5/6's 64 and Gen7's 128.
+var diamond = new SAV4DP();
+((IDaycareRandomState<uint>)diamond).Seed = 0xF1234567;
+var diamondBefore = diamond.Data.ToArray();
+var diamondView = DaycareReadOnly.Project(diamond);
+Must(diamondView.Facilities[0].SeedHex == "F1234567" &&
+    diamond.Data.SequenceEqual(diamondBefore), "Gen4 UInt32 daycare seed lost.");
+
 // ORAS exposes two separate facilities; never use the unbounded indexer fallback.
 var oras = new SAV6AO();
 var multi = (IDaycareMulti)oras;
@@ -132,4 +156,25 @@ Must(presentation.Contains("Daycare (Core raw metadata)") &&
     presentation.Contains("occupied") &&
     presentation.Contains("No editing, export"),
     "Android-independent daycare presentation missing or misleading.");
-Console.WriteLine("Pinned-Core Gen5/6/7/BDSP nursery metadata, detached hashes, UInt128 seed, strict schema v11, and read-only presentation tests passed; no desktop or device certification.");
+// Malicious/unreviewed Core adapters cannot expose unbounded writable tails.
+static void MustReject(Action action)
+{
+    try { action(); }
+    catch (InvalidDataException) { return; }
+    throw new Exception("Unreviewed nursery layout was accepted.");
+}
+MustReject(() => DaycareReadOnly.ProjectStorage(new FakeDaycare(2, 513), 0));
+MustReject(() => DaycareReadOnly.ProjectStorage(new FakeDaycare(3, 10), 0));
+MustReject(() => DaycareReadOnly.ProjectStorage(new FakeDaycare(1, 10), -1));
+MustReject(() => DaycareReadOnly.ProjectStorage(new FakeDaycare(1, 10), 2));
+Console.WriteLine("Pinned-Core Gen1–8 nursery metadata, bounded detached hashes, 32/64/128-bit seeds, strict schema v11, and read-only presentation tests passed; no desktop or device certification.");
+
+internal sealed class FakeDaycare(int count, int length) : IDaycareStorage
+{
+    public int DaycareSlotCount => count;
+    public Memory<byte> GetDaycareSlot(int index) => new byte[length];
+    public bool IsDaycareOccupied(int index) => false;
+    public void SetDaycareOccupied(int index, bool occupied) =>
+        throw new Exception("Read-only projection invoked a mutation setter.");
+}
+

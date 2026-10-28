@@ -17,7 +17,7 @@ public sealed record DaycareReadOnly(
     bool Available, IReadOnlyList<DaycareFacilityReadOnly> Facilities)
 {
     public const int MaxFacilities = 2;
-    public const int SlotsPerFacility = 2;
+    public const int SlotsPerFacility = 2; // SWSH always has two; Gen1 has one.
     public const int MaxParentBytes = 512;
 
     /// <summary>
@@ -55,9 +55,9 @@ public sealed record DaycareReadOnly(
     {
         ArgumentNullException.ThrowIfNull(storage);
         if (facilityIndex is < 0 or >= MaxFacilities ||
-            storage.DaycareSlotCount != SlotsPerFacility)
+            storage.DaycareSlotCount is < 1 or > SlotsPerFacility)
             throw new InvalidDataException("Unreviewed daycare slot layout.");
-        var slots = new DaycareSlotReadOnly[SlotsPerFacility];
+        var slots = new DaycareSlotReadOnly[storage.DaycareSlotCount];
         for (int slot = 0; slot < slots.Length; slot++)
         {
             var raw = storage.GetDaycareSlot(slot);
@@ -68,6 +68,7 @@ public sealed record DaycareReadOnly(
         {
             IDaycareRandomState<UInt128> wide => wide.Seed.ToString("X32"),
             IDaycareRandomState<ulong> normal => normal.Seed.ToString("X16"),
+            IDaycareRandomState<uint> small => small.Seed.ToString("X8"),
             _ => null,
         };
         bool? egg = storage is IDaycareEggState state ? state.IsEggAvailable : null;
@@ -147,7 +148,8 @@ public static class DaycareProjectionVerifier
             Check(a.EggAvailable == e.EggAvailable, path + ".EggAvailable");
             Check(string.Equals(a.SeedHex, e.SeedHex, StringComparison.OrdinalIgnoreCase),
                 path + ".SeedHex");
-            for (int slot = 0; slot < DaycareReadOnly.SlotsPerFacility; slot++)
+            Check(a.Slots.Count == e.Slots.Count, path + ".Slots.Count");
+            for (int slot = 0; slot < Math.Min(a.Slots.Count, e.Slots.Count); slot++)
             {
                 var av = a.Slots[slot];
                 var ev = e.Slots[slot];
@@ -200,14 +202,14 @@ public static class DaycareProjectionVerifier
                     return false;
                 }
                 if (index != i || (seed is not null &&
-                    (seed.Length is not (16 or 32) || !seed.All(Uri.IsHexDigit))) ||
+                    (seed.Length is not (8 or 16 or 32) || !seed.All(Uri.IsHexDigit))) ||
                     (observedSlots is null && expectedSlots is null) ||
-                    (observedSlots?.Count ?? expectedSlots?.Count) != DaycareReadOnly.SlotsPerFacility)
+                    (observedSlots?.Count ?? expectedSlots?.Count) is < 1 or > DaycareReadOnly.SlotsPerFacility)
                 {
                     errors.Add($"Daycare {side} facility {i} has invalid shape or seed");
                     return false;
                 }
-                for (int j = 0; j < DaycareReadOnly.SlotsPerFacility; j++)
+                for (int j = 0; j < (observedSlots?.Count ?? expectedSlots!.Count); j++)
                 {
                     int slotIndex;
                     int length;

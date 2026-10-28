@@ -105,8 +105,8 @@ object in each fixture's `expected` projection. It contains `available`
 and `facilities`. For formats without a reviewed Core nursery interface,
 use `{"available":false,"facilities":[]}`; do not omit the object.
 Each available facility (one or two, in source order) requires
-`facilityIndex`, nullable `eggAvailable`, nullable `seedHex` (16
-hex digits for 64-bit seeds, 32 for Gen7 UInt128), and exactly two
+`facilityIndex`, nullable `eggAvailable`, nullable `seedHex` (8 hex digits for Gen4 32-bit seeds, 16
+for 64-bit seeds, 32 for Gen7 UInt128), and one (Gen1) or two (other reviewed generations)
 ordered `slots`. Each slot requires `slotIndex`, `occupied`,
 `rawLength`, `rawSha256` (64 hex digits) and nullable
 `experienceGained`. JSON nulls must be present for unsupported getters.
