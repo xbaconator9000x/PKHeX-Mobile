@@ -45,6 +45,8 @@ public sealed record ExpectedPokemonReadOnlyDetails(
 {
     // Optional for schema v2; required for every occupied slot in schema v3.
     public ExpectedPokemonAwardsReadOnly? Awards { get; init; }
+    // Schema v8: derived, format-aware raw training diagnostics.
+    public ExpectedPokemonTrainingReadOnly? Training { get; init; }
 }
 
 /// <summary>Schema v4: Core national-species seen/caught flags only.</summary>
@@ -94,11 +96,11 @@ public static class SaveProjectionVerifier
     public static IReadOnlyList<string> Compare(SaveReadOnlyResult actual, ExpectedSaveProjection expected,
         bool requireDetails = false, bool requireAwards = false, bool requirePokedex = false,
         bool requireInventory = false, bool requireStorage = false,
-        bool requireTrainerProgress = false)
+        bool requireTrainerProgress = false, bool requireTraining = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
-        if (requireAwards) requireDetails = true;
+        if (requireAwards || requireTraining) requireDetails = true;
         var errors = new List<string>();
 
         // Required JSON members can explicitly be null. A malformed expected
@@ -289,6 +291,9 @@ public static class SaveProjectionVerifier
             }
             CompareSpread(a.IndividualValues, e.IndividualValues, $"{path}.IndividualValues");
             CompareSpread(a.EffortValues, e.EffortValues, $"{path}.EffortValues");
+            if (requireTraining || e.Training is not null)
+                PokemonTrainingProjectionVerifier.Compare(a.Training, e.Training,
+                    a.IndividualValues, a.EffortValues, $"{path}.Training", errors);
             if (e.Awards is null)
             {
                 if (requireAwards) errors.Add($"{path}.Awards missing");

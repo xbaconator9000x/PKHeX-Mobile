@@ -250,6 +250,21 @@ public static class ReadOnlyProjectionPresenter
                 text.AppendLine().Append("Core EV/stat-exp values (game-dependent): ")
                     .Append(FormatSpread(details.EffortValues));
             }
+            if (details.Training is { } training)
+            {
+                text.AppendLine().Append("Training (raw Core format ").Append(training.CoreFormat)
+                    .Append(", diagnostic only): effective effort total ")
+                    .Append(training.EffectiveEffortTotal).Append("; conventional per-stat ceiling ")
+                    .Append(training.ConventionalPerStatEffortCeiling)
+                    .Append("; conventional total ceiling ")
+                    .Append(training.ConventionalTotalEffortCeiling).AppendLine();
+                if (training.DerivedHpDv is { } hpDv)
+                    text.Append("Derived classic HP DV: ").Append(hpDv)
+                        .Append("; Core Special getters agree: ")
+                        .AppendLine(training.CoreSpecialGettersAgree == true ? "yes" : "no");
+                if (training.ExceedsConventionalEffortLimits)
+                    text.AppendLine("Unusual raw effort values; not corrected or judged legal/illegal.");
+            }
             AppendTypedAwards(text, details.Awards);
             text.AppendLine().Append("Values are provisional; legality is not evaluated.");
         }

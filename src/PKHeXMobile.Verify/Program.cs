@@ -6,7 +6,7 @@ using PKHeXMobile.Verify;
 if (args.Length == 1 && args[0] is "--help" or "-h")
 {
     Console.WriteLine("Usage: PKHeXMobile.Verify <local-fixture-manifest.json>");
-    Console.WriteLine("Schema 1: basic slots; schema 2: details; schema 3: awards; schema 4: national dex flags; schema 5: Core-enumerated inventory; schema 6: physical storage slot flags; schema 7: Core trainer progress scalars.");
+    Console.WriteLine("Schema 1: basic slots; schema 2: details; schema 3: awards; schema 4: national dex flags; schema 5: Core-enumerated inventory; schema 6: physical storage slot flags; schema 7: Core trainer progress scalars; schema 8: format-aware training diagnostics.");
     Console.WriteLine("Compares consented local save projections to separately supplied expected values.");
     Console.WriteLine("Never modifies or exports saves. Never commit real save files or private manifests.");
     return 0;
@@ -24,10 +24,10 @@ try
     var manifest = JsonSerializer.Deserialize<FixtureManifest>(
         await File.ReadAllTextAsync(manifestPath),
         new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-    if (manifest is null || manifest.SchemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7) || manifest.CoreVersion != "26.10.18" ||
+    if (manifest is null || manifest.SchemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8) || manifest.CoreVersion != "26.10.18" ||
         manifest.Fixtures is null)
     {
-        Console.Error.WriteLine("Manifest must declare schemaVersion=1–7, coreVersion=26.10.18 and nonempty fixtures.");
+        Console.Error.WriteLine("Manifest must declare schemaVersion=1–8, coreVersion=26.10.18 and nonempty fixtures.");
         return 64;
     }
 
@@ -78,7 +78,8 @@ try
                 requirePokedex: manifest.SchemaVersion >= 4,
                 requireInventory: manifest.SchemaVersion >= 5,
                 requireStorage: manifest.SchemaVersion >= 6,
-                requireTrainerProgress: manifest.SchemaVersion >= 7);
+                requireTrainerProgress: manifest.SchemaVersion >= 7,
+                requireTraining: manifest.SchemaVersion >= 8);
             if (differences.Count != 0)
             {
                 Console.Error.WriteLine($"Fixture {i + 1}: {differences.Count} projection differences: {string.Join(", ", differences)}");
