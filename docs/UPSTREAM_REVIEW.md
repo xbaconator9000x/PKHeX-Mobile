@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Party, box storage, pointer and bulk-mutation source audit, pass N (2026-10-28)](UPSTREAM_STORAGE_SLOT_REVIEW_2026-10-28.md) — 37 pinned findings (13 P0), including source-level pointer range inversion, MoveBox permutation loss and protected-slot bypass; no runtime certification.
+> [Storage, party and pointer execution gates, pass N (2026-10-28)](PARITY_STORAGE_SLOT_GATES_2026-10-28.md) — 42 proposed scenarios; none executed or certified.
+
 > [Inventory, pouch, item flags and save persistence source audit, pass M (2026-10-28)](UPSTREAM_INVENTORY_REVIEW_2026-10-28.md) — 30 source-backed findings, 17 official files compared (16 matching, one changed) and fail-closed inventory write hazards.
 > [Inventory execution gates, pass M (2026-10-28)](PARITY_INVENTORY_GATES_2026-10-28.md) — 38 proposed scenarios; none executed or certified.
 
