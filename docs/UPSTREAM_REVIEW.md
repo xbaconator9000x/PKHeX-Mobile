@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Gen5 world systems audit, pass W (2026-10-28)](UPSTREAM_GEN5_WORLD_REVIEW_2026-10-28.md) — 35 source findings (19 P0), 20/20 pinned release Core blob matches; source-only.
+> [Gen5 world-system parity gates, pass W (2026-10-28)](PARITY_GEN5_WORLD_GATES_2026-10-28.md) — 42 proposed, unexecuted cases.
+
 > [HGSS Pokéathlon, Safari and gadget audit, pass V (2026-10-28)](UPSTREAM_HGSS_GADGETS_REVIEW_2026-10-28.md) — 33 source findings (15 P0), 23 Core release paths compared; source-only.
 > [HGSS parity execution gates, pass V (2026-10-28)](PARITY_HGSS_GADGETS_GATES_2026-10-28.md) — 36 proposed, unexecuted cases.
 
