@@ -30,10 +30,21 @@ def adapt_view(source: str) -> str:
     source = replace_once(source, "using PKForge.App.Services;\n",
         "using PKForge.App.Services;\nusing PKHeXMobile.Domain;\n"
         "using PKHeXMobile.PortConsolidation;\n", "UI namespaces")
+    source = replace_once(source,
+        "    private readonly HashSet<int> _lockedSlots = [];",
+        "    private long _previewRequest;\\n    private readonly HashSet<int> _lockedSlots = [];",
+        "preview request generation")
+    source = replace_once(source,
+        "        viewModel.PropertyChanged += (_, args) =>\\n        {",
+        "        viewModel.PropertyChanged += (_, args) =>\\n        {\\n"
+        "            if (args.PropertyName is nameof(BoxBrowserViewModel.Save) or\\n"
+        "                nameof(BoxBrowserViewModel.BoxIndex) or nameof(BoxBrowserViewModel.SelectedSlot) or\\n"
+        "                nameof(BoxBrowserViewModel.EditNickname))\\n"
+        "                Interlocked.Increment(ref _previewRequest);",
+        "preview selection invalidation")
     anchor = '        var save = FocusButton(EditorTool("Save changes", primary: true), "SAVE CHANGES");'
-    preview = """        // Only preview the current in-memory session. It may differ from the
-        // provider's original bytes; it never grants Save As or in-place writes.
-        // The existing PKForge save actions are NOT safety-certified by this probe.
+    preview = """        // A provider-origin baseline is captured before the engine opens; never
+        // derive the preview source from the mutable session's Serialize().
         var detachedPreview = FocusButton(
             EditorTool("Preview nickname (discard)"), "PREVIEW NICKNAME");
         detachedPreview.Clicked += async (_, _) =>
@@ -42,24 +53,38 @@ def adapt_view(source: str) -> str:
             var box = _viewModel.BoxIndex;
             var slot = _viewModel.SelectedSlot;
             var proposed = _viewModel.EditNickname;
+            var request = Interlocked.Increment(ref _previewRequest);
             if (session is null || slot < 0 || string.IsNullOrWhiteSpace(proposed))
                 return;
             try
             {
-                var source = SaveInputSnapshot.FromBytes(session.Serialize().Span);
-                var preview = DetachedRetailNicknameEditor.Preview(source, box, slot, proposed);
+                var sessions = IPlatformApplication.Current!.Services.GetRequiredService<ISaveSessionService>();
+                var access = IPlatformApplication.Current!.Services.GetRequiredService<ISaveFileAccess>();
+                if (!ReferenceEquals(sessions.CurrentSession, session))
+                    return;
+                var result = await ProviderBoundRetailNicknameEditor.PreviewAsync(
+                    sessions, access, box, slot, proposed);
+                // Async provider reads must not display a result for a different
+                // selection, nickname, session, or later picker operation.
+                if (request != Interlocked.Read(ref _previewRequest)
+                    || box != _viewModel.BoxIndex || slot != _viewModel.SelectedSlot
+                    || !string.Equals(proposed, _viewModel.EditNickname, StringComparison.Ordinal)
+                    || !ReferenceEquals(session, sessions.CurrentSession))
+                    return;
                 var location = box == -1
                     ? $"Party slot {slot + 1}"
                     : $"Box {box + 1}, slot {slot + 1}";
-                await PadMenu.ShowAsync(_hostGrid, "Detached nickname preview",
-                    $"{location}: {preview.OriginalNickname} → {preview.PreviewNickname}\\n" +
-                    "In-memory preview only. No document was saved.", "Discard");
+                await PadMenu.ShowAsync(_hostGrid, "Provider-bound nickname preview",
+                    $"{location}: {result.OriginalNickname} → {result.PreviewNickname}\\n" +
+                    "Provider bytes rechecked. Preview discarded; nothing saved.", "Discard");
             }
+            catch (OperationCanceledException) { }
             catch (Exception error) when (error is ArgumentException or
-                InvalidDataException or InvalidOperationException)
+                InvalidDataException or InvalidOperationException or IOException)
             {
-                await PadMenu.ShowAsync(_hostGrid, "Preview refused",
-                    error.Message, "OK");
+                if (request == Interlocked.Read(ref _previewRequest))
+                    await PadMenu.ShowAsync(_hostGrid, "Preview refused",
+                        error.Message, "OK");
             }
         };
 
