@@ -44,16 +44,16 @@ def adapt_picker(source: str) -> str:
 """,
         "multi-picker")
     source = once(source,
-        "    private const int MultiRequestCode = 4109;\\n"
-        "    private TaskCompletionSource<IReadOnlyList<PickedDocument>>? _pendingMany;\\n\\n",
+        "    private const int MultiRequestCode = 4109;\n"
+        "    private TaskCompletionSource<IReadOnlyList<PickedDocument>>? _pendingMany;\n\n",
         "", "multi-picker pending state")
     source = replace_between(source,
         "    private bool HandleMultiResult(int requestCode, Result resultCode, Intent? data)",
         "    public bool HandleActivityResult(int requestCode, Result resultCode, Intent? data)",
         "", "multi-result handler")
     source = once(source,
-        "        if (HandleMultiResult(requestCode, resultCode, data))\\n"
-        "            return true;\\n",
+        "        if (HandleMultiResult(requestCode, resultCode, data))\n"
+        "            return true;\n",
         "", "multi-result dispatch")
     return source
 
