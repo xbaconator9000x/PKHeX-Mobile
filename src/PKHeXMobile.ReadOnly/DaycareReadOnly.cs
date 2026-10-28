@@ -13,9 +13,12 @@ public sealed record DaycareSlotReadOnly(
 public sealed record DaycareFacilityReadOnly(
     int FacilityIndex, bool? EggAvailable, string? SeedHex,
     IReadOnlyList<DaycareSlotReadOnly> Slots);
+/// <summary>Generation 2 has a separate egg buffer, not a third deposited parent.</summary>
+public sealed record DaycareEggReadOnly(int RawLength, string RawSha256);
 public sealed record DaycareReadOnly(
     bool Available, IReadOnlyList<DaycareFacilityReadOnly> Facilities)
 {
+    public DaycareEggReadOnly? Gen2Egg { get; init; }
     public const int MaxFacilities = 2;
     public const int SlotsPerFacility = 2; // SWSH always has two; Gen1 has one.
     public const int MaxParentBytes = 512;
@@ -43,6 +46,14 @@ public sealed record DaycareReadOnly(
                 facilities[i] = ProjectStorage(multi[i], i);
             return new DaycareReadOnly(true, Array.AsReadOnly(facilities));
         }
+        if (save is SAV2 gen2)
+            return new DaycareReadOnly(true,
+                Array.AsReadOnly(new[] { ProjectStorage(gen2, 0) }))
+            {
+                // GetDaycareEgg returns a distinct mutable Reserved buffer. Hash a
+                // bounded copy, never infer an egg from the two parent slots.
+                Gen2Egg = ProjectEgg(gen2.GetDaycareEgg()),
+            };
         if (save is IDaycareStorage storage)
             return new DaycareReadOnly(true,
                 Array.AsReadOnly(new[] { ProjectStorage(storage, 0, save is SAV5BW) }));
@@ -94,6 +105,15 @@ public sealed record DaycareReadOnly(
             daycare.GetDaycareSeed(facility).ToString("X16"), Array.AsReadOnly(slots));
     }
 
+    private static DaycareEggReadOnly ProjectEgg(Memory<byte> raw)
+    {
+        if (raw.Length is < 1 or > MaxParentBytes)
+            throw new InvalidDataException("Unreviewed Gen2 egg length.");
+        var detached = raw.ToArray();
+        return new DaycareEggReadOnly(detached.Length,
+            Convert.ToHexString(SHA256.HashData(detached)));
+    }
+
     private static DaycareSlotReadOnly ProjectSlot(
         int slot, bool occupied, Memory<byte> raw, uint? experience)
     {
@@ -118,14 +138,21 @@ public sealed record ExpectedDaycareFacilityReadOnly(
     [property: System.Text.Json.Serialization.JsonRequired] bool? EggAvailable,
     [property: System.Text.Json.Serialization.JsonRequired] string? SeedHex,
     [property: System.Text.Json.Serialization.JsonRequired] IReadOnlyList<ExpectedDaycareSlotReadOnly> Slots);
+public sealed record ExpectedDaycareEggReadOnly(
+    [property: System.Text.Json.Serialization.JsonRequired] int RawLength,
+    [property: System.Text.Json.Serialization.JsonRequired] string RawSha256);
 public sealed record ExpectedDaycareReadOnly(
     [property: System.Text.Json.Serialization.JsonRequired] bool Available,
-    [property: System.Text.Json.Serialization.JsonRequired] IReadOnlyList<ExpectedDaycareFacilityReadOnly> Facilities);
+    [property: System.Text.Json.Serialization.JsonRequired] IReadOnlyList<ExpectedDaycareFacilityReadOnly> Facilities)
+{
+    // Optional in v11, required for Gen2 in v12. No third-parent conflation.
+    public ExpectedDaycareEggReadOnly? Gen2Egg { get; init; }
+}
 
 public static class DaycareProjectionVerifier
 {
     public static void Compare(DaycareReadOnly? actual, ExpectedDaycareReadOnly? expected,
-        List<string> errors)
+        List<string> errors, bool requireGen2Egg = false)
     {
         ArgumentNullException.ThrowIfNull(errors);
         if (actual is null || expected is null)
@@ -137,6 +164,19 @@ public static class DaycareProjectionVerifier
         if (!Validate(actual.Available, actual.Facilities, "observed") ||
             !Validate(expected.Available, expected.Facilities, "expected"))
             return;
+        if (requireGen2Egg || expected.Gen2Egg is not null)
+        {
+            if (actual.Gen2Egg is null || expected.Gen2Egg is null)
+                errors.Add("Daycare.Gen2Egg missing");
+            else
+            {
+                ValidateEgg(actual.Gen2Egg.RawLength, actual.Gen2Egg.RawSha256, "observed");
+                ValidateEgg(expected.Gen2Egg.RawLength, expected.Gen2Egg.RawSha256, "expected");
+                Check(actual.Gen2Egg.RawLength == expected.Gen2Egg.RawLength, "Daycare.Gen2Egg.RawLength");
+                Check(string.Equals(actual.Gen2Egg.RawSha256, expected.Gen2Egg.RawSha256,
+                    StringComparison.OrdinalIgnoreCase), "Daycare.Gen2Egg.RawSha256");
+            }
+        }
         Check(actual.Available == expected.Available, "Daycare.Available");
         Check(actual.Facilities.Count == expected.Facilities.Count, "Daycare.Facilities.Count");
         for (int i = 0; i < Math.Min(actual.Facilities.Count, expected.Facilities.Count); i++)
@@ -166,6 +206,13 @@ public static class DaycareProjectionVerifier
         void Check(bool condition, string field)
         {
             if (!condition) errors.Add(field + " mismatch");
+        }
+
+        void ValidateEgg(int length, string? digest, string side)
+        {
+            if (length is < 1 or > DaycareReadOnly.MaxParentBytes ||
+                digest is null || digest.Length != 64 || !digest.All(Uri.IsHexDigit))
+                errors.Add("Daycare.Gen2Egg " + side + " invalid length/digest");
         }
 
         bool Validate<T>(bool available, IReadOnlyList<T>? facilities, string side)

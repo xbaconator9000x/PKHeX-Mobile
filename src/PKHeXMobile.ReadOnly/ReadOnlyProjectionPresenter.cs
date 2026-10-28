@@ -74,6 +74,10 @@ public static class ReadOnlyProjectionPresenter
                     text.Append("raw RNG seed 0x").Append(seed).Append("; ");
                 text.AppendLine();
             }
+            if (nursery.Gen2Egg is { } gen2Egg)
+                text.Append("Gen2 separate egg buffer: ")
+                    .Append(gen2Egg.RawLength)
+                    .AppendLine(" raw bytes (SHA-256 captured, not decoded); distinct from parents.");
         }
         else
             text.AppendLine("Daycare: no reviewed Core nursery interface for this format.");

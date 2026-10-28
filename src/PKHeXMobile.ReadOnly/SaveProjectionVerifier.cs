@@ -104,7 +104,7 @@ public static class SaveProjectionVerifier
         bool requireInventory = false, bool requireStorage = false,
         bool requireTrainerProgress = false, bool requireTraining = false,
         bool requireMoveState = false, bool requireIdentity = false,
-        bool requireDaycare = false)
+        bool requireDaycare = false, bool requireGen2Egg = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -208,7 +208,13 @@ public static class SaveProjectionVerifier
             TrainerProgressProjectionVerifier.Compare(actual.TrainerProgress,
                 expected.TrainerProgress, actual.BoxCount, errors);
         if (requireDaycare || expected.Daycare is not null)
-            DaycareProjectionVerifier.Compare(actual.Daycare, expected.Daycare, errors);
+        {
+            DaycareProjectionVerifier.Compare(actual.Daycare, expected.Daycare, errors,
+                requireGen2Egg && actual.Generation == 2);
+            if (requireGen2Egg && actual.Generation != 2 &&
+                (actual.Daycare?.Gen2Egg is not null || expected.Daycare?.Gen2Egg is not null))
+                errors.Add("Daycare.Gen2Egg unexpected for non-Gen2 save");
+        }
 
         return errors;
 
