@@ -22,7 +22,7 @@ class SessionTransactionTests(unittest.TestCase):
         self.assertIn("try { engineSession.Dispose(); } catch", result)
         self.assertIn("CurrentSession = null;", result)
         self.assertIn("Current = null;", result)
-        self.assertEqual(result.count("Interlocked.Increment(ref _openingGeneration)"), 4)
+        self.assertEqual(result.count("Interlocked.Increment(ref _openingGeneration)"), 5)
         self.assertGreaterEqual(result.count("lock (_activationGate)"), 5)
 
     def test_repeated_adaptation_refused(self):
