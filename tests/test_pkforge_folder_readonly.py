@@ -81,6 +81,7 @@ class FolderReadOnlyTests(unittest.TestCase):
                 target = root / path
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(source, encoding="utf-8")
+            (root / WRAPPER).parent.mkdir(parents=True, exist_ok=True)
             picker = root / PICKER
             original = (root / PROGRAM).read_bytes()
             picker.write_text(PICKER_SOURCE.replace("GrantWriteUriPermission", "GrantUnknownUriPermission"))
