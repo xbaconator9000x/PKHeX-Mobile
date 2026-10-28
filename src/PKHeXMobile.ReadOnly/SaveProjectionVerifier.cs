@@ -49,6 +49,8 @@ public sealed record ExpectedPokemonReadOnlyDetails(
     public ExpectedPokemonTrainingReadOnly? Training { get; init; }
     // Schema v9: stored move PP, PP Ups and raw relearn getters.
     public ExpectedPokemonMoveStateReadOnly? MoveState { get; init; }
+    // Schema v10: every field mandatory inside the non-null identity object.
+    public PokemonIdentityReadOnly? Identity { get; init; }
 }
 
 /// <summary>Schema v4: Core national-species seen/caught flags only.</summary>
@@ -99,11 +101,11 @@ public static class SaveProjectionVerifier
         bool requireDetails = false, bool requireAwards = false, bool requirePokedex = false,
         bool requireInventory = false, bool requireStorage = false,
         bool requireTrainerProgress = false, bool requireTraining = false,
-        bool requireMoveState = false)
+        bool requireMoveState = false, bool requireIdentity = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
-        if (requireAwards || requireTraining || requireMoveState) requireDetails = true;
+        if (requireAwards || requireTraining || requireMoveState || requireIdentity) requireDetails = true;
         var errors = new List<string>();
 
         // Required JSON members can explicitly be null. A malformed expected
@@ -300,6 +302,9 @@ public static class SaveProjectionVerifier
             if (requireMoveState || e.MoveState is not null)
                 PokemonMoveStateProjectionVerifier.Compare(a.MoveState, e.MoveState,
                     a.Moves, e.Moves, $"{path}.MoveState", errors);
+            if (requireIdentity || e.Identity is not null)
+                PokemonIdentityProjectionVerifier.Compare(a.Identity, e.Identity,
+                    $"{path}.Identity", errors);
             if (e.Awards is null)
             {
                 if (requireAwards) errors.Add($"{path}.Awards missing");

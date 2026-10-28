@@ -171,6 +171,7 @@ public static class ReadOnlySaveInspector
                 Awards = PokemonAwardsReadOnly.Project(pokemon),
                 Training = PokemonTrainingReadOnly.Project(pokemon, iv, ev),
                 MoveState = PokemonMoveStateReadOnly.Project(pokemon),
+                Identity = PokemonIdentityReadOnly.Project(pokemon),
             });
     }
 
