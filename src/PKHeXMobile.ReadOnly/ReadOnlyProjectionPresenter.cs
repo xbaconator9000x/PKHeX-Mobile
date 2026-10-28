@@ -408,10 +408,10 @@ public static class ReadOnlyProjectionPresenter
                         text.Append("    ").AppendLine(SanitizeLabel(reason));
                 }
                 text.AppendLine("This is NOT hack authentication, desktop parity or write authorization.");
+                text.AppendLine("Values are provisional; no save editing or export.");
             }
             else
-                text.AppendLine("Legality not evaluated for this slot.");
-            text.AppendLine("Values are provisional; no save editing or export.");
+                text.AppendLine("Values are provisional; legality is not evaluated.");
         }
         return text.ToString();
     }
