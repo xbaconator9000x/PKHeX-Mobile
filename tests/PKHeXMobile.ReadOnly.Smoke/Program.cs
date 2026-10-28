@@ -793,7 +793,74 @@ if (ReadOnlyGridLayout.ColumnsForWidth(400, 1f) != 6 ||
     ReadOnlyGridLayout.ColumnsForWidth(288, float.NaN) != 4)
     throw new Exception("Responsive grid column policy failed.");
 
+
+// Synthetic Core Gen 1 Pokédex flags: read-only projection and schema v4.
+// No independently obtained desktop oracle or game-specific regional parity.
+var dexSample = new SAV1(LanguageID.English, GameVersion.RB);
+dexSample.SetSeen(1, true);
+dexSample.SetSeen(151, true);
+dexSample.SetCaught(151, true);
+var dexRead = PokedexReadOnly.Project(dexSample);
+if (dexRead is null || dexRead.MaxSpeciesId != 151 ||
+    !dexRead.SeenSpecies.SequenceEqual(new ushort[] { 1, 151 }) ||
+    !dexRead.CaughtSpecies.SequenceEqual(new ushort[] { 151 }) ||
+    dexRead.SeenCount != 2 || dexRead.CaughtCount != 1)
+    throw new Exception("Core Gen 1 seen/caught projection failed.");
+MustRefuseCollectionMutation(dexRead.SeenSpecies, (ushort)25);
+MustRefuseCollectionMutation(dexRead.CaughtSpecies, (ushort)25);
+if (PokedexReadOnly.Project(dexSample) is not { SeenCount: 2, CaughtCount: 1 })
+    throw new Exception("Dex projection changed the source save.");
+var dexView = view with { Pokedex = dexRead };
+var dexExpected = expectation with
+{
+    Pokedex = new ExpectedPokedexReadOnly(151, [1, 151], [151]),
+};
+if (SaveProjectionVerifier.Compare(dexView, dexExpected, requirePokedex: true).Count != 0)
+    throw new Exception("Identical schema v4 synthetic flags did not match.");
+if (!ReadOnlyProjectionPresenter.FormatTrainer(dexView, false)
+    .Contains("2 seen / 1 caught, scanned 1–151"))
+    throw new Exception("Dex presentation omitted scope or counts.");
+if (!SaveProjectionVerifier.Compare(dexView, expectation, requirePokedex: true)
+    .Contains("Pokedex missing from expectation") ||
+    !SaveProjectionVerifier.Compare(dexView with { Pokedex = null }, dexExpected,
+        requirePokedex: true).Contains("Pokedex missing from observed projection"))
+    throw new Exception("Schema v4 accepted missing dex flags.");
+var dexMutations = new ExpectedPokedexReadOnly[]
+{
+    new(152, [1, 151], [151]),
+    new(151, [1, 150], [151]),
+    new(151, [1, 151], [150]),
+    new(151, [1, 1], [151]),
+    new(151, [151, 1], [151]),
+    new(151, [0, 151], [151]),
+    new(151, [1, 152], [151]),
+    new(151, [1, 151], [151, 151]),
+    new(151, null!, [151]),
+    new(151, [1, 151], null!),
+};
+foreach (var mutation in dexMutations)
+{
+    if (SaveProjectionVerifier.Compare(dexView,
+        dexExpected with { Pokedex = mutation }, requirePokedex: true).Count == 0)
+        throw new Exception("Malformed or changed schema v4 baseline falsely passed.");
+}
+if (SaveProjectionVerifier.Compare(dexView with
+    { Pokedex = new PokedexReadOnly(151, [1, 1], [151]) },
+    dexExpected, requirePokedex: true).Count == 0)
+    throw new Exception("Malformed observed dex flags falsely passed.");
+try
+{
+    System.Text.Json.JsonSerializer.Deserialize<ExpectedPokedexReadOnly>(
+        """{"maxSpeciesId":151,"seenSpecies":[1]}""",
+        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    throw new Exception("Missing required caughtSpecies was accepted.");
+}
+catch (System.Text.Json.JsonException) { }
+if (!syntheticSnapshot.Matches(syntheticBytes))
+    throw new Exception("Dex projection changed the original source snapshot.");
+
 Console.WriteLine("Pinned Core reader: synthetic negatives, RZIP and hack-risk cases, near-miss checks, 1 same-Core synthetic Gen 1 positive and PK1 scalar detail projection.");
 Console.WriteLine("Provider-neutral read service: two-open success, identity-aware same-byte replacement refusal, missing identity, null stream, stale bytes, revoked provider and cancellation passed.");
 Console.WriteLine("Typed Gen9 award/memory subset: synthetic projection, immutable flags, display and schema v3 mutation checks passed.");
+Console.WriteLine("National Pokédex flags: synthetic Gen 1 Core projection, immutable lists and schema v4 negative comparisons passed.");
 Console.WriteLine("No independently verified real-world fixture, Android device, format certification or export has been tested.");

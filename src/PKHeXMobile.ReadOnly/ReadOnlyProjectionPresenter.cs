@@ -29,6 +29,13 @@ public static class ReadOnlyProjectionPresenter
         text.Append("Party slots: ").Append(save.PartyCount)
             .Append(" | Boxes: ").Append(save.BoxCount)
             .Append(" x ").AppendLine(save.BoxSlotCount.ToString());
+        if (save.Pokedex is { } dex)
+            text.Append("Pokédex (Core national IDs, not regional/DLC parity): ")
+                .Append(dex.SeenCount).Append(" seen / ")
+                .Append(dex.CaughtCount).Append(" caught, scanned 1–")
+                .AppendLine(dex.MaxSpeciesId.ToString());
+        else
+            text.AppendLine("Pokédex: not exposed by this Core save type.");
         text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
         return text.ToString();
     }
