@@ -92,6 +92,8 @@ public sealed record ExpectedSaveProjection(
     public ExpectedDaycareReadOnly? Daycare { get; init; }
     // Schema v13: raw Gen4/BDSP Underground metadata.
     public ExpectedUndergroundReadOnly? Underground { get; init; }
+    // Schema v14: HGSS raw gadget and Pokéathlon parity.
+    public ExpectedHgssReadOnly? Hgss { get; init; }
 }
 
 /// <summary>
@@ -107,7 +109,7 @@ public static class SaveProjectionVerifier
         bool requireTrainerProgress = false, bool requireTraining = false,
         bool requireMoveState = false, bool requireIdentity = false,
         bool requireDaycare = false, bool requireGen2Egg = false,
-        bool requireUnderground = false)
+        bool requireUnderground = false, bool requireHgss = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -221,6 +223,8 @@ public static class SaveProjectionVerifier
 
         if (requireUnderground || expected.Underground is not null)
             UndergroundProjectionVerifier.Compare(actual.Underground, expected.Underground, errors);
+        if (requireHgss || expected.Hgss is not null)
+            HgssProjectionVerifier.Compare(actual.Hgss, expected.Hgss, errors);
 
         return errors;
 
