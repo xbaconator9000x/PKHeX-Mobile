@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Generation 7 Festival Plaza, Poké Pelago, Battle Tree, Zygarde and mobile transaction source audit, pass Y (2026-10-28)](UPSTREAM_GEN7_SYSTEMS_REVIEW_2026-10-28.md) — 34 findings (12 P0), 12/12 official Core/WinForms source blob matches; source-only.
+> [Generation 7 systems parity gates, pass Y (2026-10-28)](PARITY_GEN7_SYSTEMS_GATES_2026-10-28.md) — 40 proposed, unexecuted cases.
+
 > [Gen6 Super Training, Secret Base and O-Power source audit, pass X (2026-10-28)](UPSTREAM_GEN6_SYSTEMS_REVIEW_2026-10-28.md) — 33 source findings (13 P0), 12/12 selected official Core release blob matches; source-only.
 > [Gen6 systems parity execution gates, pass X (2026-10-28)](PARITY_GEN6_SYSTEMS_GATES_2026-10-28.md) — 36 proposed, unexecuted scenarios.
 
