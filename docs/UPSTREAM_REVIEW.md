@@ -1,5 +1,9 @@
 # Source-level comparison plan
 
+> [Move identity, PP, relearn and technical-record audit, pass Q (2026-10-28)](UPSTREAM_MOVE_PP_TR_REVIEW_2026-10-28.md) — 32 source findings, 11 official files compared (10 identical, one changed); source-only.
+> [Move/PP/relearn/TR acceptance gates, pass Q (2026-10-28)](PARITY_MOVE_PP_TR_GATES_2026-10-28.md) — 40 proposed cases; none executed.
+
+
 > [Pokémon stats, training, Tera and Move Shop source audit, pass P (2026-10-28)](UPSTREAM_STAT_TERA_MOVE_REVIEW_2026-10-28.md) — 28 pinned findings (10 P0), 12/12 matching official Core source blobs; source-only, not runtime certified.
 > [Stat, Tera and Move Shop acceptance gates, pass P (2026-10-28)](PARITY_STAT_TERA_MOVE_GATES_2026-10-28.md) — 38 proposed scenarios, none executed.
 
