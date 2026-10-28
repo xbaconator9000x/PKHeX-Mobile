@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Inventory, pouch, item flags and save persistence source audit, pass M (2026-10-28)](UPSTREAM_INVENTORY_REVIEW_2026-10-28.md) — 30 source-backed findings, 17 official files compared (16 matching, one changed) and fail-closed inventory write hazards.
+> [Inventory execution gates, pass M (2026-10-28)](PARITY_INVENTORY_GATES_2026-10-28.md) — 38 proposed scenarios; none executed or certified.
+
 > [Pokédex and acquisition source audit, pass L (2026-10-28)](UPSTREAM_POKEDEX_REVIEW_2026-10-28.md) — 29 findings including MAUI row shift, Forge Unbound no-op and Gen9 block side effects.
 > [Pokédex and regional dex execution gates, pass L (2026-10-28)](PARITY_POKEDEX_GATES_2026-10-28.md) — 40 proposed cases; none executed or certified.
 
