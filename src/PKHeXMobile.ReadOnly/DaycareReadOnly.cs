@@ -83,7 +83,7 @@ public sealed record DaycareReadOnly(
             int index = (facility * SlotsPerFacility) + slot;
             // Daycare8's indexer returns a tail slice, not one PK8. Bound it
             // explicitly before hashing; never expose the mutable tail.
-            var bounded = daycare[index].Slice(0, PokeCrypto.SIZE_8STORED);
+            var bounded = daycare[index].Slice(0, save.SIZE_STORED);
             bool occupied = facility == 0
                 ? daycare.GetDaycare1SlotOccupied(slot)
                 : daycare.GetDaycare2SlotOccupied(slot);

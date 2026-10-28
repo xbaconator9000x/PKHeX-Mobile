@@ -85,7 +85,7 @@ var bdspView = DaycareReadOnly.Project(bdsp);
 Must(bdspView.Facilities.Count == 1 &&
     bdspView.Facilities[0].SeedHex == "FEDCBA9876543210" &&
     bdspView.Facilities[0].EggAvailable == true &&
-    bdspView.Facilities[0].Slots.All(s => s.RawLength == PokeCrypto.SIZE_8PARTY),
+    bdspView.Facilities[0].Slots.All(s => s.RawLength == bdsp.SIZE_PARTY),
     "BDSP daycare seed, egg or bounded parent length wrong.");
 Must(bdsp.Data.SequenceEqual(bdspBefore), "BDSP projection cleared parent bytes.");
 
