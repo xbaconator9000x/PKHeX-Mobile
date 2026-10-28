@@ -25,6 +25,8 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
 
 
 def adapt_view(source: str) -> str:
+    if "using PKHeXMobile.PortConsolidation;" in source or "detachedPreview" in source:
+        raise ProbeRefusal("MAUI editor is already adapted; refusing duplicate UI wiring.")
     source = replace_once(source, "using PKForge.App.Services;\n",
         "using PKForge.App.Services;\nusing PKHeXMobile.Domain;\n"
         "using PKHeXMobile.PortConsolidation;\n", "UI namespaces")
@@ -72,6 +74,8 @@ def adapt_view(source: str) -> str:
 
 
 def adapt_project(source: str, mobile_root: Path) -> str:
+    if "PKHeXMobile.PortConsolidation.csproj" in source:
+        raise ProbeRefusal("MAUI project already references the mobile adapter.")
     dependency = mobile_root / "src/PKHeXMobile.PortConsolidation/PKHeXMobile.PortConsolidation.csproj"
     if not dependency.is_file() or dependency.is_symlink():
         raise ProbeRefusal("Pinned mobile adapter project is missing or symlinked.")
