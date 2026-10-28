@@ -48,6 +48,22 @@ Check(proof.ChangeAudit.ChangedByteCount == 3 &&
       "Preflight evidence retained a mutable candidate.");
 candidateBytes[4] ^= 0x11;
 
+// Caller-owned memory may change while providers are being checked. The
+// detached candidate captured at entry, not later caller mutations, is verified.
+var mutableCandidate = (byte[])candidateBytes.Clone();
+var stableStaged = (byte[])candidateBytes.Clone();
+var mutationSource = await OpenSource(originalBytes, _ => sourceId, _ => originalBytes, []);
+var mutationProof = await StagedCandidatePreflight.VerifyAsync(
+    mutationSource, mutableCandidate, ranges,
+    Artifact(_ =>
+    {
+        mutableCandidate[4] ^= 0x7F;
+        return (originalBytes, backupId);
+    }, []),
+    Artifact(_ => (stableStaged, stageId), []));
+Check(mutationProof.StagedCandidate.Fingerprint == candidate.Fingerprint,
+      "Provider-time caller mutation changed the detached staged candidate.");
+
 // Artifact verification must refuse aliases, missing/changing identities, changing
 // bytes, short streams, cancelled reads and provider errors.
 async Task RejectArtifact<T>(

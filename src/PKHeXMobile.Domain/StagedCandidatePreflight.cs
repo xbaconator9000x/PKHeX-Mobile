@@ -40,8 +40,11 @@ public static class StagedCandidatePreflight
 
         // Byte scope is a diagnostic, NOT a substitute for an independently verified
         // game/layout and semantic PKHeX desktop oracle.
-        var audit = SaveCandidateScopeAudit.Analyze(source.Original, candidate.Span, approvedRanges);
+        // Snapshot the caller's potentially mutable memory exactly once; the audit
+        // and both staged readbacks must agree on the same detached candidate bytes.
         var stagedSnapshot = SaveInputSnapshot.FromBytes(candidate.Span);
+        var audit = SaveCandidateScopeAudit.Analyze(
+            source.Original, stagedSnapshot.CopyBytes(), approvedRanges);
 
         var backup = await ArtifactReadbackVerifier.VerifyAsync(
             source.Original, openBackupRead, [sourceIdentity], cancellationToken)
