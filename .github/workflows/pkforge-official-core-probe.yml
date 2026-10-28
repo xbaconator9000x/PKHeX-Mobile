@@ -32,6 +32,7 @@ on:
       - 'scripts/pkforge_provider_origin_binding.py'
       - 'tests/test_pkforge_provider_origin_binding.py'
       - 'tests/PKHeXMobile.ProviderBoundPreview.Smoke/**'
+      - 'tests/PKHeXMobile.ProviderOriginLifecycle.Smoke/**'
 
 permissions:
   contents: read
@@ -159,12 +160,19 @@ jobs:
         env:
           PKForgeRoot: /tmp/pkforge
         run: dotnet run --project tests/PKHeXMobile.ProviderBoundPreview.Smoke/PKHeXMobile.ProviderBoundPreview.Smoke.csproj --configuration Release
+      - name: Exercise real PKForge session lifecycle and overlapping-open rejection
+        id: provider-lifecycle-smoke
+        if: steps.provider-preview-smoke.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: dotnet run --project tests/PKHeXMobile.ProviderOriginLifecycle.Smoke/PKHeXMobile.ProviderOriginLifecycle.Smoke.csproj --configuration Release
       - name: Install Android MAUI only if engine compiles
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success'
         run: dotnet workload install maui-android --skip-manifest-update
       - name: Build PKForge Android against official Core
         id: android
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success'
         continue-on-error: true
         env:
           PKForgeRoot: /tmp/pkforge
@@ -189,6 +197,7 @@ jobs:
           FOLDER_SMOKE: ${{ steps.folder-smoke.outcome }}
           PROVIDER_ORIGIN: ${{ steps.provider-origin.outcome }}
           PROVIDER_PREVIEW_SMOKE: ${{ steps.provider-preview-smoke.outcome }}
+          PROVIDER_LIFECYCLE_SMOKE: ${{ steps.provider-lifecycle-smoke.outcome }}
           ANDROID: ${{ steps.android.outcome }}
         shell: bash
         run: |
@@ -210,14 +219,15 @@ jobs:
             echo "Folder provider spy tests: $FOLDER_SMOKE"
             echo "Immutable provider-origin session binding: $PROVIDER_ORIGIN"
             echo "Provider-bound preview smoke: $PROVIDER_PREVIEW_SMOKE"
+            echo "Real PKForge session lifecycle smoke: $PROVIDER_LIFECYCLE_SMOKE"
             echo "Android compile: $ANDROID"
-            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$ANDROID" != success ]; then
+            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$ANDROID" != success ]; then
               echo '**OFFICIAL-CORE COMPATIBILITY GATE FAILED.** Inspect compilation and runtime smoke diagnostics.'
             else
               echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$ANDROID" != success ]; then
+          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$ANDROID" != success ]; then
             echo 'Retail-only official-Core compatibility gate failed.' >&2
             exit 1
           fi
