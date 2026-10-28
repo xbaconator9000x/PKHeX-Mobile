@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Pokémon stats, training, Tera and Move Shop source audit, pass P (2026-10-28)](UPSTREAM_STAT_TERA_MOVE_REVIEW_2026-10-28.md) — 28 pinned findings (10 P0), 12/12 matching official Core source blobs; source-only, not runtime certified.
+> [Stat, Tera and Move Shop acceptance gates, pass P (2026-10-28)](PARITY_STAT_TERA_MOVE_GATES_2026-10-28.md) — 38 proposed scenarios, none executed.
+
 > [Trainer, records, event work and modal transaction source audit, pass O (2026-10-28)](UPSTREAM_TRAINER_EVENT_REVIEW_2026-10-28.md) — 30 findings (16 P0), ten identical official source blobs, source-level cancellation and record/event hazards; no runtime certification.
 > [Trainer, record and event-work execution gates, pass O (2026-10-28)](PARITY_TRAINER_EVENT_GATES_2026-10-28.md) — 36 proposed scenarios, none executed.
 
