@@ -23,6 +23,11 @@ public static class DetachedRetailNicknameEditor
         ArgumentNullException.ThrowIfNull(nickname);
         if (nickname.Length == 0 || nickname.Length > 64 || string.IsNullOrWhiteSpace(nickname))
             throw new ArgumentException("Nickname must be nonempty and at most 64 characters.", nameof(nickname));
+        // The official game encodings are generation-specific. Never pass control
+        // characters or surrogate code units to a setter that could truncate or
+        // replace them silently. Other glyphs still require exact reopen equality.
+        if (nickname.Any(ch => char.IsControl(ch) || char.IsSurrogate(ch) || ch == '\uFFFD'))
+            throw new ArgumentException("Nickname contains an unsupported control or Unicode character.", nameof(nickname));
 
         // The source is immutable. Two independent byte arrays prevent PKHeX parser
         // normalization and PKForge's mutable session from reaching the caller's data.
@@ -66,7 +71,8 @@ public static class DetachedRetailNicknameEditor
             throw new InvalidDataException("Selected Pokémon bytes did not change.");
 
         // No bytes are written. The original remains the only authoritative input.
-        return new RetailNicknamePreview(source.Fingerprint, SaveInputSnapshot.FromBytes(candidate));
+        return new RetailNicknamePreview(source.Fingerprint, SaveInputSnapshot.FromBytes(candidate),
+            box, slot, before.Nickname, after.Nickname);
     }
 }
 
@@ -75,13 +81,36 @@ public sealed class RetailNicknamePreview
 {
     private readonly SaveInputSnapshot _candidate;
 
-    internal RetailNicknamePreview(SaveFingerprint sourceFingerprint, SaveInputSnapshot candidate)
+    internal RetailNicknamePreview(
+        SaveFingerprint sourceFingerprint, SaveInputSnapshot candidate,
+        int box, int slot, string originalNickname, string previewNickname)
     {
         SourceFingerprint = sourceFingerprint;
         _candidate = candidate;
+        Box = box;
+        Slot = slot;
+        OriginalNickname = originalNickname;
+        PreviewNickname = previewNickname;
     }
 
     public SaveFingerprint SourceFingerprint { get; }
     public SaveFingerprint CandidateFingerprint => _candidate.Fingerprint;
+    public int Box { get; }
+    public int Slot { get; }
+    public string OriginalNickname { get; }
+    public string PreviewNickname { get; }
+
+    /// <summary>
+    /// Compare a separately obtained snapshot with the preview's source. This
+    /// detects stale bytes but does NOT authenticate the provider's document ID,
+    /// save layout, permissions, or publication safety. Save As remains disabled.
+    /// </summary>
+    public void RequireMatchingSource(SaveInputSnapshot current)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        if (current.Fingerprint != SourceFingerprint)
+            throw new InvalidOperationException("Preview is stale: source bytes changed.");
+    }
+
     public byte[] CopyCandidateBytes() => _candidate.CopyBytes();
 }
