@@ -30,6 +30,11 @@ Must(classicState.RelearnMoveIds == new PokemonMoveIds(0, 0, 0, 0),
 var modern = new PK9 { Species = 25, Move1 = 85, Move1_PP = 0,
     Move1_PPUps = 3, Move2 = 98, Move2_PP = 2, RelearnMove1 = 85,
     RelearnMove2 = 98 };
+// Gen9 Core exposes PP Ups as a full byte, not a clamped two-bit field.
+var unusualPpUps = new PK9 { Species = 25, Move1 = 85, Move1_PPUps = 4 };
+var unusualSnapshot = ReadOnlySaveInspector.ProjectPokemon(0, unusualPpUps).Details!.MoveState!;
+Must(unusualSnapshot.Slots[0].PpUps == 4,
+    "Unusual raw PP Ups must remain visible instead of being normalized");
 var before = modern.Data.ToArray();
 var pokemon = ReadOnlySaveInspector.ProjectPokemon(0, modern);
 var state = pokemon.Details!.MoveState!;
@@ -89,7 +94,7 @@ Detect(ChangeSlot(0, s => s with { CurrentPp = 1 }), ".Slots[0].CurrentPp mismat
 Detect(ChangeSlot(0, s => s with { PpUps = 2 }), ".Slots[0].PpUps mismatch");
 Detect(ChangeSlot(3, s => s with { SlotIndex = 2 }), "slot 3 out of order");
 Detect(ChangeSlot(0, s => s with { CurrentPp = -1 }), "PP outside raw bound");
-Detect(ChangeSlot(0, s => s with { PpUps = 4 }), "PP Ups outside raw bound");
+Detect(ChangeSlot(0, s => s with { PpUps = 256 }), "PP Ups outside raw byte bound");
 Detect(expectedState with { RelearnMoveIds = expectedState.RelearnMoveIds with { First = 1 } },
     ".RelearnMoveIds.First mismatch");
 Detect(expectedState with { RelearnMoveIds = null! }, "missing relearn move IDs");
