@@ -76,6 +76,8 @@ public sealed record ExpectedSaveProjection(
 {
     // Optional in v1–v3, mandatory non-null for v4 dex-enabled fixtures.
     public ExpectedPokedexReadOnly? Pokedex { get; init; }
+    // Required for schema v5 fixtures with Core-enumerated inventory.
+    public ExpectedInventoryReadOnly? Inventory { get; init; }
 }
 
 /// <summary>
@@ -86,7 +88,8 @@ public sealed record ExpectedSaveProjection(
 public static class SaveProjectionVerifier
 {
     public static IReadOnlyList<string> Compare(SaveReadOnlyResult actual, ExpectedSaveProjection expected,
-        bool requireDetails = false, bool requireAwards = false, bool requirePokedex = false)
+        bool requireDetails = false, bool requireAwards = false, bool requirePokedex = false,
+        bool requireInventory = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -181,6 +184,8 @@ public static class SaveProjectionVerifier
 
         if (requirePokedex || expected.Pokedex is not null)
             ComparePokedex(actual.Pokedex, expected.Pokedex);
+        if (requireInventory || expected.Inventory is not null)
+            InventoryProjectionVerifier.Compare(actual.Inventory, expected.Inventory, errors);
 
         return errors;
 

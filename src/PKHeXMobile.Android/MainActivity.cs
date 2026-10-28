@@ -27,6 +27,8 @@ public sealed class MainActivity : Activity
     private TextView? _status;
     private TextView? _trainer;
     private TextView? _party;
+    private Spinner? _inventorySelector;
+    private TextView? _inventoryDetails;
     private LinearLayout? _partySlots;
     private TextView? _partyDetails;
     private TextView? _boxDetails;
@@ -75,6 +77,21 @@ public sealed class MainActivity : Activity
 
         _trainer = new TextView(this) { TextSize = 16 };
         layout.AddView(_trainer);
+
+        _inventorySelector = new Spinner(this)
+        {
+            Visibility = ViewStates.Gone,
+            ContentDescription = "Select an inventory pouch for read-only inspection",
+        };
+        _inventorySelector.ItemSelected += (_, args) =>
+        {
+            if (_currentResult?.Inventory is { } inventory &&
+                (uint)args.Position < (uint)inventory.Pouches.Count)
+                RenderSelectedInventory(args.Position);
+        };
+        layout.AddView(_inventorySelector);
+        _inventoryDetails = new TextView(this) { TextSize = 16 };
+        layout.AddView(_inventoryDetails);
 
         _party = new TextView(this) { TextSize = 16 };
         layout.AddView(_party);
@@ -215,6 +232,22 @@ public sealed class MainActivity : Activity
             if (_party is not null)
                 _party.Text = ReadOnlyProjectionPresenter.FormatParty(inspection.Result);
             RenderParty(inspection.Result);
+            if (_inventorySelector is not null && inspection.Result.Inventory is not null)
+            {
+                var inventoryLabels = ReadOnlyProjectionPresenter.InventoryPouchLabels(inspection.Result);
+                if (inventoryLabels.Count > 0)
+                {
+                    var inventoryAdapter = new ArrayAdapter<string>(
+                        this, global::Android.Resource.Layout.SimpleSpinnerItem,
+                        inventoryLabels.ToArray());
+                    inventoryAdapter.SetDropDownViewResource(
+                        global::Android.Resource.Layout.SimpleSpinnerDropDownItem);
+                    _inventorySelector.Adapter = inventoryAdapter;
+                    _inventorySelector.Visibility = ViewStates.Visible;
+                    _inventorySelector.SetSelection(0);
+                    RenderSelectedInventory(0);
+                }
+            }
             if (_boxSelector is not null && _boxDetails is not null)
             {
                 var labels = ReadOnlyProjectionPresenter.BoxLabels(inspection.Result);
@@ -282,6 +315,16 @@ public sealed class MainActivity : Activity
                 }
             }
         }
+    }
+
+    private void RenderSelectedInventory(int pouchIndex)
+    {
+        if (_currentResult?.Inventory is not { } inventory ||
+            (uint)pouchIndex >= (uint)inventory.Pouches.Count ||
+            _inventoryDetails is null)
+            return;
+        _inventoryDetails.Text = ReadOnlyProjectionPresenter.FormatInventoryPouch(
+            _currentResult, pouchIndex);
     }
 
     // Native touch targets retain the original party slot index. These buttons
@@ -378,6 +421,12 @@ public sealed class MainActivity : Activity
         _currentResult = null;
         if (_trainer is not null) _trainer.Text = string.Empty;
         if (_party is not null) _party.Text = string.Empty;
+        if (_inventoryDetails is not null) _inventoryDetails.Text = string.Empty;
+        if (_inventorySelector is not null)
+        {
+            _inventorySelector.Visibility = ViewStates.Gone;
+            _inventorySelector.Adapter = null;
+        }
         if (_partySlots is not null) _partySlots.RemoveAllViews();
         if (_partyDetails is not null) _partyDetails.Text = string.Empty;
         if (_boxDetails is not null) _boxDetails.Text = string.Empty;
