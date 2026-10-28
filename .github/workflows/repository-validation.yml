@@ -47,5 +47,6 @@ jobs:
       - run: dotnet run --project tests/PKHeXMobile.Underground.Smoke/PKHeXMobile.Underground.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Hgss.Smoke/PKHeXMobile.Hgss.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Gen5World.Smoke/PKHeXMobile.Gen5World.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Gen6Systems.Smoke/PKHeXMobile.Gen6Systems.Smoke.csproj --configuration Release
       - run: dotnet run --project src/PKHeXMobile.Inspect/PKHeXMobile.Inspect.csproj --configuration Release -- --help
       - run: dotnet run --project src/PKHeXMobile.Verify/PKHeXMobile.Verify.csproj --configuration Release -- --help

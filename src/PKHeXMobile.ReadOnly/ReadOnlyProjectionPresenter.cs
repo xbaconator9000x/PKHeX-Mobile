@@ -134,6 +134,17 @@ public static class ReadOnlyProjectionPresenter
                 .Append(gen5.Keys.ObtainedWordsRaw.Count)
                 .AppendLine(" obtained and unlocked raw words; XOR/magic values preserved; no edit authorization.");
         }
+        if (save.Gen6Systems is { } gen6)
+        {
+            text.Append("Gen6 Super Training (detached raw view): ")
+                .Append(gen6.SuperTraining.RecordTime1Bits.Count)
+                .Append(" times per record set, ")
+                .Append(gen6.SuperTraining.BagsRaw.Count)
+                .AppendLine(" raw bag IDs; nonfinite float bits preserved.");
+            text.Append("Gen6 O-Power (detached raw view): ")
+                .Append(gen6.OPower.FlagsRaw.Count)
+                .AppendLine(" raw flag bytes and level bytes; no edit authorization.");
+        }
         text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
         return text.ToString();
     }
