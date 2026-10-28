@@ -1,0 +1,81 @@
+name: PKForge official Core compatibility probe
+
+# One bounded diagnostic on explicit changes or manual dispatch only.
+# Does not distribute upstream art, APKs, ROMs, or private save data.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/pkforge-official-core-probe.yml'
+      - 'scripts/pkforge_official_core_probe.py'
+      - 'tests/test_pkforge_official_core_probe.py'
+
+permissions:
+  contents: read
+concurrency:
+  group: official-core-probe-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate safe project-reference substitution
+        run: python3 -m unittest discover -s tests -p 'test_pkforge_official_core_probe.py' -v
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Fetch pinned PKForge with exact gitlinks
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init --quiet /tmp/pkforge
+          cd /tmp/pkforge
+          git remote add origin https://github.com/sofianeelhor/PKForge.git
+          git fetch --depth=1 origin 2df04430e532b78c247f45b936f3068d8f824987
+          git checkout --quiet --detach FETCH_HEAD
+          test "$(git rev-parse HEAD:external/PKHeX)" = "91e9c88667a6a191a000db68e2db19505eb87561"
+          test "$(git rev-parse HEAD:external/PKHeX-Plugins)" = "23ab1fc73f7be6ad427fbc900f9b99111cd2d560"
+          git submodule update --init --recursive --depth=1
+      - name: Replace fork references with official PKHeX.Core 26.10.18
+        run: python3 scripts/pkforge_official_core_probe.py --repo /tmp/pkforge
+      - name: Build portable PKForge engine against official Core
+        id: engine
+        continue-on-error: true
+        working-directory: /tmp/pkforge
+        run: dotnet build src/PKForge.Engine/PKForge.Engine.csproj -c Release -v:minimal
+      - name: Install Android MAUI only if engine compiles
+        if: steps.engine.outcome == 'success'
+        run: dotnet workload install maui-android --skip-manifest-update
+      - name: Build PKForge Android against official Core
+        id: android
+        if: steps.engine.outcome == 'success'
+        continue-on-error: true
+        working-directory: /tmp/pkforge
+        run: |
+          dotnet build src/PKForge.App/PKForge.App.csproj -f net10.0-android -c Debug \
+            -p:DiagnosticBuild=true -p:AndroidPackageFormat=apk -v:minimal
+      - name: Record explicit compatibility verdict
+        if: always()
+        env:
+          ENGINE: ${{ steps.engine.outcome }}
+          ANDROID: ${{ steps.android.outcome }}
+        shell: bash
+        run: |
+          {
+            echo '## Official Core compatibility diagnostic'
+            echo 'PKForge: 2df04430e532b78c247f45b936f3068d8f824987'
+            echo 'Official Core NuGet: [26.10.18]'
+            echo "Engine compile: $ENGINE"
+            echo "Android compile: $ANDROID"
+            if [ "$ENGINE" != success ] || [ "$ANDROID" != success ]; then
+              echo '**NOT COMPATIBLE AS-IS.** Inspect compiler diagnostics.'
+            else
+              echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
