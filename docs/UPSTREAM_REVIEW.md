@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Pokédex and acquisition source audit, pass L (2026-10-28)](UPSTREAM_POKEDEX_REVIEW_2026-10-28.md) — 29 findings including MAUI row shift, Forge Unbound no-op and Gen9 block side effects.
+> [Pokédex and regional dex execution gates, pass L (2026-10-28)](PARITY_POKEDEX_GATES_2026-10-28.md) — 40 proposed cases; none executed or certified.
+
 > [Ribbon, mark, memory, Pokérus and cosmetics source audit, pass K (2026-10-28)](UPSTREAM_RIBBON_MEMORY_REVIEW_2026-10-28.md) — 28 pinned findings; Core 111-entry ribbon enum, MAUI off-by-one and memory picker hazards, Forge typed awards and licensing obligations.
 > [Ribbon and memory execution gates, pass K (2026-10-28)](PARITY_RIBBON_MEMORY_GATES_2026-10-28.md) — 36 proposed scenarios; none executed or certified.
 
