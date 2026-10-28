@@ -26,4 +26,7 @@ public sealed record PokemonReadOnlyDetails(
 
     // Explicitly partial, typed, read-only subset. Never a legality verdict.
     public PokemonAwardsReadOnly Awards { get; init; } = PokemonAwardsReadOnly.Empty;
+
+    // Derived diagnostic scalars, not legality or edit authorization.
+    public PokemonTrainingReadOnly? Training { get; init; }
 }

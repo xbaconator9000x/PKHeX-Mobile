@@ -88,3 +88,8 @@ last-saved timestamps, flags, DLC state, or any setter. A matching manifest
 must be independently produced with desktop PKHeX Core 26.10.18. Synthetic
 tests establish only immutable projection, source-byte preservation and
 field-level mismatch detection. Save editing/export remain disabled.
+
+
+## Schema v8 — training diagnostics (synthetic support only)
+
+For every occupied slot, include `Details.Training` with `coreFormat`, `effectiveEffortTotal`, `conventionalPerStatEffortCeiling`, `conventionalTotalEffortCeiling`, `derivedHpDv`, `coreSpecialGettersAgree`, and `exceedsConventionalEffortLimits`. The classic-only values must be explicit JSON `null` on modern entities. This records pinned-Core raw getter interpretation and flags conventional EV-limit anomalies; it does **not** establish legality or permission to save. Schema v8 also requires all earlier schema fields. Independent same-version desktop expectations remain mandatory before claiming parity.

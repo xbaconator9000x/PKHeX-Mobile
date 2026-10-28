@@ -154,6 +154,10 @@ public static class ReadOnlySaveInspector
         ArgumentNullException.ThrowIfNull(pokemon);
         if (slot < 0)
             throw new ArgumentOutOfRangeException(nameof(slot));
+        var iv = new PokemonStatSpread(pokemon.IV_HP, pokemon.IV_ATK, pokemon.IV_DEF,
+            pokemon.IV_SPA, pokemon.IV_SPD, pokemon.IV_SPE);
+        var ev = new PokemonStatSpread(pokemon.EV_HP, pokemon.EV_ATK, pokemon.EV_DEF,
+            pokemon.EV_SPA, pokemon.EV_SPD, pokemon.EV_SPE);
         return new PokemonSlot(
             slot, pokemon.Species, pokemon.Nickname, pokemon.CurrentLevel,
             pokemon.IsEgg, pokemon.IsShiny,
@@ -161,13 +165,11 @@ public static class ReadOnlySaveInspector
                 pokemon.Nature.ToString(), pokemon.Ability, pokemon.HeldItem,
                 pokemon.Gender, pokemon.Form,
                 new PokemonMoveIds(pokemon.Move1, pokemon.Move2, pokemon.Move3, pokemon.Move4),
-                new PokemonStatSpread(pokemon.IV_HP, pokemon.IV_ATK, pokemon.IV_DEF,
-                    pokemon.IV_SPA, pokemon.IV_SPD, pokemon.IV_SPE),
-                new PokemonStatSpread(pokemon.EV_HP, pokemon.EV_ATK, pokemon.EV_DEF,
-                    pokemon.EV_SPA, pokemon.EV_SPD, pokemon.EV_SPE))
+                iv, ev)
             {
                 MechanicsGeneration = pokemon is PK1 ? 1 : pokemon is PK2 ? 2 : 0,
                 Awards = PokemonAwardsReadOnly.Project(pokemon),
+                Training = PokemonTrainingReadOnly.Project(pokemon, iv, ev),
             });
     }
 

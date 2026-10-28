@@ -39,5 +39,6 @@ jobs:
       - run: dotnet run --project tests/PKHeXMobile.Inventory.Smoke/PKHeXMobile.Inventory.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Storage.Smoke/PKHeXMobile.Storage.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Trainer.Smoke/PKHeXMobile.Trainer.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Training.Smoke/PKHeXMobile.Training.Smoke.csproj --configuration Release
       - run: dotnet run --project src/PKHeXMobile.Inspect/PKHeXMobile.Inspect.csproj --configuration Release -- --help
       - run: dotnet run --project src/PKHeXMobile.Verify/PKHeXMobile.Verify.csproj --configuration Release -- --help
