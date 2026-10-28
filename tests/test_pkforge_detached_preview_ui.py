@@ -14,6 +14,10 @@ from scripts.pkforge_detached_preview_ui import (
 
 VIEW_SOURCE = """using PKForge.App.Services;
 public sealed partial class BoxBrowserPage {
+    private readonly HashSet<int> _lockedSlots = [];
+        viewModel.PropertyChanged += (_, args) =>
+        {
+        }
         var save = FocusButton(EditorTool("Save changes", primary: true), "SAVE CHANGES");
         panel.Children.Add(save);
         panel.Children.Add(monActions);
@@ -28,12 +32,14 @@ PROJECT_SOURCE = """<Project>
 class PinnedMauiPreviewTests(unittest.TestCase):
     def test_button_is_nonpublishing_and_binds_selected_slot(self):
         result = adapt_view(VIEW_SOURCE)
-        self.assertIn("DetachedRetailNicknameEditor.Preview(source, box, slot, proposed)", result)
-        self.assertIn("SaveInputSnapshot.FromBytes(session.Serialize().Span)", result)
+        self.assertIn("ProviderBoundRetailNicknameEditor.PreviewAsync(", result)
+        self.assertNotIn("SaveInputSnapshot.FromBytes(session.Serialize().Span)", result)
+        self.assertIn("Interlocked.Increment(ref _previewRequest)", result)
+        self.assertIn("Provider bytes rechecked", result)
         self.assertIn("var slot = _viewModel.SelectedSlot;", result)
         self.assertIn("panel.Children.Add(detachedPreview);", result)
         self.assertIn("save.IsEnabled = false;", result)
-        self.assertIn("No document was saved.", result)
+        self.assertIn("nothing saved.", result)
         self.assertNotIn("WriteAtomicallyAsync", result)
         self.assertLess(result.index("panel.Children.Add(detachedPreview);"),
                         result.index("panel.Children.Add(save);"))
