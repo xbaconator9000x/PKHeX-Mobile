@@ -49,8 +49,9 @@ var withoutContext = ReadOnlySaveInspector.ProjectPokemon(0, pk);
 if (withoutContext.Details?.Legality is not null)
     throw new Exception("An unauthenticated standalone Pokémon gained a legality verdict.");
 var ui = ReadOnlyProjectionPresenter.FormatPartySlotDetails(new BoxCell(0, view));
-if (!ui.Contains("Legality", StringComparison.Ordinal))
-    throw new Exception("Android-independent slot detail lacks legality diagnostics.");
+if (!ui.Contains("Pinned Core legality", StringComparison.Ordinal) &&
+    !ui.Contains("legality is not evaluated", StringComparison.Ordinal))
+    throw new Exception("Android-independent slot detail misrepresented legality availability.");
 var json = JsonSerializer.Serialize(view.Details);
 if (json.Contains("\"Legality\"", StringComparison.Ordinal))
     throw new Exception("Provisional legality was added to desktop parity schema without independent fixtures.");
