@@ -378,7 +378,9 @@ public sealed class MainActivity : Activity
             {
                 var cell = cells[i];
                 var pokemon = cell.Pokemon;
-                var detail = ReadOnlyProjectionPresenter.FormatCellDetails(cell);
+                var detail = ReadOnlyProjectionPresenter.FormatCellDetails(cell) + "\n" +
+                    ReadOnlyProjectionPresenter.FormatBoxSlotProtection(displayedResult,
+                        selectedIndex, cell.SlotIndex);
                 var slot = new TextView(this)
                 {
                     Text = (cell.SlotIndex + 1) + "\n" +

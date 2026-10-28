@@ -33,6 +33,7 @@ public sealed record SaveReadOnlyResult(
     // Core national flags only, never regional/DLC Pokédex certification.
     public PokedexReadOnly? Pokedex { get; init; }
     public InventoryReadOnly? Inventory { get; init; }
+    public StorageFlagsReadOnly? Storage { get; init; }
 }
 
 public static class ReadOnlySaveInspector
@@ -127,6 +128,7 @@ public static class ReadOnlySaveInspector
             {
                 Pokedex = PokedexReadOnly.Project(save),
                 Inventory = InventoryReadOnly.Project(save),
+                Storage = StorageFlagsReadOnly.Project(save),
             };
             reason = string.Empty;
             return true;
