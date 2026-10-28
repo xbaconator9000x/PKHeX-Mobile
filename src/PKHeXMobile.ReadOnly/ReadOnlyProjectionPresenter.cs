@@ -94,6 +94,18 @@ public static class ReadOnlyProjectionPresenter
                     .Append(world.HoneyTrees.Count)
                     .AppendLine(" entries; raw groups/subtables preserved, no edit authorization.");
         }
+        if (save.Underground is { } underground)
+        {
+            if (underground.Gen4 is { } gen4)
+                text.Append("Gen4 Underground (detached raw Core view): ")
+                    .Append(gen4.Scores.Count).Append(" named 32-bit scores, ")
+                    .Append(gen4.Pouches.Count)
+                    .AppendLine(" pouches (40+40+40+80 bytes); no item-name inference.");
+            if (underground.Bdsp is { } bdsp)
+                text.Append("BDSP Underground (detached raw view): ")
+                    .Append(bdsp.Items.Count)
+                    .AppendLine(" entries, signed counts and raw 32-bit flags; no edit authorization.");
+        }
         text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
         return text.ToString();
     }
