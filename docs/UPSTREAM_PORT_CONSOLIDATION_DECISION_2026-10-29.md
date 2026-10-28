@@ -44,6 +44,23 @@ Statuses are recommendations, **not implemented features in our repo**. “Adopt
 * MAUI [project](https://github.com/santacrab2/PKHeXMAUI/blob/a6f7cfb78e1c96155baa67660fd7ae97895e375f/PKHeX.MAUI.csproj) uses `PKHeX.Core 26.7.7` and binary `deps` references. Our `26.10.18` is a different version; rebuild source adapters against the chosen single engine rather than copying binary DLLs or assuming API compatibility.
 * PKForge [app csproj](https://github.com/sofianeelhor/PKForge/blob/2df04430e532b78c247f45b936f3068d8f824987/src/PKForge.App/PKForge.App.csproj) bundles PKHeX art, Pokémon Showdown art, other UI/media, and extra packages. **Do not blindly copy images, fonts, game art, ROM data or binary dependencies.** Import code-only first, preserve copyright headers, list source paths/SHAs/licenses and audit any later asset import individually.
 
+## Measured PKHeX.Core fork divergence (source tree, not runtime)
+
+A second inspection compared **all `PKHeX.Core/` blob paths and Git object hashes** from the immutable [official `26.10.18` tag commit](https://github.com/kwsch/PKHeX/tree/bfe89c74a3f5265805e364b79bc04ad38ebbc5ea/PKHeX.Core) with PKForge's exact [fork gitlink](https://github.com/sofianeelhor/PKForge-PKHeX/tree/91e9c88667a6a191a000db68e2db19505eb87561/PKHeX.Core). Both GitHub recursive tree responses reported `truncated=false`.
+
+| Tree comparison | Count |
+| --- | ---: |
+| Official Core blob paths | **3,555** |
+| PKForge fork Core blob paths | **3,546** |
+| Same path, identical blob hash | **3,207** |
+| Same path, **different** blob hash | **332** |
+| Official-only paths | **16** |
+| Fork-only paths | **7** |
+
+Examples of **fork-only** files: [`SAV8BSLuminescent.cs`](https://github.com/sofianeelhor/PKForge-PKHeX/blob/91e9c88667a6a191a000db68e2db19505eb87561/PKHeX.Core/Saves/SAV8BSLuminescent.cs), `PB8LUMI.cs`, `ItemStorage8BDSPLumi.cs`, Luminescent Pokédex, personal and item resources. Examples of **official-only** files: [`ChainBreedLegality.cs`](https://github.com/kwsch/PKHeX/blob/bfe89c74a3f5265805e364b79bc04ad38ebbc5ea/PKHeX.Core/Legality/Moves/Breeding/Chain/ChainBreedLegality.cs), `EggHatchLegality.cs`, `EffortExpLegality.cs`, `HomeConverter.cs`. Different blobs include `EncounterGenerator3.cs`, `EncounterGenerator4.cs`, `SlotEditor.cs`, `GameVersion.cs`, and other legality/save code. These counts reflect **file content differences, not 332 defects or proven behavioral divergences**.
+
+**Implementation consequence:** replacing the fork with official Core is **not** a drop-in assumption. A fork-only Luminescent save type and altered legality/slot code are integration risks; official-only newer legality logic is also a reason not to freeze on the fork indefinitely. **Prioritize a compile/API and synthetic fixture differential test**, then selectively carry documented hack support behind explicit profiles. No known hack should be routed through retail serialization by fallback.
+
 ## Fastest critical path (dependency order, not fabricated completion)
 
 1. **First spike:** build pinned PKForge Android and tests, capture exact gitlink/dependency graph, compare with our official Core `26.10.18`. Choose PKForge shell **only if** build is reproducible and fork differences are manageable; otherwise reuse its portable domain/UI patterns in current native app. No asset import before rights review.
