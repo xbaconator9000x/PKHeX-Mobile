@@ -35,6 +35,7 @@ jobs:
       - run: dotnet build src/PKHeXMobile.Domain/PKHeXMobile.Domain.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Domain.Smoke/PKHeXMobile.Domain.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Candidate.Smoke/PKHeXMobile.Candidate.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Staging.Smoke/PKHeXMobile.Staging.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Provider.Smoke/PKHeXMobile.Provider.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.ReadOnly.Smoke/PKHeXMobile.ReadOnly.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Verify.Smoke/PKHeXMobile.Verify.Smoke.csproj --configuration Release
