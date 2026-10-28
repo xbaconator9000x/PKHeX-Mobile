@@ -19,3 +19,10 @@ This is an implementation-owned adoption decision, **not** a replacement for the
 - Legality is excluded from the JSON parity manifest until independently matched desktop PKHeX 26.10.18 fixture expectations exist. A provisional valid verdict does not authenticate ROM-hack species/abilities, trade provenance, or permit writing.
 - PKForge code adaptation is attributed in source and remains under GPLv3. No third-party artwork, ROMs, saves, secrets or assets are imported.
 - Next consolidation target: compare PKForge's save editor service contracts against the existing non-publishing staging pipeline with same-version desktop fixtures and Android provider fault injection, **before** enabling export.
+
+
+## PKForge fork gitlink evidence and bounded build experiment
+
+Pinned PKForge tree \`2df04430e532b78c247f45b936f3068d8f824987\` has gitlink \`external/PKHeX = 91e9c88667a6a191a000db68e2db19505eb87561\` and \`external/PKHeX-Plugins = 23ab1fc73f7be6ad427fbc900f9b99111cd2d560\`. GitHub's compare endpoint for \`sofianeelhor/PKForge-PKHeX\` against official Core release \`bfe89c74a3f5265805e364b79bc04ad38ebbc5ea\` reports **diverged: 4 commits ahead, 77 behind**, with 21 changed paths including \`SaveUtil.cs\`, \`SAV8BSLuminescent.cs\`, \`PB8LUMI.cs\` and game/personal-table logic. This is source ancestry evidence, **not** a successful API or save parity comparison.
+
+The optional, 18-minute-capped \`.github/workflows/pkforge-build-spike.yml\` fetches the immutable upstream checkout and gitlinks, then attempts a MAUI Android debug build without distributing APKs/assets. A successful build does not certify safe writes, device operation or licensing of bundled artwork. A failed build is a concrete consolidation blocker, not permission to replace official Core or bypass our fail-closed rules.
