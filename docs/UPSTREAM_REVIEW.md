@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Daycare, nursery and battle-facility source audit, pass S (2026-10-28)](UPSTREAM_DAYCARE_BATTLE_REVIEW_2026-10-28.md) — 37 pinned findings (14 P0), including battle write-width and Subway flag hazards; source-only.
+> [Daycare/battle-facility acceptance gates, pass S (2026-10-28)](PARITY_DAYCARE_BATTLE_GATES_2026-10-28.md) — 39 proposed cases, none executed.
+
 > [Identity, PID/shiny, form, egg and ball source audit, pass R (2026-10-28)](UPSTREAM_IDENTITY_EGG_FORM_REVIEW_2026-10-28.md) — 34 findings (13 P0), nine matching Core source blobs; source-only.
 > [Identity/form/egg/ball parity gates, pass R (2026-10-28)](PARITY_IDENTITY_EGG_FORM_GATES_2026-10-28.md) — 40 proposed scenarios; none executed.
 
