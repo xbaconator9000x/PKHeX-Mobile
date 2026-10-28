@@ -53,6 +53,9 @@ public sealed class SaveDocumentSession
 
     public async Task VerifySourceUnchangedAsync(CancellationToken cancellationToken = default)
     {
+        // A later failed/cancelled check must revoke an earlier successful hint.
+        // Never leave a stale identity-confirmed flag after a provider race.
+        SourceIdentityConfirmed = false;
         cancellationToken.ThrowIfCancellationRequested();
         var handle = await _openRead(cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidDataException("The document provider returned no read handle.");
