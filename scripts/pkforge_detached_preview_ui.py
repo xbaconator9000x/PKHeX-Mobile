@@ -68,6 +68,7 @@ def adapt_view(source: str) -> str:
     source = replace_once(source,
         "        panel.Children.Add(save);\n        panel.Children.Add(monActions);",
         "        panel.Children.Add(detachedPreview);\n"
+        "        save.IsEnabled = false; // Legacy original-save writer is not certified.\n"
         "        panel.Children.Add(save);\n        panel.Children.Add(monActions);",
         "editor panel wiring")
     return source
