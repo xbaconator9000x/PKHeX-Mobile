@@ -4,7 +4,7 @@ import unittest
 from scripts.pkforge_official_core_probe import ProbeRefusal
 from scripts.pkforge_provider_origin_binding import adapt_service
 from scripts.pkforge_session_transaction import adapt_transaction
-from tests.test_pkforge_provider_origin_binding import PINNED_SERVICE
+from test_pkforge_provider_origin_binding import PINNED_SERVICE
 
 
 class SessionTransactionTests(unittest.TestCase):
