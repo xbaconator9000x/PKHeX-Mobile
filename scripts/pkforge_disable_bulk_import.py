@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 from scripts.pkforge_official_core_probe import PKFORGE, ProbeRefusal, sha
+from scripts.pkforge_provider_origin_binding import once
 
 PICKER = "src/PKForge.App/Platforms/Android/AndroidDocumentPicker.cs"
 FLOW = "src/PKForge.App/Views/PksmTransferFlow.cs"
@@ -29,7 +30,7 @@ def replace_between(source: str, start: str, end: str, replacement: str, label: 
 def adapt_picker(source: str) -> str:
     if "PKSM_MULTI_IMPORT_DISABLED" in source:
         raise ProbeRefusal("Multi-picker already disabled")
-    return replace_between(
+    source = replace_between(
         source,
         "    public ValueTask<IReadOnlyList<PickedDocument>> PickManyAsync(CancellationToken cancellationToken = default)",
         "    private bool HandleMultiResult(int requestCode, Result resultCode, Intent? data)",
@@ -42,6 +43,19 @@ def adapt_picker(source: str) -> str:
 
 """,
         "multi-picker")
+    source = once(source,
+        "    private const int MultiRequestCode = 4109;\\n"
+        "    private TaskCompletionSource<IReadOnlyList<PickedDocument>>? _pendingMany;\\n\\n",
+        "", "multi-picker pending state")
+    source = replace_between(source,
+        "    private bool HandleMultiResult(int requestCode, Result resultCode, Intent? data)",
+        "    public bool HandleActivityResult(int requestCode, Result resultCode, Intent? data)",
+        "", "multi-result handler")
+    source = once(source,
+        "        if (HandleMultiResult(requestCode, resultCode, data))\\n"
+        "            return true;\\n",
+        "", "multi-result dispatch")
+    return source
 
 
 def adapt_flow(source: str) -> str:
