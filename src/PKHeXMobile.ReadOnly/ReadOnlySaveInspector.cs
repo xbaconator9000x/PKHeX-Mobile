@@ -42,6 +42,8 @@ public sealed record SaveReadOnlyResult(
     public UndergroundReadOnly? Underground { get; init; }
     // HGSS-only raw Pokéathlon and gadget diagnostics; no write authorization.
     public HgssReadOnly? Hgss { get; init; }
+    // B2W2-only raw medal, habitat and Key System diagnostics; no edit authorization.
+    public Gen5WorldReadOnly? Gen5World { get; init; }
 }
 
 public static class ReadOnlySaveInspector
@@ -142,6 +144,7 @@ public static class ReadOnlySaveInspector
                 WorldState = WorldStateReadOnly.Project(save),
                 Underground = UndergroundReadOnly.Project(save),
                 Hgss = HgssReadOnly.Project(save),
+                Gen5World = Gen5WorldReadOnly.Project(save),
             };
             reason = string.Empty;
             return true;
