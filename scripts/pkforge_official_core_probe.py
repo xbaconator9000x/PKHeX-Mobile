@@ -54,6 +54,22 @@ def rewrite(xml):
     return ET.tostring(root, encoding="unicode") + "\n"
 
 
+PLUGIN_PATH = "external/PKHeX-Plugins/PKHeX.Core.AutoMod/AutoMod/APILegality.cs"
+OLD_SEED64 = "GS64.GenerateSeed64(raw, converted64); break;"
+NEW_SEED64 = "GS64.GenerateSeed64(raw, tr, converted64); break;"
+
+
+def adapt_seed64_plugin(source):
+    """Adapt the pinned AutoMod call to official Core's ITrainerInfo argument.
+
+    Exact one-site replacement only. The plugin stays in the temporary upstream
+    checkout, and this adaptation is not legality or AutoMod runtime certification.
+    """
+    if source.count(OLD_SEED64) != 1 or NEW_SEED64 in source:
+        raise ProbeRefusal("Pinned AutoMod GenerateSeed64 call changed")
+    return source.replace(OLD_SEED64, NEW_SEED64)
+
+
 def sha(root, relative="."):
     return subprocess.check_output(
         ["git", "-C", str(root / relative), "rev-parse", "HEAD"],
@@ -80,10 +96,14 @@ def prepare(root):
         if path.is_symlink() or not path.is_file():
             raise ProbeRefusal(f"Missing/symlinked project: {relative}")
         changes[path] = rewrite(path.read_text(encoding="utf-8"))
+    plugin = root / PLUGIN_PATH
+    if plugin.is_symlink() or not plugin.is_file():
+        raise ProbeRefusal("Pinned AutoMod source missing or symlinked")
+    changes[plugin] = adapt_seed64_plugin(plugin.read_text(encoding="utf-8"))
     for path, content in changes.items():
         path.write_text(content, encoding="utf-8")
     return {"pkforge": PKFORGE, "fork": FORK, "plugins": PLUGINS,
-            "official_core": VERSION, "changed_projects": list(PROJECTS),
+            "official_core": VERSION, "changed_projects": list(PROJECTS), "adapted_plugin": PLUGIN_PATH,
             "writes_enabled": False, "redistribution_authorized": False}
 
 
