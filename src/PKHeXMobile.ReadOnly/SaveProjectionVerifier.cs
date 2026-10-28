@@ -78,6 +78,8 @@ public sealed record ExpectedSaveProjection(
     public ExpectedPokedexReadOnly? Pokedex { get; init; }
     // Required for schema v5 fixtures with Core-enumerated inventory.
     public ExpectedInventoryReadOnly? Inventory { get; init; }
+    // Required for schema v6: every box slot, including empty/locked slots.
+    public ExpectedStorageFlagsReadOnly? Storage { get; init; }
 }
 
 /// <summary>
@@ -89,7 +91,7 @@ public static class SaveProjectionVerifier
 {
     public static IReadOnlyList<string> Compare(SaveReadOnlyResult actual, ExpectedSaveProjection expected,
         bool requireDetails = false, bool requireAwards = false, bool requirePokedex = false,
-        bool requireInventory = false)
+        bool requireInventory = false, bool requireStorage = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -186,6 +188,9 @@ public static class SaveProjectionVerifier
             ComparePokedex(actual.Pokedex, expected.Pokedex);
         if (requireInventory || expected.Inventory is not null)
             InventoryProjectionVerifier.Compare(actual.Inventory, expected.Inventory, errors);
+        if (requireStorage || expected.Storage is not null)
+            StorageFlagsProjectionVerifier.Compare(actual.Storage, expected.Storage,
+                actual.BoxCount, actual.BoxSlotCount, errors);
 
         return errors;
 

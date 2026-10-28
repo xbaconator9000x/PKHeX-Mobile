@@ -53,3 +53,21 @@ sanitized or sorted. Synthetic SV/ZA item blocks test only the projection,
 comparison and presentation. Independent same-version desktop fixtures,
 raw-block hashes, layout authentication and Android provider/device tests are
 still needed before any claim of parity or save-write safety.
+
+## Core physical storage slot flags (manifest schema v6)
+
+Schema v6 retains all v5 requirements and adds a non-null `storage` object
+with `boxes`, containing exactly `boxCount` ordered records. Each box has
+`boxIndex` and `slots`; every physical position, including empty positions,
+must have `slotIndex`, `rawFlags` (numeric Core StorageSlotSource bits), and
+`overwriteProtected` (Core's computed boolean). Counts must match
+`boxSlotCount`, indices must be zero-based and ordered, and unreviewed flag
+bits or inconsistent protection semantics are rejected. This is a read-only
+snapshot of Core's flags, **not** independent validation of battle-team pointers,
+slot byte identity, protection enforcement or a write-safe layout.
+
+Use independent same-version desktop observations to establish reference
+values. The synthetic storage tests cover flag enumeration, immutable snapshots,
+malformed expectations, changed values and read-only Android detail rendering;
+they do not certify MoveBox, SwapBox, pointer remapping, real-save parity or
+transactional export. All editing and export remain disabled.

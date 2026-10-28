@@ -43,6 +43,10 @@ public static class ReadOnlyProjectionPresenter
                 .Append(inventory.Pouches.Count).AppendLine(" pouches.");
         else
             text.AppendLine("Inventory: not exposed by this Core save type.");
+        if (save.Storage is { } storage)
+            text.Append("Storage slot flags (Core only): ")
+                .Append(storage.ProtectedCount)
+                .AppendLine(" Core-reported overwrite-protected positions; not verified write permissions.");
         text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
         return text.ToString();
     }
@@ -86,6 +90,22 @@ public static class ReadOnlyProjectionPresenter
             text.Append("Showing first ").Append(maxEntries).Append(" of ")
                 .Append(visible.Length).AppendLine(" nonempty/flagged entries.");
         return text.ToString();
+    }
+
+    /// <summary>Read-only Core slot flags, including empty protected positions.</summary>
+    public static string FormatBoxSlotProtection(SaveReadOnlyResult save, int box, int slot)
+    {
+        ArgumentNullException.ThrowIfNull(save);
+        var storage = save.Storage ?? throw new InvalidDataException("Storage flags unavailable.");
+        if ((uint)box >= (uint)storage.Boxes.Count)
+            throw new ArgumentOutOfRangeException(nameof(box));
+        var slots = storage.Boxes[box].Slots;
+        if ((uint)slot >= (uint)slots.Count)
+            throw new ArgumentOutOfRangeException(nameof(slot));
+        var flags = slots[slot];
+        return "Core slot flags 0x" + flags.RawFlags.ToString("X8") +
+            "; Core overwrite-protected: " + (flags.OverwriteProtected ? "yes" : "no") +
+            ". Diagnostic only; not a write permission or authenticated layout.";
     }
 
     public static string FormatParty(SaveReadOnlyResult save)
