@@ -34,6 +34,7 @@ public sealed record SaveReadOnlyResult(
     public PokedexReadOnly? Pokedex { get; init; }
     public InventoryReadOnly? Inventory { get; init; }
     public StorageFlagsReadOnly? Storage { get; init; }
+    public TrainerProgressReadOnly? TrainerProgress { get; init; }
 }
 
 public static class ReadOnlySaveInspector
@@ -129,6 +130,7 @@ public static class ReadOnlySaveInspector
                 Pokedex = PokedexReadOnly.Project(save),
                 Inventory = InventoryReadOnly.Project(save),
                 Storage = StorageFlagsReadOnly.Project(save),
+                TrainerProgress = TrainerProgressReadOnly.Project(save),
             };
             reason = string.Empty;
             return true;
