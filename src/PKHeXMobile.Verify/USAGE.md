@@ -118,3 +118,9 @@ validity, legality, or authenticated save layout. Black/White's seed is
 reported as null because its Core setter is a no-op; B2W2 exposes 64 bits.
 This schema is a comparison protocol, not a claim of independently matched
 desktop fixtures. Synthetic tests are not write or device certification.
+
+## Generation 2 separate egg parity (manifest schema v12)
+
+Schema v12 retains all v11 checks and additionally requires `expected.daycare.gen2Egg` for Generation 2 saves. It is an object containing `rawLength` (positive, at most 512) and a 64-character hexadecimal `rawSha256` of the **separate** Core Gen2 egg buffer. The two deposited parents remain exactly two `slots`; the egg is not an invented third parent. For all other generations, omit `gen2Egg` or supply null. Schema v11 expectations remain backward compatible and do not require this extra field. A missing or malformed Gen2 egg baseline is a failure in v12. An egg-ready flag is distinct from the raw egg-buffer fingerprint and neither proves egg validity or authenticity.
+
+Use separately captured desktop PKHeX 26.10.18 values, not this mobile reader's own output, for independent parity evidence. The Gen2 egg buffer is Core's unpacked representation; this is not a raw on-disk byte-offset comparison or permission to write.

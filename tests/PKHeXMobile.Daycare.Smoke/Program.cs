@@ -11,12 +11,18 @@ static ExpectedDaycareReadOnly Expect(DaycareReadOnly actual) =>
     new(actual.Available, actual.Facilities.Select(f =>
         new ExpectedDaycareFacilityReadOnly(f.FacilityIndex, f.EggAvailable, f.SeedHex,
             f.Slots.Select(s => new ExpectedDaycareSlotReadOnly(s.SlotIndex, s.Occupied,
-                s.RawLength, s.RawSha256, s.ExperienceGained)).ToArray())).ToArray());
+                s.RawLength, s.RawSha256, s.ExperienceGained)).ToArray())).ToArray())
+    {
+        Gen2Egg = actual.Gen2Egg is { } egg
+            ? new ExpectedDaycareEggReadOnly(egg.RawLength, egg.RawSha256)
+            : null,
+    };
 
-static IReadOnlyList<string> Compare(DaycareReadOnly? actual, ExpectedDaycareReadOnly? expected)
+static IReadOnlyList<string> Compare(DaycareReadOnly? actual, ExpectedDaycareReadOnly? expected,
+    bool requireGen2Egg = false)
 {
     var errors = new List<string>();
-    DaycareProjectionVerifier.Compare(actual, expected, errors);
+    DaycareProjectionVerifier.Compare(actual, expected, errors, requireGen2Egg);
     return errors;
 }
 
@@ -61,12 +67,39 @@ Must(redView.Available && redView.Facilities.Count == 1 &&
     redView.Facilities[0].Slots.Count == 1 &&
     red.Data.SequenceEqual(redBefore), "Gen1 single-slot daycare failed.");
 var crystal = new SAV2();
+crystal.GetDaycareEgg().Span[0] = 0x5A; // synthetic Core-only egg buffer
+crystal.IsEggAvailable = true;
 var crystalBefore = crystal.Data.ToArray();
 var crystalView = DaycareReadOnly.Project(crystal);
 Must(crystalView.Facilities.Count == 1 &&
     crystalView.Facilities[0].Slots.Count == 2 &&
-    crystalView.Facilities[0].EggAvailable is not null &&
-    crystal.Data.SequenceEqual(crystalBefore), "Gen2 daycare parents or egg flag lost.");
+    crystalView.Facilities[0].EggAvailable == true &&
+    crystalView.Gen2Egg?.RawLength == crystal.SIZE_STORED &&
+    crystal.Data.SequenceEqual(crystalBefore), "Gen2 daycare parents or separate egg lost.");
+var eggHash = crystalView.Gen2Egg!.RawSha256;
+crystal.GetDaycareEgg().Span[0] ^= 0xFF;
+Must(crystalView.Gen2Egg.RawSha256 == eggHash &&
+    DaycareReadOnly.Project(crystal).Gen2Egg!.RawSha256 != eggHash,
+    "Gen2 egg fingerprint was not detached from mutable Core memory.");
+var crystalExpected = Expect(crystalView);
+Must(Compare(crystalView, crystalExpected, true).Count == 0,
+    "Matching Gen2 egg v12 parity must pass.");
+Must(Compare(crystalView, crystalExpected with { Gen2Egg = null }, true)
+    .Any(e => e.Contains("Gen2Egg missing")), "v12 accepted omitted Gen2 egg.");
+Must(Compare(crystalView, crystalExpected with { Gen2Egg = null }).Count == 0,
+    "v11 backward compatibility unexpectedly requires Gen2 egg.");
+Must(Compare(crystalView, crystalExpected with
+{
+    Gen2Egg = crystalExpected.Gen2Egg! with { RawSha256 = new string('0', 64) },
+}, true).Any(e => e.Contains("Gen2Egg.RawSha256")), "Gen2 egg mismatch not detected.");
+Must(Compare(crystalView, crystalExpected with
+{
+    Gen2Egg = crystalExpected.Gen2Egg! with { RawLength = 513 },
+}, true).Any(e => e.Contains("invalid length")), "Oversized Gen2 egg expectation accepted.");
+Must(Compare(crystalView, crystalExpected with
+{
+    Gen2Egg = crystalExpected.Gen2Egg! with { RawSha256 = "not-hex" },
+}, true).Any(e => e.Contains("invalid length/digest")), "Malformed Gen2 egg hash accepted.");
 
 // Gen4's Core seed uses 32 bits, unlike Gen5/6's 64 and Gen7's 128.
 var diamond = new SAV4DP();
@@ -112,6 +145,49 @@ Must(bdspView.Facilities.Count == 1 &&
     bdspView.Facilities[0].Slots.All(s => s.RawLength == bdsp.SIZE_PARTY),
     "BDSP daycare seed, egg or bounded parent length wrong.");
 Must(bdsp.Data.SequenceEqual(bdspBefore), "BDSP projection cleared parent bytes.");
+
+// Sword/Shield: Core's indexer exposes the entire remaining tail, but our
+// digest must include only one stored PK8 per slot across two independent
+// nurseries. Seed/occupancy are read-only, and all four parent bytes differ.
+var swsh = new SAV8SWSH();
+var swshDaycare = swsh.Daycare;
+for (int index = 0; index < 4; index++)
+{
+    int facilityIndex = index / 2;
+    int slotIndex = index % 2;
+    swshDaycare[index].Span[0] = (byte)(0x31 + index);
+    int occupiedOffset = facilityIndex == 0
+        ? Daycare8.GetDaycare1StructOffset(slotIndex)
+        : Daycare8.GetDaycare2StructOffset(slotIndex);
+    swshDaycare.Data[occupiedOffset] = (byte)(index % 2 == 0 ? 1 : 0);
+}
+swshDaycare.SetDaycareSeed(0, 0x0123456789ABCDEF);
+swshDaycare.SetDaycareSeed(1, 0xFEDCBA9876543210);
+var swshBefore = swshDaycare.Data.ToArray();
+var swshView = DaycareReadOnly.Project(swsh);
+Must(swshView.Available && swshView.Facilities.Count == 2 &&
+    swshView.Facilities[0].SeedHex == "0123456789ABCDEF" &&
+    swshView.Facilities[1].SeedHex == "FEDCBA9876543210" &&
+    swshView.Facilities.All(f => f.Slots.Count == 2) &&
+    swshView.Facilities.All(f => f.Slots[0].Occupied && !f.Slots[1].Occupied) &&
+    swshView.Facilities.SelectMany(f => f.Slots).All(s => s.RawLength == swsh.SIZE_STORED) &&
+    swshView.Facilities.SelectMany(f => f.Slots).Select(s => s.RawSha256).Distinct().Count() == 4 &&
+    swshDaycare.Data.SequenceEqual(swshBefore),
+    "SWSH two-nursery bounded metadata, distinct parents or read immutability failed.");
+Must(swshDaycare[0].Length > swsh.SIZE_STORED,
+    "SWSH Core tail-slice regression was not exercised.");
+var firstParentHash = swshView.Facilities[0].Slots[0].RawSha256;
+// The byte immediately after PK8 #0 is the occupancy flag of slot #1.
+// Changing that tail byte must not change the bounded parent #0 digest.
+swshDaycare[0].Span[swsh.SIZE_STORED] ^= 0x7F;
+Must(DaycareReadOnly.Project(swsh).Facilities[0].Slots[0].RawSha256 == firstParentHash,
+    "SWSH parent hash included bytes outside the stored PK8 boundary.");
+swshDaycare[0].Span[0] ^= 0xFF;
+Must(swshView.Facilities[0].Slots[0].RawSha256 == firstParentHash &&
+    DaycareReadOnly.Project(swsh).Facilities[0].Slots[0].RawSha256 != firstParentHash,
+    "SWSH snapshot leaked mutable Core storage.");
+Must(Compare(swshView, Expect(swshView)).Count == 0,
+    "SWSH two-facility schema v11 parity failed.");
 
 // Strict v11 comparison and malformed-oracle rejection.
 var expected = Expect(view);
@@ -167,7 +243,7 @@ MustReject(() => DaycareReadOnly.ProjectStorage(new FakeDaycare(2, 513), 0));
 MustReject(() => DaycareReadOnly.ProjectStorage(new FakeDaycare(3, 10), 0));
 MustReject(() => DaycareReadOnly.ProjectStorage(new FakeDaycare(1, 10), -1));
 MustReject(() => DaycareReadOnly.ProjectStorage(new FakeDaycare(1, 10), 2));
-Console.WriteLine("Pinned-Core Gen1–8 nursery metadata, bounded detached hashes, 32/64/128-bit seeds, strict schema v11, and read-only presentation tests passed; no desktop or device certification.");
+Console.WriteLine("Pinned-Core Gen1–8 nursery metadata including Gen2 egg and SWSH dual nursery, bounded detached hashes, strict schemas v11/v12, and read-only presentation tests passed; no desktop or device certification.");
 
 internal sealed class FakeDaycare(int count, int length) : IDaycareStorage
 {
