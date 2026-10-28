@@ -81,6 +81,19 @@ public static class ReadOnlyProjectionPresenter
         }
         else
             text.AppendLine("Daycare: no reviewed Core nursery interface for this format.");
+        if (save.WorldState is { } world)
+        {
+            if (world.Roamer is { } roamer)
+                text.Append("Gen3 roamer (detached raw Core view): ")
+                    .Append(roamer.IsActive ? "active" : "inactive")
+                    .Append(", species ID ").Append(roamer.Species)
+                    .Append(", current HP ").Append(roamer.CurrentHp)
+                    .AppendLine("; not a legality or encounter check.");
+            if (world.HoneyTrees.Count != 0)
+                text.Append("Sinnoh honey trees (detached Core raw view): ")
+                    .Append(world.HoneyTrees.Count)
+                    .AppendLine(" entries; raw groups/subtables preserved, no edit authorization.");
+        }
         text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
         return text.ToString();
     }

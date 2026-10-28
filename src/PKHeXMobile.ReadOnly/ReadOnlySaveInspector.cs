@@ -36,6 +36,8 @@ public sealed record SaveReadOnlyResult(
     public StorageFlagsReadOnly? Storage { get; init; }
     public TrainerProgressReadOnly? TrainerProgress { get; init; }
     public DaycareReadOnly? Daycare { get; init; }
+    // Experimental, detached world-state diagnostics; no legality/write claim.
+    public WorldStateReadOnly? WorldState { get; init; }
 }
 
 public static class ReadOnlySaveInspector
@@ -133,6 +135,7 @@ public static class ReadOnlySaveInspector
                 Storage = StorageFlagsReadOnly.Project(save),
                 TrainerProgress = TrainerProgressReadOnly.Project(save),
                 Daycare = DaycareReadOnly.Project(save),
+                WorldState = WorldStateReadOnly.Project(save),
             };
             reason = string.Empty;
             return true;
