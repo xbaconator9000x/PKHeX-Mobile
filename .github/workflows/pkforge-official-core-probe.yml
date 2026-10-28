@@ -11,6 +11,7 @@ on:
       - 'tests/test_pkforge_official_core_probe.py'
       - 'scripts/pkforge_retail_only_probe.py'
       - 'tests/test_pkforge_retail_only_probe.py'
+      - 'tests/PKHeXMobile.RetailProbe.Smoke/**'
 
 permissions:
   contents: read
@@ -55,6 +56,13 @@ jobs:
         continue-on-error: true
         working-directory: /tmp/pkforge
         run: dotnet build src/PKForge.Engine/PKForge.Engine.csproj -c Release -v:minimal
+      - name: Exercise retail-only runtime refusals against official Core
+        id: retail-smoke
+        if: steps.engine.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: dotnet run --project tests/PKHeXMobile.RetailProbe.Smoke/PKHeXMobile.RetailProbe.Smoke.csproj --configuration Release
       - name: Install Android MAUI only if engine compiles
         if: steps.engine.outcome == 'success'
         run: dotnet workload install maui-android --skip-manifest-update
@@ -70,6 +78,7 @@ jobs:
         if: always()
         env:
           ENGINE: ${{ steps.engine.outcome }}
+          RETAIL_SMOKE: ${{ steps.retail-smoke.outcome }}
           ANDROID: ${{ steps.android.outcome }}
         shell: bash
         run: |
@@ -78,14 +87,15 @@ jobs:
             echo 'PKForge: 2df04430e532b78c247f45b936f3068d8f824987'
             echo 'Official Core NuGet: [26.10.18]'
             echo "Engine compile: $ENGINE"
+            echo "Retail-only runtime negative tests: $RETAIL_SMOKE"
             echo "Android compile: $ANDROID"
-            if [ "$ENGINE" != success ] || [ "$ANDROID" != success ]; then
+            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$ANDROID" != success ]; then
               echo '**OFFICIAL-CORE COMPILATION NOT PASSED.** Inspect compiler diagnostics.'
             else
               echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$ENGINE" != success ] || [ "$ANDROID" != success ]; then
+          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$ANDROID" != success ]; then
             echo 'Retail-only official-Core compatibility gate failed.' >&2
             exit 1
           fi
