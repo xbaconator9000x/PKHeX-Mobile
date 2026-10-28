@@ -121,6 +121,7 @@ class PreviewOnlyHardeningTests(unittest.TestCase):
                 target = root / path
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(body, encoding="utf-8")
+            (root / GRANTS).parent.mkdir(parents=True, exist_ok=True)
             picker = root / PICKER
             before = picker.read_bytes()
             vm = root / VIEWMODEL
