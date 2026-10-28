@@ -119,7 +119,9 @@ public static class PokemonMoveStateProjectionVerifier
             if (s.CurrentPp is < 0 or > 255) errors.Add(path + $" slot {i} PP outside raw bound");
             if (s.PpUps is < 0 or > 255) errors.Add(path + $" slot {i} PP Ups outside raw byte bound");
         }
-        // Modern Core formats expose a full byte for PP Ups, even when game\n        // mechanics conventionally use 0..3. Preserve unusual raw values.\n        // Relearn getters are preserved exactly, including zeros on unsupported
+        // Modern Core formats expose a full byte for PP Ups, even when game
+        // mechanics conventionally use 0..3. Preserve unusual raw values.
+        // Relearn getters are preserved exactly, including zeros on unsupported
         // formats. They must not be interpreted as proof of relearn capability.
         _ = relearn;
     }
