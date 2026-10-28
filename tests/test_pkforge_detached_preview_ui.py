@@ -32,6 +32,7 @@ class PinnedMauiPreviewTests(unittest.TestCase):
         self.assertIn("SaveInputSnapshot.FromBytes(session.Serialize().Span)", result)
         self.assertIn("var slot = _viewModel.SelectedSlot;", result)
         self.assertIn("panel.Children.Add(detachedPreview);", result)
+        self.assertIn("save.IsEnabled = false;", result)
         self.assertIn("No document was saved.", result)
         self.assertNotIn("WriteAtomicallyAsync", result)
         self.assertLess(result.index("panel.Children.Add(detachedPreview);"),
