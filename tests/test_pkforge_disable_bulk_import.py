@@ -7,6 +7,9 @@ from scripts.pkforge_official_core_probe import ProbeRefusal
 PICKER = """using PKForge.Domain;
 public sealed class AndroidDocumentPicker
 {
+    private const int MultiRequestCode = 4109;
+    private TaskCompletionSource<IReadOnlyList<PickedDocument>>? _pendingMany;
+
     public ValueTask<IReadOnlyList<PickedDocument>> PickManyAsync(CancellationToken cancellationToken = default)
     {
         var documents = new List<PickedDocument>();
@@ -15,6 +18,12 @@ public sealed class AndroidDocumentPicker
 
     private bool HandleMultiResult(int requestCode, Result resultCode, Intent? data)
     {
+        return false;
+    }
+    public bool HandleActivityResult(int requestCode, Result resultCode, Intent? data)
+    {
+        if (HandleMultiResult(requestCode, resultCode, data))
+            return true;
         return false;
     }
 }
@@ -46,7 +55,9 @@ class BulkImportRefusalTests(unittest.TestCase):
         self.assertIn("throw new NotSupportedException", segment)
         self.assertNotIn("new List<PickedDocument>", segment)
         self.assertNotIn("StartActivityForResult", segment)
-        self.assertNotIn("_pendingMany =", segment)
+        self.assertNotIn("_pendingMany", result)
+        self.assertNotIn("HandleMultiResult", result)
+        self.assertNotIn("MultiRequestCode", result)
 
     def test_import_flow_has_no_reachable_bank_mutation(self):
         result = adapt_flow(FLOW)
