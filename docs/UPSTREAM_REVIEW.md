@@ -1,5 +1,9 @@
 # Source-level comparison plan
 
+> [Trainer, records, event work and modal transaction source audit, pass O (2026-10-28)](UPSTREAM_TRAINER_EVENT_REVIEW_2026-10-28.md) — 30 findings (16 P0), ten identical official source blobs, source-level cancellation and record/event hazards; no runtime certification.
+> [Trainer, record and event-work execution gates, pass O (2026-10-28)](PARITY_TRAINER_EVENT_GATES_2026-10-28.md) — 36 proposed scenarios, none executed.
+
+
 > [Party, box storage, pointer and bulk-mutation source audit, pass N (2026-10-28)](UPSTREAM_STORAGE_SLOT_REVIEW_2026-10-28.md) — 37 pinned findings (13 P0), including source-level pointer range inversion, MoveBox permutation loss and protected-slot bypass; no runtime certification.
 > [Storage, party and pointer execution gates, pass N (2026-10-28)](PARITY_STORAGE_SLOT_GATES_2026-10-28.md) — 42 proposed scenarios; none executed or certified.
 
