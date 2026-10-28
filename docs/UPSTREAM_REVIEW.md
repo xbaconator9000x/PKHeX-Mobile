@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [HGSS Pokéathlon, Safari and gadget audit, pass V (2026-10-28)](UPSTREAM_HGSS_GADGETS_REVIEW_2026-10-28.md) — 33 source findings (15 P0), 23 Core release paths compared; source-only.
+> [HGSS parity execution gates, pass V (2026-10-28)](PARITY_HGSS_GADGETS_GATES_2026-10-28.md) — 36 proposed, unexecuted cases.
+
 > [Underground, seals, stickers and capsule source audit, pass U (2026-10-28)](UPSTREAM_UNDERGROUND_SEAL_REVIEW_2026-10-28.md) — 34 source findings (16 P0), 60 pinned references across 23 source files; source-only.
 > [Underground/seal/sticker/capsule execution gates, pass U (2026-10-28)](PARITY_UNDERGROUND_SEAL_GATES_2026-10-28.md) — 36 proposed, unexecuted scenarios.
 
