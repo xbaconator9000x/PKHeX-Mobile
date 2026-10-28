@@ -32,14 +32,14 @@ def adapt_view(source: str) -> str:
         "using PKHeXMobile.PortConsolidation;\n", "UI namespaces")
     source = replace_once(source,
         "    private readonly HashSet<int> _lockedSlots = [];",
-        "    private long _previewRequest;\\n    private readonly HashSet<int> _lockedSlots = [];",
+        "    private long _previewRequest;\n    private readonly HashSet<int> _lockedSlots = [];",
         "preview request generation")
     source = replace_once(source,
-        "        viewModel.PropertyChanged += (_, args) =>\\n        {",
-        "        viewModel.PropertyChanged += (_, args) =>\\n        {\\n"
-        "            if (args.PropertyName is nameof(BoxBrowserViewModel.Save) or\\n"
-        "                nameof(BoxBrowserViewModel.BoxIndex) or nameof(BoxBrowserViewModel.SelectedSlot) or\\n"
-        "                nameof(BoxBrowserViewModel.EditNickname))\\n"
+        "        viewModel.PropertyChanged += (_, args) =>\n        {",
+        "        viewModel.PropertyChanged += (_, args) =>\n        {\n"
+        "            if (args.PropertyName is nameof(BoxBrowserViewModel.Save) or\n"
+        "                nameof(BoxBrowserViewModel.BoxIndex) or nameof(BoxBrowserViewModel.SelectedSlot) or\n"
+        "                nameof(BoxBrowserViewModel.EditNickname))\n"
         "                Interlocked.Increment(ref _previewRequest);",
         "preview selection invalidation")
     anchor = '        var save = FocusButton(EditorTool("Save changes", primary: true), "SAVE CHANGES");'
