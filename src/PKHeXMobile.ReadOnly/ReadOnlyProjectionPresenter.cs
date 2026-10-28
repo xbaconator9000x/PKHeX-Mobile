@@ -236,6 +236,20 @@ public static class ReadOnlyProjectionPresenter
                 .Append(details.Moves.Second).Append(", ")
                 .Append(details.Moves.Third).Append(", ")
                 .Append(details.Moves.Fourth);
+            if (details.MoveState is { } moveState)
+            {
+                text.AppendLine().AppendLine("Stored PP (Core, never healed):");
+                foreach (var move in moveState.Slots)
+                    text.Append("  Move ").Append(move.SlotIndex + 1)
+                        .Append(": ID ").Append(move.MoveId)
+                        .Append(", PP ").Append(move.CurrentPp)
+                        .Append(", PP Ups ").Append(move.PpUps).AppendLine();
+                text.Append("Relearn move IDs (Core getters; support varies): ")
+                    .Append(moveState.RelearnMoveIds.First).Append(", ")
+                    .Append(moveState.RelearnMoveIds.Second).Append(", ")
+                    .Append(moveState.RelearnMoveIds.Third).Append(", ")
+                    .Append(moveState.RelearnMoveIds.Fourth);
+            }
             if (details.MechanicsGeneration is 1 or 2)
             {
                 text.AppendLine().Append("DVs (0-15; HP derived, Special shared): ")
