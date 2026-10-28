@@ -51,6 +51,27 @@ Refuses(() => access.WriteAtomicallyAsync("source", ReadOnlyMemory<byte>.Empty)
     .AsTask().GetAwaiter().GetResult(), "empty write bypass");
 Check(spy.WriteCount == 0, "provider received a write");
 Check(bytes.AsSpan().SequenceEqual(original), "source bytes changed");
+Check(ReadOnlySourceGrants.RequestedFlags == (ReadOnlySourceGrants.Read | ReadOnlySourceGrants.Persistable),
+    "source picker must request only read and persistable flags");
+Check((ReadOnlySourceGrants.RequestedFlags & ReadOnlySourceGrants.Write) == 0,
+    "source picker requested a write grant");
+foreach (var resultFlags in new[] { ReadOnlySourceGrants.Read,
+    ReadOnlySourceGrants.Read | ReadOnlySourceGrants.Write,
+    ReadOnlySourceGrants.Read | ReadOnlySourceGrants.Persistable | ReadOnlySourceGrants.Write })
+{
+    Check(ReadOnlySourceGrants.PersistedFlags(resultFlags) == ReadOnlySourceGrants.Read,
+        "source picker persisted extra provider flags");
+}
+foreach (var resultFlags in new[] { 0, ReadOnlySourceGrants.Write, ReadOnlySourceGrants.Persistable })
+{
+    try { ReadOnlySourceGrants.PersistedFlags(resultFlags); }
+    catch (InvalidOperationException)
+    {
+        checks++;
+        continue;
+    }
+    throw new Exception("missing read grant was accepted");
+}
 Console.WriteLine($"PKForge read-only writer containment passed: {checks} assertions.");
 Console.WriteLine("No source document, Android provider or Save As was used.");
 
