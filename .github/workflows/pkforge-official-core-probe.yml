@@ -73,11 +73,11 @@ jobs:
           PKForgeRoot: /tmp/pkforge
         run: dotnet run --project tests/PKHeXMobile.RetailEditor.Smoke/PKHeXMobile.RetailEditor.Smoke.csproj --configuration Release
       - name: Install Android MAUI only if engine compiles
-        if: steps.engine.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success'
         run: dotnet workload install maui-android --skip-manifest-update
       - name: Build PKForge Android against official Core
         id: android
-        if: steps.engine.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success'
         continue-on-error: true
         working-directory: /tmp/pkforge
         run: |
@@ -101,7 +101,7 @@ jobs:
             echo "Detached nickname preview tests: $RETAIL_EDITOR"
             echo "Android compile: $ANDROID"
             if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$ANDROID" != success ]; then
-              echo '**OFFICIAL-CORE COMPILATION NOT PASSED.** Inspect compiler diagnostics.'
+              echo '**OFFICIAL-CORE COMPATIBILITY GATE FAILED.** Inspect compilation and runtime smoke diagnostics.'
             else
               echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
             fi
