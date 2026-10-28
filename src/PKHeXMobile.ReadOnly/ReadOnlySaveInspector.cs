@@ -44,6 +44,8 @@ public sealed record SaveReadOnlyResult(
     public HgssReadOnly? Hgss { get; init; }
     // B2W2-only raw medal, habitat and Key System diagnostics; no edit authorization.
     public Gen5WorldReadOnly? Gen5World { get; init; }
+    // Detached Gen6 save-level Super Training and O-Power raw diagnostics.
+    public Gen6SystemsReadOnly? Gen6Systems { get; init; }
 }
 
 public static class ReadOnlySaveInspector
@@ -145,6 +147,7 @@ public static class ReadOnlySaveInspector
                 Underground = UndergroundReadOnly.Project(save),
                 Hgss = HgssReadOnly.Project(save),
                 Gen5World = Gen5WorldReadOnly.Project(save),
+                Gen6Systems = Gen6SystemsReadOnly.Project(save),
             };
             reason = string.Empty;
             return true;

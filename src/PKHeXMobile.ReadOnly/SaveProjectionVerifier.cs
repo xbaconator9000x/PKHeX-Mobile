@@ -96,6 +96,8 @@ public sealed record ExpectedSaveProjection(
     public ExpectedHgssReadOnly? Hgss { get; init; }
     // Schema v15: raw B2W2 medals, habitats and Key System.
     public ExpectedGen5WorldReadOnly? Gen5World { get; init; }
+    // Schema v16: XY/ORAS raw Super Training and O-Power blocks.
+    public ExpectedGen6SystemsReadOnly? Gen6Systems { get; init; }
 }
 
 /// <summary>
@@ -112,7 +114,7 @@ public static class SaveProjectionVerifier
         bool requireMoveState = false, bool requireIdentity = false,
         bool requireDaycare = false, bool requireGen2Egg = false,
         bool requireUnderground = false, bool requireHgss = false,
-        bool requireGen5World = false)
+        bool requireGen5World = false, bool requireGen6Systems = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -230,6 +232,8 @@ public static class SaveProjectionVerifier
             HgssProjectionVerifier.Compare(actual.Hgss, expected.Hgss, errors);
         if (requireGen5World || expected.Gen5World is not null)
             Gen5WorldProjectionVerifier.Compare(actual.Gen5World, expected.Gen5World, errors);
+        if (requireGen6Systems || expected.Gen6Systems is not null)
+            Gen6SystemsProjectionVerifier.Compare(actual.Gen6Systems, expected.Gen6Systems, errors);
 
         return errors;
 
