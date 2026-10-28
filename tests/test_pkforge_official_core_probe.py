@@ -24,7 +24,7 @@ class CoreProbeTests(unittest.TestCase):
         self.assertIn("PKForge.Domain", refs[0].get("Include"))
 
     def test_backslash_path(self):
-        self.assertIn("PKHeX.Core", rewrite(SOURCE.replace("/", "\\")))
+        self.assertIn("PKHeX.Core", rewrite(SOURCE.replace("../../external/PKHeX/PKHeX.Core/PKHeX.Core.csproj", r"..\..\external\PKHeX\PKHeX.Core\PKHeX.Core.csproj")))
 
     def test_missing_and_duplicate_rejected(self):
         for source in (SOURCE.replace("external/PKHeX", "external/Other"),
