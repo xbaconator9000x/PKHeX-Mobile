@@ -12,6 +12,8 @@ on:
       - 'scripts/pkforge_retail_only_probe.py'
       - 'tests/test_pkforge_retail_only_probe.py'
       - 'tests/PKHeXMobile.RetailProbe.Smoke/**'
+      - 'src/PKHeXMobile.PortConsolidation/**'
+      - 'tests/PKHeXMobile.RetailEditor.Smoke/**'
 
 permissions:
   contents: read
@@ -63,12 +65,19 @@ jobs:
         env:
           PKForgeRoot: /tmp/pkforge
         run: dotnet run --project tests/PKHeXMobile.RetailProbe.Smoke/PKHeXMobile.RetailProbe.Smoke.csproj --configuration Release
-      - name: Install Android MAUI only if engine compiles
+      - name: Exercise detached PKForge editor against official Core synthetic save
+        id: retail-editor
         if: steps.engine.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: dotnet run --project tests/PKHeXMobile.RetailEditor.Smoke/PKHeXMobile.RetailEditor.Smoke.csproj --configuration Release
+      - name: Install Android MAUI only if engine compiles
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success'
         run: dotnet workload install maui-android --skip-manifest-update
       - name: Build PKForge Android against official Core
         id: android
-        if: steps.engine.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success'
         continue-on-error: true
         working-directory: /tmp/pkforge
         run: |
@@ -79,6 +88,7 @@ jobs:
         env:
           ENGINE: ${{ steps.engine.outcome }}
           RETAIL_SMOKE: ${{ steps.retail-smoke.outcome }}
+          RETAIL_EDITOR: ${{ steps.retail-editor.outcome }}
           ANDROID: ${{ steps.android.outcome }}
         shell: bash
         run: |
@@ -88,14 +98,15 @@ jobs:
             echo 'Official Core NuGet: [26.10.18]'
             echo "Engine compile: $ENGINE"
             echo "Retail-only runtime negative tests: $RETAIL_SMOKE"
+            echo "Detached nickname preview tests: $RETAIL_EDITOR"
             echo "Android compile: $ANDROID"
-            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$ANDROID" != success ]; then
-              echo '**OFFICIAL-CORE COMPILATION NOT PASSED.** Inspect compiler diagnostics.'
+            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$ANDROID" != success ]; then
+              echo '**OFFICIAL-CORE COMPATIBILITY GATE FAILED.** Inspect compilation and runtime smoke diagnostics.'
             else
               echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$ANDROID" != success ]; then
+          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$ANDROID" != success ]; then
             echo 'Retail-only official-Core compatibility gate failed.' >&2
             exit 1
           fi
