@@ -103,7 +103,7 @@ public static class ReadOnlySaveInspector
                 {
                     var pokemon = save.GetPartySlotAtIndex(i);
                     if (pokemon.Species != 0)
-                        party.Add(ToSlot(i, pokemon));
+                        party.Add(ToSlot(i, pokemon, save.Personal));
                 }
             }
 
@@ -166,7 +166,7 @@ public static class ReadOnlySaveInspector
     /// PKM, retain it, or infer game legality or a write-safe save layout.
     /// Numeric move/ability/item IDs are Core IDs, not localized names.
     /// </summary>
-    public static PokemonSlot ProjectPokemon(int slot, PKM pokemon)
+    public static PokemonSlot ProjectPokemon(int slot, PKM pokemon, IPersonalTable? personal = null)
     {
         ArgumentNullException.ThrowIfNull(pokemon);
         if (slot < 0)
@@ -189,8 +189,10 @@ public static class ReadOnlySaveInspector
                 Training = PokemonTrainingReadOnly.Project(pokemon, iv, ev),
                 MoveState = PokemonMoveStateReadOnly.Project(pokemon),
                 Identity = PokemonIdentityReadOnly.Project(pokemon),
+                Legality = personal is null ? null : PokemonLegalityReadOnly.Project(pokemon, personal),
             });
     }
 
-    private static PokemonSlot ToSlot(int slot, PKM pokemon) => ProjectPokemon(slot, pokemon);
+    private static PokemonSlot ToSlot(int slot, PKM pokemon, IPersonalTable? personal = null) =>
+        ProjectPokemon(slot, pokemon, personal);
 }

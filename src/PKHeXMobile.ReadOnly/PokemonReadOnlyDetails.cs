@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace PKHeXMobile.ReadOnly;
 
 /// <summary>
@@ -35,4 +37,9 @@ public sealed record PokemonReadOnlyDetails(
 
     // Schema v10: detached raw PID/EC, shiny, ability-slot, egg and date diagnostics.
     public PokemonIdentityReadOnly? Identity { get; init; }
+
+    // Optional party-only diagnostic. Excluded from parity manifests until independently
+    // matched against same-version desktop PKHeX; never a format certification.
+    [JsonIgnore]
+    public PokemonLegalityReadOnly? Legality { get; init; }
 }

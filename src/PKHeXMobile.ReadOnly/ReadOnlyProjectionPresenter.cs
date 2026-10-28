@@ -145,7 +145,7 @@ public static class ReadOnlyProjectionPresenter
                 .Append(gen6.OPower.FlagsRaw.Count)
                 .AppendLine(" raw flag bytes and level bytes; no edit authorization.");
         }
-        text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
+        text.AppendLine("No editing, export, certified legality or ROM-hack compatibility is enabled.");
         return text.ToString();
     }
 
@@ -396,7 +396,22 @@ public static class ReadOnlyProjectionPresenter
                     text.AppendLine("Unusual raw effort values; not corrected or judged legal/illegal.");
             }
             AppendTypedAwards(text, details.Awards);
-            text.AppendLine().Append("Values are provisional; legality is not evaluated.");
+            if (details.Legality is { Available: true } legality)
+            {
+                text.AppendLine().Append("Pinned Core legality (provisional RETAIL context): ")
+                    .AppendLine(legality.Valid ? "valid under Core rules" : "flagged by Core");
+                foreach (var topic in legality.Topics)
+                {
+                    if (topic.Verdict == "Valid") continue;
+                    text.Append("  ").Append(topic.Name).Append(": ").AppendLine(topic.Verdict);
+                    foreach (var reason in topic.Reasons)
+                        text.Append("    ").AppendLine(SanitizeLabel(reason));
+                }
+                text.AppendLine("This is NOT hack authentication, desktop parity or write authorization.");
+            }
+            else
+                text.AppendLine("Legality not evaluated for this slot.");
+            text.AppendLine("Values are provisional; no save editing or export.");
         }
         return text.ToString();
     }

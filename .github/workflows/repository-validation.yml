@@ -38,6 +38,7 @@ jobs:
       - run: dotnet run --project tests/PKHeXMobile.Staging.Smoke/PKHeXMobile.Staging.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Provider.Smoke/PKHeXMobile.Provider.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.ReadOnly.Smoke/PKHeXMobile.ReadOnly.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Legality.Smoke/PKHeXMobile.Legality.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Verify.Smoke/PKHeXMobile.Verify.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Inventory.Smoke/PKHeXMobile.Inventory.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Storage.Smoke/PKHeXMobile.Storage.Smoke.csproj --configuration Release
