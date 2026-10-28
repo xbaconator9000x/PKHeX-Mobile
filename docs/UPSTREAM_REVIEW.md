@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Underground, seals, stickers and capsule source audit, pass U (2026-10-28)](UPSTREAM_UNDERGROUND_SEAL_REVIEW_2026-10-28.md) — 34 source findings (16 P0), 60 pinned references across 23 source files; source-only.
+> [Underground/seal/sticker/capsule execution gates, pass U (2026-10-28)](PARITY_UNDERGROUND_SEAL_GATES_2026-10-28.md) — 36 proposed, unexecuted scenarios.
+
 > [RTC, roamer, honey-tree and Hall of Fame audit, pass T (2026-10-28)](UPSTREAM_WORLD_STATE_REVIEW_2026-10-28.md) — 35 source findings (12 P0), nine identical official Core blobs; source-only.
 > [World-state acceptance gates, pass T (2026-10-28)](PARITY_WORLD_STATE_GATES_2026-10-28.md) — 40 proposed, unexecuted cases.
 
