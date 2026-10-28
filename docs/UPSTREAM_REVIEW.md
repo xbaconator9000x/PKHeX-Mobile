@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Identity, PID/shiny, form, egg and ball source audit, pass R (2026-10-28)](UPSTREAM_IDENTITY_EGG_FORM_REVIEW_2026-10-28.md) — 34 findings (13 P0), nine matching Core source blobs; source-only.
+> [Identity/form/egg/ball parity gates, pass R (2026-10-28)](PARITY_IDENTITY_EGG_FORM_GATES_2026-10-28.md) — 40 proposed scenarios; none executed.
+
 > [Move identity, PP, relearn and technical-record audit, pass Q (2026-10-28)](UPSTREAM_MOVE_PP_TR_REVIEW_2026-10-28.md) — 32 source findings, 11 official files compared (10 identical, one changed); source-only.
 > [Move/PP/relearn/TR acceptance gates, pass Q (2026-10-28)](PARITY_MOVE_PP_TR_GATES_2026-10-28.md) — 40 proposed cases; none executed.
 
