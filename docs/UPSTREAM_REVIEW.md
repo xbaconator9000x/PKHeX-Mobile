@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [Gen6 Super Training, Secret Base and O-Power source audit, pass X (2026-10-28)](UPSTREAM_GEN6_SYSTEMS_REVIEW_2026-10-28.md) — 33 source findings (13 P0), 12/12 selected official Core release blob matches; source-only.
+> [Gen6 systems parity execution gates, pass X (2026-10-28)](PARITY_GEN6_SYSTEMS_GATES_2026-10-28.md) — 36 proposed, unexecuted scenarios.
+
 > [Gen5 world systems audit, pass W (2026-10-28)](UPSTREAM_GEN5_WORLD_REVIEW_2026-10-28.md) — 35 source findings (19 P0), 20/20 pinned release Core blob matches; source-only.
 > [Gen5 world-system parity gates, pass W (2026-10-28)](PARITY_GEN5_WORLD_GATES_2026-10-28.md) — 42 proposed, unexecuted cases.
 
