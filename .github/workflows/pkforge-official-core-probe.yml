@@ -18,6 +18,8 @@ on:
       - 'tests/test_pkforge_detached_preview_ui.py'
       - 'scripts/pkforge_readonly_containment.py'
       - 'tests/test_pkforge_readonly_containment.py'
+      - 'scripts/pkforge_preview_only_hardening.py'
+      - 'tests/test_pkforge_preview_only_hardening.py'
       - 'tests/PKHeXMobile.Containment.Smoke/**'
 
 permissions:
@@ -41,6 +43,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_pkforge_retail_only_probe.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_detached_preview_ui.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_readonly_containment.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_preview_only_hardening.py' -v
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -88,19 +91,24 @@ jobs:
         if: steps.preview-ui.outcome == 'success'
         continue-on-error: true
         run: python3 -m scripts.pkforge_readonly_containment --repo /tmp/pkforge
+      - name: Enforce read-only picker grants and block live-session mutation
+        id: hardening
+        if: steps.containment.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_preview_only_hardening --repo /tmp/pkforge
       - name: Exercise denied writer and provider-spy paths
         id: containment-smoke
-        if: steps.containment.outcome == 'success'
+        if: steps.hardening.outcome == 'success'
         continue-on-error: true
         env:
           PKForgeRoot: /tmp/pkforge
         run: dotnet run --project tests/PKHeXMobile.Containment.Smoke/PKHeXMobile.Containment.Smoke.csproj --configuration Release
       - name: Install Android MAUI only if engine compiles
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.containment-smoke.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.containment-smoke.outcome == 'success'
         run: dotnet workload install maui-android --skip-manifest-update
       - name: Build PKForge Android against official Core
         id: android
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.containment-smoke.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.containment-smoke.outcome == 'success'
         continue-on-error: true
         env:
           PKForgeRoot: /tmp/pkforge
@@ -116,6 +124,7 @@ jobs:
           RETAIL_EDITOR: ${{ steps.retail-editor.outcome }}
           PREVIEW_UI: ${{ steps.preview-ui.outcome }}
           CONTAINMENT: ${{ steps.containment.outcome }}
+          HARDENING: ${{ steps.hardening.outcome }}
           CONTAINMENT_SMOKE: ${{ steps.containment-smoke.outcome }}
           ANDROID: ${{ steps.android.outcome }}
         shell: bash
@@ -129,15 +138,16 @@ jobs:
             echo "Detached nickname preview tests: $RETAIL_EDITOR"
             echo "MAUI detached preview wiring: $PREVIEW_UI"
             echo "Read-only DI containment: $CONTAINMENT"
+            echo "Read-only source grants and mutation guards: $HARDENING"
             echo "Writer/provider spy checks: $CONTAINMENT_SMOKE"
             echo "Android compile: $ANDROID"
-            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$ANDROID" != success ]; then
+            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$ANDROID" != success ]; then
               echo '**OFFICIAL-CORE COMPATIBILITY GATE FAILED.** Inspect compilation and runtime smoke diagnostics.'
             else
               echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$ANDROID" != success ]; then
+          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$ANDROID" != success ]; then
             echo 'Retail-only official-Core compatibility gate failed.' >&2
             exit 1
           fi

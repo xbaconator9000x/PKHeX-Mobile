@@ -13,5 +13,6 @@
     <ProjectReference Include="$(PKForgeRoot)/src/PKForge.Domain/PKForge.Domain.csproj" />
     <Compile Include="$(PKForgeRoot)/src/PKForge.App/Services/ReadOnlySaveWriter.cs" Link="ReadOnlySaveWriter.cs" />
     <Compile Include="$(PKForgeRoot)/src/PKForge.App/Services/ReadOnlySaveFileAccess.cs" Link="ReadOnlySaveFileAccess.cs" />
+    <Compile Include="$(PKForgeRoot)/src/PKForge.App/Services/ReadOnlySourceGrants.cs" Link="ReadOnlySourceGrants.cs" />
   </ItemGroup>
 </Project>
