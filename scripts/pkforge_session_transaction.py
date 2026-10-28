@@ -47,7 +47,7 @@ def adapt_transaction(source: str) -> str:
         """    // All activation, close, revert and write-notification commits share this gate.
     private readonly object _activationGate = new();
     // Private deterministic interleaving hook, exercised only by synthetic smoke tests.
-    private Action? _activationTestHook;
+    private Action? _activationTestHook { get; set; }
     private long _openingGeneration;""", "transaction state")
     source = once(source,
         """        var request = Interlocked.Increment(ref _openingGeneration);
