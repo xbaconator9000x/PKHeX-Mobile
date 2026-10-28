@@ -58,6 +58,25 @@ public static class ReadOnlyProjectionPresenter
             text.Append("Storage slot flags (Core only): ")
                 .Append(storage.ProtectedCount)
                 .AppendLine(" Core-reported overwrite-protected positions; not verified write permissions.");
+        if (save.Daycare is { Available: true } nursery)
+        {
+            text.Append("Daycare (Core raw metadata): ")
+                .Append(nursery.Facilities.Count).AppendLine(" facility/facilities; no parent decoding.");
+            foreach (var facility in nursery.Facilities)
+            {
+                text.Append("Facility ").Append(facility.FacilityIndex + 1).Append(": ");
+                foreach (var slot in facility.Slots)
+                    text.Append("slot ").Append(slot.SlotIndex + 1)
+                        .Append(slot.Occupied ? " occupied" : " empty").Append("; ");
+                if (facility.EggAvailable is { } egg)
+                    text.Append("egg ready (Core): ").Append(egg ? "yes" : "no").Append("; ");
+                if (facility.SeedHex is { } seed)
+                    text.Append("raw RNG seed 0x").Append(seed).Append("; ");
+                text.AppendLine();
+            }
+        }
+        else
+            text.AppendLine("Daycare: no reviewed Core nursery interface for this format.");
         text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
         return text.ToString();
     }

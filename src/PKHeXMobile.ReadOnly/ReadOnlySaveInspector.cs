@@ -35,6 +35,7 @@ public sealed record SaveReadOnlyResult(
     public InventoryReadOnly? Inventory { get; init; }
     public StorageFlagsReadOnly? Storage { get; init; }
     public TrainerProgressReadOnly? TrainerProgress { get; init; }
+    public DaycareReadOnly? Daycare { get; init; }
 }
 
 public static class ReadOnlySaveInspector
@@ -131,6 +132,7 @@ public static class ReadOnlySaveInspector
                 Inventory = InventoryReadOnly.Project(save),
                 Storage = StorageFlagsReadOnly.Project(save),
                 TrainerProgress = TrainerProgressReadOnly.Project(save),
+                Daycare = DaycareReadOnly.Project(save),
             };
             reason = string.Empty;
             return true;

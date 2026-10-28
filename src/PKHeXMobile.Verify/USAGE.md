@@ -97,3 +97,24 @@ For every occupied slot, include `Details.Training` with `coreFormat`, `effectiv
 ## Schema v10 — immutable PID, shiny and egg provenance diagnostics
 
 Schema v10 retains every schema v1–v9 requirement and adds `details.identity` for every occupied Pokémon. The mandatory raw fields are `coreFormat`, `originGeneration`, `personalityId`, `encryptionConstant`, `trainerId32`, `shinyXor`, `abilityNumber`, `pidAbility`, `metLocation`, `eggLocation`, `ball`, `metLevel`, `originalTrainerFriendship`, `isEgg`, `wasEgg`, `isShiny`, `metDate` and `eggDate`. Each date has required raw `year`, `month`, `day` and nullable `isoDate` (the last must be present even when null). Dates are raw Core getters, not proof of stored fields: unsupported formats can return virtual defaults; invalid calendar bytes must not be corrected. Locations remain full 16-bit IDs. Shiny XOR is checked against raw ID32/PID, but shiny legality is not inferred from XOR alone. The verifier checks both observed and reference consistency, not independent fixture provenance. These fields do not authorize PID rerolls, egg normalization, location writes or save export. Synthetic regression coverage is not desktop parity evidence.
+
+## Schema v11 — read-only daycare/nursery raw metadata
+
+Schema v11 retains all earlier requirements and requires an explicit `daycare`
+object in each fixture's `expected` projection. It contains `available`
+and `facilities`. For formats without a reviewed Core nursery interface,
+use `{"available":false,"facilities":[]}`; do not omit the object.
+Each available facility (one or two, in source order) requires
+`facilityIndex`, nullable `eggAvailable`, nullable `seedHex` (8 hex digits for Gen4 32-bit seeds, 16
+for 64-bit seeds, 32 for Gen7 UInt128), and one (Gen1) or two (other reviewed generations)
+ordered `slots`. Each slot requires `slotIndex`, `occupied`,
+`rawLength`, `rawSha256` (64 hex digits) and nullable
+`experienceGained`. JSON nulls must be present for unsupported getters.
+
+The source adapter bounds parent memory before hashing; Sword/Shield's
+Core nursery indexer otherwise exposes a mutable tail slice. Parent
+digests describe **raw Core memory**, not independently decoded species,
+validity, legality, or authenticated save layout. Black/White's seed is
+reported as null because its Core setter is a no-op; B2W2 exposes 64 bits.
+This schema is a comparison protocol, not a claim of independently matched
+desktop fixtures. Synthetic tests are not write or device certification.

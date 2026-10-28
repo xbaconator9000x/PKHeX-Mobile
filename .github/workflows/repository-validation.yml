@@ -42,5 +42,6 @@ jobs:
       - run: dotnet run --project tests/PKHeXMobile.Training.Smoke/PKHeXMobile.Training.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Moves.Smoke/PKHeXMobile.Moves.Smoke.csproj --configuration Release
       - run: dotnet run --project tests/PKHeXMobile.Identity.Smoke/PKHeXMobile.Identity.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Daycare.Smoke/PKHeXMobile.Daycare.Smoke.csproj --configuration Release
       - run: dotnet run --project src/PKHeXMobile.Inspect/PKHeXMobile.Inspect.csproj --configuration Release -- --help
       - run: dotnet run --project src/PKHeXMobile.Verify/PKHeXMobile.Verify.csproj --configuration Release -- --help

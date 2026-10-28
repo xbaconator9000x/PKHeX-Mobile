@@ -88,6 +88,8 @@ public sealed record ExpectedSaveProjection(
     public ExpectedStorageFlagsReadOnly? Storage { get; init; }
     // Schema v7: raw Core trainer progress scalars, not full trainer records.
     public ExpectedTrainerProgressReadOnly? TrainerProgress { get; init; }
+    // Schema v11: raw, bounded nursery metadata and parent digests.
+    public ExpectedDaycareReadOnly? Daycare { get; init; }
 }
 
 /// <summary>
@@ -101,7 +103,8 @@ public static class SaveProjectionVerifier
         bool requireDetails = false, bool requireAwards = false, bool requirePokedex = false,
         bool requireInventory = false, bool requireStorage = false,
         bool requireTrainerProgress = false, bool requireTraining = false,
-        bool requireMoveState = false, bool requireIdentity = false)
+        bool requireMoveState = false, bool requireIdentity = false,
+        bool requireDaycare = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -204,6 +207,8 @@ public static class SaveProjectionVerifier
         if (requireTrainerProgress || expected.TrainerProgress is not null)
             TrainerProgressProjectionVerifier.Compare(actual.TrainerProgress,
                 expected.TrainerProgress, actual.BoxCount, errors);
+        if (requireDaycare || expected.Daycare is not null)
+            DaycareProjectionVerifier.Compare(actual.Daycare, expected.Daycare, errors);
 
         return errors;
 
