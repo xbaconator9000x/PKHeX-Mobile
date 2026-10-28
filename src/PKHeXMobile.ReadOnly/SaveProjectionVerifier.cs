@@ -94,6 +94,8 @@ public sealed record ExpectedSaveProjection(
     public ExpectedUndergroundReadOnly? Underground { get; init; }
     // Schema v14: HGSS raw gadget and Pokéathlon parity.
     public ExpectedHgssReadOnly? Hgss { get; init; }
+    // Schema v15: raw B2W2 medals, habitats and Key System.
+    public ExpectedGen5WorldReadOnly? Gen5World { get; init; }
 }
 
 /// <summary>
@@ -109,7 +111,8 @@ public static class SaveProjectionVerifier
         bool requireTrainerProgress = false, bool requireTraining = false,
         bool requireMoveState = false, bool requireIdentity = false,
         bool requireDaycare = false, bool requireGen2Egg = false,
-        bool requireUnderground = false, bool requireHgss = false)
+        bool requireUnderground = false, bool requireHgss = false,
+        bool requireGen5World = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -225,6 +228,8 @@ public static class SaveProjectionVerifier
             UndergroundProjectionVerifier.Compare(actual.Underground, expected.Underground, errors);
         if (requireHgss || expected.Hgss is not null)
             HgssProjectionVerifier.Compare(actual.Hgss, expected.Hgss, errors);
+        if (requireGen5World || expected.Gen5World is not null)
+            Gen5WorldProjectionVerifier.Compare(actual.Gen5World, expected.Gen5World, errors);
 
         return errors;
 

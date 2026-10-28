@@ -122,6 +122,18 @@ public static class ReadOnlyProjectionPresenter
                 .Append(hgss.Pokeathlon.DataCardFlagsRaw.ToString("X8"))
                 .AppendLine("; no edit authorization.");
         }
+        if (save.Gen5World is { } gen5)
+        {
+            text.Append("B2W2 medals (detached raw view): ")
+                .Append(gen5.Medals.Entries.Count).Append(" entries, ")
+                .Append(gen5.Medals.Entries.Count(e => e.StateCode == 4))
+                .Append(" Core-coded obtained, ")
+                .Append(gen5.Medals.Entries.Count(e => e.RawDate != 0 && !e.ValidDate))
+                .AppendLine(" invalid raw dates retained.");
+            text.Append("B2W2 Key System (detached raw view): ")
+                .Append(gen5.Keys.ObtainedWordsRaw.Count)
+                .AppendLine(" obtained and unlocked raw words; XOR/magic values preserved; no edit authorization.");
+        }
         text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
         return text.ToString();
     }
