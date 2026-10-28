@@ -42,7 +42,7 @@ jobs:
           test "$(git rev-parse HEAD:external/PKHeX)" = "91e9c88667a6a191a000db68e2db19505eb87561"
           test "$(git rev-parse HEAD:external/PKHeX-Plugins)" = "23ab1fc73f7be6ad427fbc900f9b99111cd2d560"
           git submodule update --init --recursive --depth=1
-      - name: Replace fork references with official PKHeX.Core 26.10.18
+      - name: Adapt pinned fork references and AutoMod Seed64 API for official Core
         run: python3 scripts/pkforge_official_core_probe.py --repo /tmp/pkforge
       - name: Build portable PKForge engine against official Core
         id: engine
