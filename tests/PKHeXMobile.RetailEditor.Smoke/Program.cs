@@ -27,6 +27,10 @@ mon.CurrentLevel = 12;
 mon.SetNickname("ORIGINAL");
 mon.RefreshChecksum();
 save.SetBoxSlotAtIndex(mon, 0, 0, EntityImportSettings.None);
+// BlankSaveFile creates an editor template, not a recognized cartridge dump.
+// The pinned SaveUtil.IsG6XY requires the BEEF footer at length - 0x1F0.
+// Stamp this synthetic fixture BEFORE Write recomputes the block checksums.
+BinaryPrimitives.WriteUInt32LittleEndian(save.Data[^0x1F0..], 0x42454546);
 var original = save.Write().ToArray();
 var untouched = original.ToArray();
 var snapshot = SaveInputSnapshot.FromBytes(original);
