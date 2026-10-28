@@ -131,7 +131,7 @@ public static class ReadOnlyProjectionPresenter
                 .Append(gen5.Medals.Entries.Count(e => e.RawDate != 0 && !e.ValidDate))
                 .AppendLine(" invalid raw dates retained.");
             text.Append("B2W2 Key System (detached raw view): ")
-                .Append(gen5.Keys.ObtainedWords.Count)
+                .Append(gen5.Keys.ObtainedWordsRaw.Count)
                 .AppendLine(" obtained and unlocked raw words; XOR/magic values preserved; no edit authorization.");
         }
         text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
