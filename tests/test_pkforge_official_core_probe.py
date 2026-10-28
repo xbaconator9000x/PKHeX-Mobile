@@ -5,7 +5,7 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from scripts.pkforge_official_core_probe import ProbeRefusal, rewrite, VERSION
+from scripts.pkforge_official_core_probe import ProbeRefusal, rewrite, VERSION, adapt_seed64_plugin, OLD_SEED64, NEW_SEED64
 
 SOURCE = """<Project Sdk="Microsoft.NET.Sdk"><ItemGroup>
 <ProjectReference Include="../PKForge.Domain/PKForge.Domain.csproj" />
@@ -37,6 +37,15 @@ class CoreProbeTests(unittest.TestCase):
                        SOURCE.replace('PKHeX.Core.csproj" />', 'PKHeX.Core.csproj" PrivateAssets="all" />')):
             with self.assertRaises(ProbeRefusal):
                 rewrite(source)
+
+    def test_pinned_seed64_adapter(self):
+        source = "prefix " + OLD_SEED64 + " suffix"
+        adapted = adapt_seed64_plugin(source)
+        self.assertIn(NEW_SEED64, adapted)
+        self.assertNotIn(OLD_SEED64, adapted)
+        for invalid in ("no seed call", OLD_SEED64 + OLD_SEED64, NEW_SEED64):
+            with self.assertRaises(ProbeRefusal):
+                adapt_seed64_plugin(invalid)
 
     def test_malformed_or_second_rewrite_refused(self):
         for source in ("<Project>", "<Other />", rewrite(SOURCE)):
