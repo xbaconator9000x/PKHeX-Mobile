@@ -29,6 +29,9 @@ public sealed record SaveReadOnlyResult(
 {
     public SaveCompatibility Compatibility => SaveCompatibility.SupportedReadOnly;
     public string? VerifiedProfileId => null;
+
+    // Core national flags only, never regional/DLC Pokédex certification.
+    public PokedexReadOnly? Pokedex { get; init; }
 }
 
 public static class ReadOnlySaveInspector
@@ -119,7 +122,10 @@ public static class ReadOnlySaveInspector
                 save.BoxSlotCount,
                 party.AsReadOnly(),
                 boxes.AsReadOnly(),
-                snapshot.Fingerprint);
+                snapshot.Fingerprint)
+            {
+                Pokedex = PokedexReadOnly.Project(save),
+            };
             reason = string.Empty;
             return true;
         }

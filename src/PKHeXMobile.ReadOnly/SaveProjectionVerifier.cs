@@ -47,6 +47,12 @@ public sealed record ExpectedPokemonReadOnlyDetails(
     public ExpectedPokemonAwardsReadOnly? Awards { get; init; }
 }
 
+/// <summary>Schema v4: Core national-species seen/caught flags only.</summary>
+public sealed record ExpectedPokedexReadOnly(
+    [property: JsonRequired] ushort MaxSpeciesId,
+    [property: JsonRequired] IReadOnlyList<ushort> SeenSpecies,
+    [property: JsonRequired] IReadOnlyList<ushort> CaughtSpecies);
+
 public sealed record ExpectedBoxSnapshot(
     [property: JsonRequired] int BoxIndex,
     [property: JsonRequired] IReadOnlyList<ExpectedPokemonSlot> OccupiedSlots);
@@ -66,7 +72,11 @@ public sealed record ExpectedSaveProjection(
     [property: JsonRequired] int BoxCount,
     [property: JsonRequired] int BoxSlotCount,
     [property: JsonRequired] IReadOnlyList<ExpectedPokemonSlot> Party,
-    [property: JsonRequired] IReadOnlyList<ExpectedBoxSnapshot> Boxes);
+    [property: JsonRequired] IReadOnlyList<ExpectedBoxSnapshot> Boxes)
+{
+    // Optional in v1–v3, mandatory non-null for v4 dex-enabled fixtures.
+    public ExpectedPokedexReadOnly? Pokedex { get; init; }
+}
 
 /// <summary>
 /// Field-by-field read-only comparison. Reports only field paths, never trainer
@@ -76,7 +86,7 @@ public sealed record ExpectedSaveProjection(
 public static class SaveProjectionVerifier
 {
     public static IReadOnlyList<string> Compare(SaveReadOnlyResult actual, ExpectedSaveProjection expected,
-        bool requireDetails = false, bool requireAwards = false)
+        bool requireDetails = false, bool requireAwards = false, bool requirePokedex = false)
     {
         ArgumentNullException.ThrowIfNull(actual);
         ArgumentNullException.ThrowIfNull(expected);
@@ -168,6 +178,9 @@ public static class SaveProjectionVerifier
                 }
             }
         }
+
+        if (requirePokedex || expected.Pokedex is not null)
+            ComparePokedex(actual.Pokedex, expected.Pokedex);
 
         return errors;
 
@@ -268,6 +281,58 @@ public static class SaveProjectionVerifier
                 errors.Add($"{path}.Awards missing from observed projection");
             else
                 AwardProjectionVerifier.Compare(a.Awards, e.Awards, $"{path}.Awards", errors);
+        }
+
+        void ComparePokedex(PokedexReadOnly? a, ExpectedPokedexReadOnly? e)
+        {
+            if (a is null || e is null)
+            {
+                errors.Add(a is null ? "Pokedex missing from observed projection" :
+                    "Pokedex missing from expectation");
+                return;
+            }
+            Check(a.MaxSpeciesId is > 0 and <= 2048, "Pokedex observed MaxSpeciesId out of range");
+            Check(e.MaxSpeciesId is > 0 and <= 2048, "Pokedex expected MaxSpeciesId out of range");
+            Check(a.MaxSpeciesId == e.MaxSpeciesId, "Pokedex.MaxSpeciesId");
+            ValidateSpecies(a.SeenSpecies, a.MaxSpeciesId, "Pokedex observed SeenSpecies");
+            ValidateSpecies(a.CaughtSpecies, a.MaxSpeciesId, "Pokedex observed CaughtSpecies");
+            ValidateSpecies(e.SeenSpecies, e.MaxSpeciesId, "Pokedex expected SeenSpecies");
+            ValidateSpecies(e.CaughtSpecies, e.MaxSpeciesId, "Pokedex expected CaughtSpecies");
+            CompareSpecies(a.SeenSpecies, e.SeenSpecies, "Pokedex.SeenSpecies");
+            CompareSpecies(a.CaughtSpecies, e.CaughtSpecies, "Pokedex.CaughtSpecies");
+        }
+
+        void ValidateSpecies(IReadOnlyList<ushort>? species, ushort max, string path)
+        {
+            if (species is null)
+            {
+                errors.Add(path + " missing");
+                return;
+            }
+            if (species.Count > 2048 || species.Count > max)
+            {
+                errors.Add(path + " exceeds scan bound");
+                return;
+            }
+            ushort previous = 0;
+            foreach (ushort id in species)
+            {
+                if (id == 0 || id > max || id <= previous)
+                {
+                    errors.Add(path + " invalid, duplicated or unordered species");
+                    return;
+                }
+                previous = id;
+            }
+        }
+
+        void CompareSpecies(IReadOnlyList<ushort>? a, IReadOnlyList<ushort>? e, string path)
+        {
+            if (a is null || e is null || a.Count > 2048 || e.Count > 2048)
+                return;
+            Check(a.Count == e.Count, path + ".Count");
+            for (int i = 0; i < Math.Min(a.Count, e.Count); i++)
+                Check(a[i] == e[i], path + "[" + i + "]");
         }
 
         void CompareSpread(PokemonStatSpread a, ExpectedPokemonStatSpread? e, string path)
