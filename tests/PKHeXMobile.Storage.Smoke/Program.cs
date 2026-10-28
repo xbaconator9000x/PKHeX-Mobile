@@ -133,3 +133,44 @@ try
 catch (ArgumentOutOfRangeException) { }
 Console.WriteLine("Synthetic Core slot flag enumeration, immutable positions, protection display and strict schema v6 negatives passed.");
 Console.WriteLine("No independent desktop-matched storage fixture, Android device or write/export operation was tested.");
+
+
+// P0 upstream storage defects N01/N02/N03: isolated runtime reproduction
+// against pinned PKHeX.Core 26.10.18. This intentionally operates only on
+// synthetic in-memory objects. It is NOT a safe reorder implementation.
+// If the pinned Core behavior changes, stop and review these assertions,
+// then independently verify pointers, conservation and write safety.
+var pointerSamples = new List<int> { 0, 1, 29, 30, 31, 59, 60, -1 };
+var originalPointers = pointerSamples.ToArray();
+SlotPointerUtil.UpdateSwap(0, 1, 30, pointerSamples);
+Must(pointerSamples.SequenceEqual(originalPointers),
+    "Pinned Core UpdateSwap pointer behavior changed; re-audit N01 before enabling storage writes.");
+var movedPointers = new List<int>(originalPointers);
+SlotPointerUtil.UpdateMove(0, 1, 30, movedPointers);
+Must(movedPointers.SequenceEqual(originalPointers),
+    "Pinned Core UpdateMove pointer behavior changed; re-audit N02 before enabling storage writes.");
+// The independent correct swap oracle would exchange 0..29 with 30..59,
+// leaving 60 and -1 unchanged. Pinned Core currently does not do that.
+int[] correctSwap = [30, 31, 59, 0, 1, 29, 60, -1];
+Must(!pointerSamples.SequenceEqual(correctSwap),
+    "Expected to reproduce the pinned Core pointer-range inversion.");
+Console.WriteLine("REPRODUCED (synthetic): pinned Core UpdateSwap and UpdateMove do not remap ordinary box pointers.");
+
+// N03: two distinct synthetic box identities are necessary. An all-empty
+// save would hide the non-conserving MoveBox behavior.
+var reorder = new SAV9SV();
+reorder.SetBoxSlotAtIndex(new PK9 { Species = 25, PID = 0x10203040 }, 0, 0);
+reorder.SetBoxSlotAtIndex(new PK9 { Species = 133, PID = 0x50607080 }, 1, 0);
+ushort sourceSpecies = reorder.GetBoxSlotAtIndex(0, 0).Species;
+ushort targetSpecies = reorder.GetBoxSlotAtIndex(1, 0).Species;
+Must(sourceSpecies == 25 && targetSpecies == 133,
+    "Synthetic storage fixture failed to establish distinct original box identities.");
+bool moveResult = reorder.MoveBox(0, 1);
+ushort afterSource = reorder.GetBoxSlotAtIndex(0, 0).Species;
+ushort afterTarget = reorder.GetBoxSlotAtIndex(1, 0).Species;
+Must(moveResult && afterSource == 25 && afterTarget == 25,
+    "Pinned Core MoveBox behavior changed; re-audit N03 before enabling storage writes.");
+Must(afterSource != targetSpecies && afterTarget != targetSpecies,
+    "Expected to reproduce non-conservation of the original target box.");
+Console.WriteLine("REPRODUCED (synthetic): pinned Core MoveBox(0,1) duplicates source box and loses target identity.");
+Console.WriteLine("These are upstream defect diagnostics, not verified fixes. No private save, Android provider, export or backup was touched.");
