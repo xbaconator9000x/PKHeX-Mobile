@@ -1,0 +1,9 @@
+# Candidate and backup integrity primitives (non-publishing)
+
+`SaveCandidateScopeAudit` compares original and candidate bytes directly, reports bounded contiguous changed runs and SHA-256 fingerprints, and refuses any difference outside explicitly supplied, nonoverlapping byte ranges. It also refuses size changes and no-op edits unless the caller explicitly opts into no-op inspection. It **does not** authenticate the save format, prove a PKHeX.Core serialization is valid, verify checksums, or authorize a write. Byte ranges must eventually be derived from independently certified version-specific layouts, not filenames, game labels or a user-provided JSON profile.
+
+`BackupReadbackVerifier` independently opens a *previously created* backup twice and requires both reads to match the immutable original snapshot. It never creates, overwrites, deletes or publishes files. Two matching reads are useful evidence of provider readback integrity, **not** proof of fsync/durability, successful restore after process death or protection against a dishonest provider.
+
+Both components deliberately remain isolated in the platform-neutral Domain layer. No public editing/export path invokes them yet. Before any save publication: authenticate exact game and layout using independently matched desktop fixtures; stage candidate and compare semantic fields and checksums with a separately validated oracle; prove backup restoration and durable publication on actual Android document providers; revalidate original identity and bytes immediately before publishing; refuse unknown ROM hacks. The synthetic smoke suite proves only these two isolated primitives.
+
+The design responds to the audited PKForge `SafeSaveWriter` and Android SAF backup/readback hazards (see `docs/UPSTREAM_IO_BANK_REVIEW_2026-10-28.md`) without copying PKForge code or assets.
