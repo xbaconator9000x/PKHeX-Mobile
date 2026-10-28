@@ -1,5 +1,8 @@
 # Source-level comparison plan
 
+> [RTC, roamer, honey-tree and Hall of Fame audit, pass T (2026-10-28)](UPSTREAM_WORLD_STATE_REVIEW_2026-10-28.md) — 35 source findings (12 P0), nine identical official Core blobs; source-only.
+> [World-state acceptance gates, pass T (2026-10-28)](PARITY_WORLD_STATE_GATES_2026-10-28.md) — 40 proposed, unexecuted cases.
+
 > [Daycare, nursery and battle-facility source audit, pass S (2026-10-28)](UPSTREAM_DAYCARE_BATTLE_REVIEW_2026-10-28.md) — 37 pinned findings (14 P0), including battle write-width and Subway flag hazards; source-only.
 > [Daycare/battle-facility acceptance gates, pass S (2026-10-28)](PARITY_DAYCARE_BATTLE_GATES_2026-10-28.md) — 39 proposed cases, none executed.
 
