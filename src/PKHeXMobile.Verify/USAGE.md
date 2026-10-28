@@ -34,3 +34,22 @@ Expected values must be obtained independently from same-version desktop PKHeX t
 Schema v4 retains all schema v3 fields and requires a non-null `pokedex` object for every fixture. This gate is intentionally limited to saves for which pinned Core reports `HasPokeDex`. The object requires `maxSpeciesId` (Core's national-species scan bound), `seenSpecies` and `caughtSpecies` (strictly ascending unique numeric species IDs between 1 and `maxSpeciesId`, inclusive). Both arrays are mandatory even when empty. A missing, duplicated, out-of-order, out-of-range or mismatched flag fails the comparison. Older schemas do not require dex data.
 
 The projection reads `SaveFile.GetSeen/GetCaught` without invoking setters. **It does not cover regional/DLC mapping, forms, display flags, language flags, gender/shiny histories, research tasks, acquisition side effects or legality.** Do not interpret the denominator as the number of species available in a regional Pokédex. Same-Core synthetic tests are regression checks only; independent desktop-matched fixtures and Android provider/device tests remain outstanding. This schema does not enable save writing.
+
+
+## Core-enumerated inventory subset (manifest schema v5)
+
+Schema v5 requires schema v4 plus a non-null "inventory" object for fixtures
+whose pinned Core save type exposes a nonempty bag. It requires "pouches",
+each with "type", "maxCount", "entries". Every entry requires "slotIndex",
+"itemId", "count", "coreItemType", "pouchCode", "flags" and "padding".
+The three raw fields are null for item types that do not expose them and
+all present for InventoryItem9/InventoryItem9a. Zero-count entries are
+preserved. The verifier rejects malformed, duplicated or reordered entries.
+
+This is **not a complete raw-block inventory audit**: unknown or out-of-list
+item IDs, hack-specific slots, and version-dependent Z-A unlock flags may be
+absent from Core's pouch enumeration. The source inventory is never written,
+sanitized or sorted. Synthetic SV/ZA item blocks test only the projection,
+comparison and presentation. Independent same-version desktop fixtures,
+raw-block hashes, layout authentication and Android provider/device tests are
+still needed before any claim of parity or save-write safety.

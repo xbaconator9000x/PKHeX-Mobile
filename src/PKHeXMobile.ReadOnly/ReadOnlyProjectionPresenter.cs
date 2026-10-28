@@ -36,7 +36,55 @@ public static class ReadOnlyProjectionPresenter
                 .AppendLine(dex.MaxSpeciesId.ToString());
         else
             text.AppendLine("Pokédex: not exposed by this Core save type.");
+        if (save.Inventory is { } inventory)
+            text.Append("Inventory (Core-enumerated item IDs, not a raw-block inventory audit): ")
+                .Append(inventory.NonzeroCount).Append(" nonzero / ")
+                .Append(inventory.EnumeratedCount).Append(" enumerated across ")
+                .Append(inventory.Pouches.Count).AppendLine(" pouches.");
+        else
+            text.AppendLine("Inventory: not exposed by this Core save type.");
         text.AppendLine("No editing, export, legality or ROM-hack compatibility is enabled.");
+        return text.ToString();
+    }
+
+    public static IReadOnlyList<string> InventoryPouchLabels(SaveReadOnlyResult save)
+    {
+        ArgumentNullException.ThrowIfNull(save);
+        return save.Inventory?.Pouches.Select(p =>
+            SanitizeLabel(p.Type) + " (" + p.NonzeroCount + " nonzero)").ToArray()
+            ?? Array.Empty<string>();
+    }
+
+    /// <summary>Bounded read-only numeric record view, not a raw save-block audit.</summary>
+    public static string FormatInventoryPouch(SaveReadOnlyResult save, int pouchIndex, int maxEntries = 100)
+    {
+        ArgumentNullException.ThrowIfNull(save);
+        if (save.Inventory is not { } inventory ||
+            (uint)pouchIndex >= (uint)inventory.Pouches.Count)
+            throw new ArgumentOutOfRangeException(nameof(pouchIndex));
+        if (maxEntries is < 1 or > 200)
+            throw new ArgumentOutOfRangeException(nameof(maxEntries));
+        var pouch = inventory.Pouches[pouchIndex];
+        var text = new StringBuilder();
+        text.Append(SanitizeLabel(pouch.Type)).Append(": ")
+            .Append(pouch.NonzeroCount).Append(" nonzero / ")
+            .Append(pouch.Entries.Count).AppendLine(" Core-enumerated item IDs.");
+        text.AppendLine("Read-only; unknown raw item IDs and unlisted save bytes are not audited.");
+        var visible = pouch.Entries.Where(e =>
+            e.Count != 0 || e.Flags is > 0 || e.Padding is > 0).ToArray();
+        foreach (var entry in visible.Take(maxEntries))
+        {
+            text.Append("Slot ").Append(entry.SlotIndex + 1)
+                .Append(": ID ").Append(entry.ItemId)
+                .Append(" x").Append(entry.Count);
+            if (entry.PouchCode is { } code) text.Append(", pouch ").Append(code);
+            if (entry.Flags is { } flags) text.Append(", flags 0x").Append(flags.ToString("X8"));
+            if (entry.Padding is { } padding) text.Append(", padding 0x").Append(padding.ToString("X8"));
+            text.AppendLine();
+        }
+        if (visible.Length > maxEntries)
+            text.Append("Showing first ").Append(maxEntries).Append(" of ")
+                .Append(visible.Length).AppendLine(" nonempty/flagged entries.");
         return text.ToString();
     }
 
