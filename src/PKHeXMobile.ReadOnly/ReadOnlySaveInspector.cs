@@ -170,6 +170,7 @@ public static class ReadOnlySaveInspector
                 MechanicsGeneration = pokemon is PK1 ? 1 : pokemon is PK2 ? 2 : 0,
                 Awards = PokemonAwardsReadOnly.Project(pokemon),
                 Training = PokemonTrainingReadOnly.Project(pokemon, iv, ev),
+                MoveState = PokemonMoveStateReadOnly.Project(pokemon),
             });
     }
 

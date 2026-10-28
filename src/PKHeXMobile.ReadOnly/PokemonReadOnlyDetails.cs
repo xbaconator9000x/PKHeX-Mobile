@@ -29,4 +29,7 @@ public sealed record PokemonReadOnlyDetails(
 
     // Derived diagnostic scalars, not legality or edit authorization.
     public PokemonTrainingReadOnly? Training { get; init; }
+
+    // Schema v9: physical move positions and stored PP; never auto-heal on view.
+    public PokemonMoveStateReadOnly? MoveState { get; init; }
 }
