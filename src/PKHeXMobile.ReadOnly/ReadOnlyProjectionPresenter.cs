@@ -231,6 +231,35 @@ public static class ReadOnlyProjectionPresenter
                 text.AppendLine().Append("Gender code: ").Append(details.Gender);
                 text.Append(" | Form: ").Append(details.Form);
             }
+            if (details.Identity is { } identity)
+            {
+                text.AppendLine().Append("Identity (raw Core getters, not legality): PID 0x")
+                    .Append(identity.PersonalityId.ToString("X8"))
+                    .Append(", EC 0x").Append(identity.EncryptionConstant.ToString("X8"))
+                    .Append(", ID32 0x").Append(identity.TrainerId32.ToString("X8"))
+                    .Append(", shiny XOR ").Append(identity.ShinyXor).AppendLine();
+                text.Append("Ability slot (Core): ").Append(identity.AbilityNumber)
+                    .Append("; PID ability: ").Append(identity.PidAbility)
+                    .Append("; format/origin: ").Append(identity.CoreFormat)
+                    .Append('/').Append(identity.OriginGeneration).AppendLine();
+                text.Append("Met location ID: ").Append(identity.MetLocation)
+                    .Append("; egg location ID: ").Append(identity.EggLocation)
+                    .Append("; Ball ID: ").Append(identity.Ball)
+                    .Append("; met level: ").Append(identity.MetLevel).AppendLine();
+                text.Append("Current egg: ").Append(identity.IsEgg)
+                    .Append("; historical egg: ").Append(identity.WasEgg)
+                    .Append("; OT friendship: ").Append(identity.OriginalTrainerFriendship)
+                    .AppendLine();
+                text.Append("Met date (Core): ").Append(identity.MetDate.IsoDate ?? "N/A or invalid")
+                    .Append("; raw Y/M/D ").Append(identity.MetDate.Year).Append('/')
+                    .Append(identity.MetDate.Month).Append('/').Append(identity.MetDate.Day)
+                    .AppendLine();
+                text.Append("Egg date (Core): ").Append(identity.EggDate.IsoDate ?? "N/A or invalid")
+                    .Append("; raw Y/M/D ").Append(identity.EggDate.Year).Append('/')
+                    .Append(identity.EggDate.Month).Append('/').Append(identity.EggDate.Day)
+                    .AppendLine();
+                text.AppendLine("Dates/abilities may be unsupported virtual Core defaults; no normalization.");
+            }
             text.AppendLine().Append("Move IDs: ")
                 .Append(details.Moves.First).Append(", ")
                 .Append(details.Moves.Second).Append(", ")

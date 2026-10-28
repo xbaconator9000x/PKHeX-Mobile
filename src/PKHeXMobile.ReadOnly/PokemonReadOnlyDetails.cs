@@ -32,4 +32,7 @@ public sealed record PokemonReadOnlyDetails(
 
     // Schema v9: physical move positions and stored PP; never auto-heal on view.
     public PokemonMoveStateReadOnly? MoveState { get; init; }
+
+    // Schema v10: detached raw PID/EC, shiny, ability-slot, egg and date diagnostics.
+    public PokemonIdentityReadOnly? Identity { get; init; }
 }
