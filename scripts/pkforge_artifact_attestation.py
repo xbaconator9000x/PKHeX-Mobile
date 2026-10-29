@@ -341,6 +341,12 @@ def source_tree_manifest(root: Path, mobile: Path | None = None) -> dict[str, st
         raise AttestationError("Missing prebuild MAUI restore graph")
     result[graph.relative_to(root).as_posix()] = digest(graph)
     if mobile is not None:
+        # The adapted MAUI project references mobile source outside PKForge.
+        # Those C# project/adapter bytes are build inputs, not just the scripts.
+        mobile_sources: dict[str, str] = {}
+        _hash_tree(mobile, mobile / "src", mobile_sources)
+        result.update({f"mobile/{key}": value
+                       for key, value in mobile_sources.items()})
         scripts = mobile / "scripts"
         if scripts.is_symlink() or not scripts.is_dir():
             raise AttestationError("Missing adaptation script directory")
