@@ -90,7 +90,7 @@ def transform(root: Path) -> dict[Path, str]:
     # Remove all explicitly packaged media, including PKHeX sprites, Bad Apple,
     # events, game art, Showdown, Poképark and proprietary game wallpapers.
     # The attestation must still inspect implicit/embedded assets and assemblies.
-    project, removed = re.subn(r'(?m)^\s*<MauiAsset\b[^>]*?/>\s*', '\n', project, flags=re.DOTALL)
+    project, removed = re.subn(r'(?m)^[ \t]*<MauiAsset\b[^>]*?/>[ \t]*(?:\r?\n)?', '\n', project, flags=re.DOTALL)
     if removed < 15 or "<MauiAsset " in project:
         raise NeutralAssetRefusal(f"Unexpected pinned MauiAsset inventory: {removed}")
     if re.search(r'<(?:MauiImage|MauiAudio|MauiVideo)\b', project):
