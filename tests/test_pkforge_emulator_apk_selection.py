@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from pkforge_emulator_apk_selection import SelectionError, select_apk
+from pkforge_emulator_apk_selection import SelectionError, select_apk, verify_selected_apk
 
 SOURCE_SHA = "a" * 40
 
@@ -56,6 +56,38 @@ class AttestedEmulatorSelectionTests(unittest.TestCase):
         self.assertFalse(selected["distribution_authorized"])
         self.assertFalse(selected["save_writes_authorized"])
         self.assertTrue(selected["emulator_only"])
+
+    def test_reverification_accepts_unchanged_selection(self):
+        selection = self.choose()
+        self.assertEqual(selection, verify_selected_apk(
+            self.report, selection, self.build, SOURCE_SHA))
+
+    def test_reverification_refuses_changed_bytes_after_selection(self):
+        selection = self.choose()
+        self.signed.write_bytes(b"x" * self.signed.stat().st_size)
+        with self.assertRaisesRegex(SelectionError, "changed"):
+            verify_selected_apk(self.report, selection, self.build, SOURCE_SHA)
+
+    def test_reverification_refuses_modified_selection_record(self):
+        selection = self.choose()
+        for key, value in (("path", str(self.unsigned.absolute())),
+                           ("sha256", "f" * 64),
+                           ("distribution_authorized", True),
+                           ("source_sha", "c" * 40)):
+            modified = copy.deepcopy(selection)
+            modified[key] = value
+            with self.subTest(key=key), self.assertRaisesRegex(
+                    SelectionError, "differs"):
+                verify_selected_apk(self.report, modified, self.build, SOURCE_SHA)
+
+    def test_reverification_refuses_deleted_or_symlinked_apk(self):
+        selection = self.choose()
+        self.signed.rename(self.build / "moved.apk")
+        with self.assertRaises(SelectionError):
+            verify_selected_apk(self.report, selection, self.build, SOURCE_SHA)
+        self.signed.symlink_to(self.build / "moved.apk")
+        with self.assertRaises(SelectionError):
+            verify_selected_apk(self.report, selection, self.build, SOURCE_SHA)
 
     def test_modified_bytes_rejected(self):
         self.signed.write_bytes(b"changed but same? bytes")

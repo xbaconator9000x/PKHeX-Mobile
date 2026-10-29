@@ -118,15 +118,38 @@ def select_apk(report: dict, build_dir: Path, expected_mobile_sha: str,
     }
 
 
+def verify_selected_apk(report: dict, selection: dict, build_dir: Path,
+                        expected_mobile_sha: str, variant: str = "signed") -> dict:
+    """Recheck the exact source, attestation and APK bytes just before install.
+
+    The selection JSON is untrusted input, not an authorization to choose a
+    different APK. This check does not eliminate races after it returns.
+    """
+    expected = select_apk(report, build_dir, expected_mobile_sha, variant)
+    if not isinstance(selection, dict) or selection != expected:
+        raise SelectionError("Selected APK record differs from fresh attestation")
+    return expected
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--provenance", type=Path, required=True)
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--expected-mobile-sha", required=True)
     parser.add_argument("--variant", choices=("signed", "single"), default="signed")
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--verify-selection", type=Path,
+                        help="Fail closed if the selected APK or source attestation changed")
     args = parser.parse_args()
     report = json.loads(args.provenance.read_text(encoding="utf-8"))
+    if args.verify_selection is not None:
+        selected = json.loads(args.verify_selection.read_text(encoding="utf-8"))
+        verify_selected_apk(report, selected, args.build_dir,
+                            args.expected_mobile_sha, args.variant)
+        print("Exact attested APK reverified immediately before emulator install.")
+        return
+    if args.output is None:
+        parser.error("--output is required when not verifying a selection")
     result = select_apk(report, args.build_dir, args.expected_mobile_sha, args.variant)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n",
