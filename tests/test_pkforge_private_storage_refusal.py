@@ -23,6 +23,17 @@ class PrivateStorageTests(unittest.TestCase):
                          "    private async Task OfferCrashReportAsync()\n" +
                          "    { /* Share report */ await ShareLogsAsync(); }\n" +
                          guard.CRASH_END + "    private async Task DownloadSpritePackAsync() {}\n}\n"),
+            guard.BOX: (guard.BOX_BULK_EXPORT + "                var directory = \"export\";\n" +
+                        "                _viewModel.BulkExport(directory);\n" +
+                        "                var share = new ShareMultipleFilesRequest();\n            }\n" +
+                        guard.BOX_SLOT_EXPORT + "        session.ExportSlot(_viewModel.BoxIndex, slot);\n" +
+                        "        File.WriteAllBytesAsync(path, export.Data);\n    }\n"),
+            guard.BANK_PAGE: (guard.BANK_ENTITY_EXPORT + "        _bank.GetData(entry.Id);\n" +
+                              "        File.WriteAllBytesAsync(path, bytes);\n    }\n"),
+            guard.EVENT_GALLERY: (guard.EVENT_ENTITY_EXPORT +
+                                  "            _ctx.Service.ExportEntity(null);\n" +
+                                  "            _ctx.Service.ExportCard(null);\n" +
+                                  "            File.WriteAllBytesAsync(path, export.Data);\n        }\n"),
         }
         for name, content in fixtures.items():
             p = self.root / name
@@ -49,6 +60,14 @@ class PrivateStorageTests(unittest.TestCase):
         self.assertNotIn("Share report", home)
         self.assertIn("log sharing disabled", home)
         self.assertIn("private Task OfferCrashReportAsync()", home)
+        box = out[self.root / guard.BOX]
+        self.assertEqual(box.count("Diagnostic preview: Pokémon export disabled."), 2)
+        self.assertLess(box.index(guard.BOX_BULK_GUARD), box.index("_viewModel.BulkExport(directory)"))
+        self.assertLess(box.index(guard.BOX_SLOT_GUARD), box.index("session.ExportSlot(_viewModel.BoxIndex, slot)"))
+        bank = out[self.root / guard.BANK_PAGE]
+        self.assertLess(bank.index(guard.BANK_ENTITY_GUARD), bank.index("_bank.GetData(entry.Id)"))
+        event = out[self.root / guard.EVENT_GALLERY]
+        self.assertLess(event.index(guard.EVENT_ENTITY_GUARD), event.index("_ctx.Service.ExportEntity"))
 
     def test_fail_closed_on_drift_before_writes(self):
         p = self.root / guard.BANK
@@ -70,6 +89,13 @@ class PrivateStorageTests(unittest.TestCase):
         with self.assertRaises(guard.OfflineRefusal):
             guard.transform(self.root)
         self.assertIn("Share.Default.RequestAsync", p.read_text())
+
+    def test_fail_closed_on_entity_export_drift(self):
+        p = self.root / guard.BOX
+        p.write_text(p.read_text().replace("_viewModel.BulkExport(directory)", "UnknownBulkExport()"))
+        with self.assertRaises(guard.OfflineRefusal):
+            guard.transform(self.root)
+        self.assertNotIn("Diagnostic preview: Pokémon export disabled.", p.read_text())
 
     def test_refuse_repeat_patch(self):
         out = guard.transform(self.root)

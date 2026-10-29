@@ -368,7 +368,7 @@
       "title": "Contain independent PKForge whole-save sharing and Android backup",
       "owner": "implementation",
       "priority": "P0",
-      "status": "ready",
+      "status": "in_progress",
       "total_hours": 35,
       "remaining_hours": 5,
       "dependencies": [
@@ -395,7 +395,9 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825365765",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825365775"
       ],
-      "blockers": []
+      "blockers": [],
+      "claim_branch": "impl/diagnostic-entity-cache-export-containment-20261029",
+      "claim_base_sha": "55d853e4b41ec7e764bf39c30a5736c568d4c881"
     }
   ]
 }
