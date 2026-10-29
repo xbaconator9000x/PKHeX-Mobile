@@ -43,6 +43,8 @@ on:
       - 'tests/test_pkforge_offline_preview.py'
       - 'scripts/pkforge_neutral_assets.py'
       - 'tests/test_pkforge_neutral_assets.py'
+      - 'scripts/pkforge_export_backup_boundary.py'
+      - 'tests/test_pkforge_export_backup_boundary.py'
 
 permissions:
   contents: read
@@ -75,6 +77,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_pkforge_artifact_attestation.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_offline_preview.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_neutral_assets.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_export_backup_boundary.py' -v
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -202,9 +205,14 @@ jobs:
         if: steps.offline-containment.outcome == 'success'
         continue-on-error: true
         run: python3 -m scripts.pkforge_neutral_assets --repo /tmp/pkforge
+      - name: Deny whole-save sharing and Android cloud/device backups in preview
+        id: export-backup-boundary
+        if: steps.neutral-assets.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_export_backup_boundary --repo /tmp/pkforge
       - name: Install Android MAUI only after runtime refusal checks
         id: maui-workload
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success' && steps.neutral-assets.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success' && steps.neutral-assets.outcome == 'success' && steps.export-backup-boundary.outcome == 'success'
         run: dotnet workload install maui-android --skip-manifest-update
       - name: Restore exact diagnostic Android dependency graph before input freeze
         id: android-restore
@@ -224,7 +232,7 @@ jobs:
             --output "$RUNNER_TEMP/pkforge-source-freeze.json" --snapshot-only
       - name: Build PKForge Android against official Core
         id: android
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success' && steps.neutral-assets.outcome == 'success' && steps.source-freeze.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success' && steps.neutral-assets.outcome == 'success' && steps.export-backup-boundary.outcome == 'success' && steps.source-freeze.outcome == 'success'
         continue-on-error: true
         env:
           PKForgeRoot: /tmp/pkforge
