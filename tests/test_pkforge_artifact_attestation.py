@@ -37,6 +37,11 @@ class ArtifactAttestationTests(unittest.TestCase):
         self.apk_dir.mkdir(parents=True)
         self.apk = self.apk_dir / "pkforge-debug.apk"
         self.make_apk()
+        for relative in ("external/PKHeX/PKHeX.Core/Source.cs",
+                         "external/PKHeX-Plugins/PKHeX.Core.AutoMod/Source.cs"):
+            source = self.root / relative
+            source.parent.mkdir(parents=True)
+            source.write_text("// synthetic upstream source")
         (self.mobile / "scripts").mkdir(parents=True)
         (self.mobile / "scripts/pkforge_test.py").write_text("# synthetic")
         self.packager = Path(self.temp.name) / "aapt2"
@@ -94,21 +99,21 @@ class ArtifactAttestationTests(unittest.TestCase):
 
     def test_frozen_source_snapshot_matches_after_packaging(self):
         snapshot = Path(self.temp.name) / "source-freeze.json"
-        audit.write_source_snapshot(self.root, snapshot)
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
         report = self.make_report(snapshot)
         self.assertTrue(report["frozen_source"]["source_unchanged_after_build"])
         self.assertEqual(report["frozen_source"]["sha256"], audit.digest(snapshot))
 
     def test_source_mutation_after_freeze_refused(self):
         snapshot = Path(self.temp.name) / "source-freeze.json"
-        audit.write_source_snapshot(self.root, snapshot)
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
         (self.app / "PKForge.App.csproj").write_text(PROJECT_XML + "\n")
         with self.assertRaisesRegex(audit.AttestationError, "Source changed"):
             self.make_report(snapshot)
 
     def test_new_source_file_after_freeze_refused(self):
         snapshot = Path(self.temp.name) / "source-freeze.json"
-        audit.write_source_snapshot(self.root, snapshot)
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
         new_file = self.root / "src/PKForge.Engine/Unexpected.cs"
         new_file.parent.mkdir()
         new_file.write_text("class Unexpected {}")
@@ -117,7 +122,7 @@ class ArtifactAttestationTests(unittest.TestCase):
 
     def test_generated_obj_files_do_not_break_source_freeze(self):
         snapshot = Path(self.temp.name) / "source-freeze.json"
-        audit.write_source_snapshot(self.root, snapshot)
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
         (self.app / "obj/Generated.cs").write_text("class Generated {}")
         self.assertTrue(self.make_report(snapshot)["frozen_source"]
                         ["source_unchanged_after_build"])
@@ -333,6 +338,90 @@ class ArtifactAttestationTests(unittest.TestCase):
         review["entries"][-1]["path"] = "assets/removed.png"
         with self.assertRaisesRegex(audit.AttestationError, "not-packaged"):
             audit.verify_packaged_media_review(apk, review)
+
+
+    def test_media_and_implicit_resource_mutations_are_frozen(self):
+        for relative in ("src/PKForge.App/Resources/UI/icon.png",
+                         "src/PKForge.App/Resources/BadApple/video.bin.gz",
+                         "src/PKForge.App/Platforms/Android/Resources/raw/implicit.bin"):
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"first")
+            snapshot = Path(self.temp.name) / "full-input-freeze.json"
+            audit.write_source_snapshot(self.root, snapshot, self.mobile)
+            path.write_bytes(b"changed")
+            with self.subTest(relative=relative):
+                with self.assertRaisesRegex(audit.AttestationError, "Source changed"):
+                    audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+            path.write_bytes(b"first")
+
+    def test_new_media_after_freeze_is_refused(self):
+        snapshot = Path(self.temp.name) / "full-input-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
+        new_file = self.app / "Resources/GameArt/unreviewed.png"
+        new_file.parent.mkdir(parents=True)
+        new_file.write_bytes(b"unreviewed")
+        with self.assertRaisesRegex(audit.AttestationError, "unreviewed.png"):
+            audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+
+    def test_modified_external_submodule_bytes_are_refused(self):
+        snapshot = Path(self.temp.name) / "full-input-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
+        upstream = self.root / "external/PKHeX/PKHeX.Core/Source.cs"
+        upstream.write_text("// modified without advancing git HEAD")
+        with self.assertRaisesRegex(audit.AttestationError, "external/PKHeX"):
+            audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+
+    def test_modified_plugin_submodule_bytes_are_refused(self):
+        snapshot = Path(self.temp.name) / "full-input-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
+        upstream = self.root / "external/PKHeX-Plugins/PKHeX.Core.AutoMod/Source.cs"
+        upstream.write_text("// modified without advancing git HEAD")
+        with self.assertRaisesRegex(audit.AttestationError, "PKHeX-Plugins"):
+            audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+
+    def test_external_symlink_is_refused(self):
+        external = self.root / "external/PKHeX/PKHeX.Core/Escape.cs"
+        external.symlink_to(self.app / "PKForge.App.csproj")
+        with self.assertRaisesRegex(audit.AttestationError, "Symlink"):
+            audit.source_tree_manifest(self.root, self.mobile)
+
+    def test_adaptation_script_change_is_refused(self):
+        snapshot = Path(self.temp.name) / "full-input-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
+        (self.mobile / "scripts/pkforge_test.py").write_text("# changed adapter")
+        with self.assertRaisesRegex(audit.AttestationError, "pkforge_test.py"):
+            audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+
+    def test_restore_graph_drift_is_refused(self):
+        snapshot = Path(self.temp.name) / "full-input-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
+        (self.app / "obj/project.assets.json").write_text('{"libraries":{}}')
+        with self.assertRaisesRegex(audit.AttestationError, "project.assets.json"):
+            audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+
+    def test_root_build_props_are_frozen(self):
+        props = self.root / "Directory.Build.props"
+        props.write_text("<Project/>")
+        snapshot = Path(self.temp.name) / "full-input-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
+        props.write_text("<Project><PropertyGroup/></Project>")
+        with self.assertRaisesRegex(audit.AttestationError, "Directory.Build.props"):
+            audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+
+    def test_generated_bin_output_does_not_break_input_freeze(self):
+        snapshot = Path(self.temp.name) / "full-input-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
+        (self.app / "bin/Debug/generated.bin").write_bytes(b"build output")
+        self.assertTrue(audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+                        ["includes_external_sources_and_media"])
+
+    def test_old_text_only_snapshot_is_refused(self):
+        snapshot = Path(self.temp.name) / "old-freeze.json"
+        snapshot.write_text(json.dumps({"schema": 1, "files": {}}))
+        with self.assertRaisesRegex(audit.AttestationError, "schema"):
+            audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+
 
 
 if __name__ == "__main__":
