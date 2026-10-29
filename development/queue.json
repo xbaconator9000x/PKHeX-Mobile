@@ -373,7 +373,12 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40829878405",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40829878414"
       ],
-      "blockers": []
+      "blockers": [],
+      "claim": {
+        "branch": "impl/queue-exact-claim-resume-20261029",
+        "pr": 99,
+        "base_sha": "6f012f77d7fff7d95824373490560d3be747c674"
+      }
     },
     {
       "id": "PREVIEW-EXPORT-BACKUP",
