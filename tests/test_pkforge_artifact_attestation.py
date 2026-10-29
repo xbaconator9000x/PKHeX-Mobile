@@ -42,6 +42,9 @@ class ArtifactAttestationTests(unittest.TestCase):
             source = self.root / relative
             source.parent.mkdir(parents=True)
             source.write_text("// synthetic upstream source")
+        (self.mobile / "src/PKHeXMobile.PortConsolidation").mkdir(parents=True)
+        (self.mobile / "src/PKHeXMobile.PortConsolidation/Adapter.cs").write_text(
+            "// synthetic adapter")
         (self.mobile / "scripts").mkdir(parents=True)
         (self.mobile / "scripts/pkforge_test.py").write_text("# synthetic")
         self.packager = Path(self.temp.name) / "aapt2"
@@ -391,6 +394,14 @@ class ArtifactAttestationTests(unittest.TestCase):
         audit.write_source_snapshot(self.root, snapshot, self.mobile)
         (self.mobile / "scripts/pkforge_test.py").write_text("# changed adapter")
         with self.assertRaisesRegex(audit.AttestationError, "pkforge_test.py"):
+            audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+
+    def test_out_of_tree_mobile_adapter_drift_is_refused(self):
+        snapshot = Path(self.temp.name) / "full-input-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
+        adapter = self.mobile / "src/PKHeXMobile.PortConsolidation/Adapter.cs"
+        adapter.write_text("// modified adapter")
+        with self.assertRaisesRegex(audit.AttestationError, "mobile/src"):
             audit.verify_source_snapshot(self.root, snapshot, self.mobile)
 
     def test_restore_graph_drift_is_refused(self):
