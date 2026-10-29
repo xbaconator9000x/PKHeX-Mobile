@@ -24,8 +24,8 @@ BOX = APP + "Views/BoxBrowserPage.cs"
 BANK_EDITOR = APP + "Views/BankEntryEditor.cs"
 DEX_PICKER = APP + "Views/PokedexPicker.cs"
 GENERATE = APP + "Views/GenerateWizard.cs"
-ICON = APP + "Resources/AppIcon/neutral-preview.svg"
-SPLASH = APP + "Resources/Splash/neutral-preview.svg"
+ICON = APP + "Resources/AppIcon/neutral_preview.svg"
+SPLASH = APP + "Resources/Splash/neutral_preview.svg"
 
 class NeutralAssetRefusal(OfflineRefusal):
     pass
@@ -85,9 +85,9 @@ def transform(root: Path) -> dict[Path, str]:
 
     project = originals[PROJECT]
     project = once(project, '<MauiIcon Include="Resources/AppIcon/pkforge.png" Color="#14121D" />',
-                   '<MauiIcon Include="Resources/AppIcon/neutral-preview.svg" Color="#14121D" />', "icon")
+                   '<MauiIcon Include="Resources/AppIcon/neutral_preview.svg" Color="#14121D" />', "icon")
     project = once(project, '<MauiSplashScreen Include="Resources/Splash/splash.png" Color="#14121D" BaseSize="180,180" />',
-                   '<MauiSplashScreen Include="Resources/Splash/neutral-preview.svg" Color="#14121D" BaseSize="180,180" />', "splash")
+                   '<MauiSplashScreen Include="Resources/Splash/neutral_preview.svg" Color="#14121D" BaseSize="180,180" />', "splash")
     project = once(project, '<MauiFont Include="Resources/Fonts/*.ttf" />',
                    '<MauiFont Remove="Resources/Fonts/**" />', "fonts")
     # Remove all explicitly packaged media, including PKHeX sprites, Bad Apple,
