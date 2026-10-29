@@ -2,6 +2,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import pkforge_offline_preview as offline
 
@@ -102,6 +103,37 @@ class OfflinePreviewTests(unittest.TestCase):
         manifest.write_text("<manifest/>")
         with self.assertRaises(offline.OfflineRefusal):
             offline.transform_sources(self.root)
+
+    def test_compiled_apk_forbidden_permissions_fail_closed(self):
+        apk = self.root / "src/PKForge.App/bin/Debug/net10.0-android/test.apk"
+        apk.parent.mkdir(parents=True, exist_ok=True)
+        apk.write_bytes(b"synthetic")
+        with patch.object(offline, "verify_pins"), patch.object(
+            offline, "find_android_packager", return_value=Path("/fake/aapt2")
+        ), patch.object(offline.subprocess, "check_output",
+                        return_value="package: org.pkforge.app.debug\nuses-permission: name='android.permission.INTERNET'"):
+            with self.assertRaises(offline.OfflineRefusal):
+                offline.verify_apk_permissions(self.root)
+
+    def test_compiled_apk_without_network_or_install_permission_passes(self):
+        apk = self.root / "src/PKForge.App/bin/Debug/net10.0-android/test.apk"
+        apk.parent.mkdir(parents=True, exist_ok=True)
+        apk.write_bytes(b"synthetic")
+        with patch.object(offline, "verify_pins"), patch.object(
+            offline, "find_android_packager", return_value=Path("/fake/aapt2")
+        ), patch.object(offline.subprocess, "check_output",
+                        return_value="package: org.pkforge.app.debug\nuses-permission: name='android.permission.ACCESS_NETWORK_STATE'"):
+            self.assertEqual(len(offline.verify_apk_permissions(self.root)), 1)
+
+    def test_compiled_apk_unreadable_dump_fails_closed(self):
+        apk = self.root / "src/PKForge.App/bin/Debug/net10.0-android/test.apk"
+        apk.parent.mkdir(parents=True, exist_ok=True)
+        apk.write_bytes(b"synthetic")
+        with patch.object(offline, "verify_pins"), patch.object(
+            offline, "find_android_packager", return_value=Path("/fake/aapt2")
+        ), patch.object(offline.subprocess, "check_output", return_value="garbled"):
+            with self.assertRaises(offline.OfflineRefusal):
+                offline.verify_apk_permissions(self.root)
 
     def test_offline_fallbacks_do_not_mutate_save_writer(self):
         self.assertTrue(all("SaveSession" not in p and "Writer" not in p
