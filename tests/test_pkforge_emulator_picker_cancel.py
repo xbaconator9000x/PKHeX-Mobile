@@ -58,7 +58,10 @@ class PickerCancelTests(unittest.TestCase):
               patch.object(module, "wait_for", return_value=True),
               patch.object(module, "ui_nodes", side_effect=AssertionError("not needed"))):
             module.open_picker()
-        adb_call.assert_called_once_with("shell", "input", "keyevent", "99")
+        self.assertEqual([
+            ("shell", "input", "keyevent", "97"),
+            ("shell", "input", "keyevent", "99"),
+        ], [call.args for call in adb_call.call_args_list])
 
     def test_script_never_selects_or_transfers_documents(self):
         source = SCRIPT.read_text()
@@ -69,6 +72,8 @@ class PickerCancelTests(unittest.TestCase):
         self.assertIn('keyevent", "4"', source)
         self.assertIn("uiautomator", source)
         self.assertIn('keyevent", "99"', source)
+        self.assertIn('keyevent", "97"', source)
+        self.assertNotIn('keyevent", "96"', source)  # A could choose the folder picker.
         self.assertIn("ui_nodes(retries=2)", source)
         self.assertIn("No document selected", source)
 
