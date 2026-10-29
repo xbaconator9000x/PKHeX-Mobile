@@ -42,6 +42,19 @@ def adapt_view(source: str) -> str:
         "                nameof(BoxBrowserViewModel.EditNickname))\n"
         "                Interlocked.Increment(ref _previewRequest);",
         "preview selection invalidation")
+    # Navigation away or back must invalidate any in-flight provider read. A
+    # preview may finish after the page has left the navigation stack even
+    # when its selection and source session remain unchanged.
+    source = replace_once(source,
+        "    protected override void OnAppearing()\n    {",
+        "    protected override void OnAppearing()\n    {\n"
+        "        Interlocked.Increment(ref _previewRequest);",
+        "preview appearing invalidation")
+    source = replace_once(source,
+        "    protected override void OnDisappearing()\n    {",
+        "    protected override void OnDisappearing()\n    {\n"
+        "        Interlocked.Increment(ref _previewRequest);",
+        "preview disappearing invalidation")
     anchor = '        var save = FocusButton(EditorTool("Save changes", primary: true), "SAVE CHANGES");'
     preview = """        // A provider-origin baseline is captured before the engine opens; never
         // derive the preview source from the mutable session's Serialize().
