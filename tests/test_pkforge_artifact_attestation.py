@@ -101,7 +101,7 @@ class ArtifactAttestationTests(unittest.TestCase):
     def test_source_mutation_after_freeze_refused(self):
         snapshot = Path(self.temp.name) / "source-freeze.json"
         audit.write_source_snapshot(self.root, snapshot)
-        (self.app / "PKForge.App.csproj").write_text(PROJECT_XML + "\\n")
+        (self.app / "PKForge.App.csproj").write_text(PROJECT_XML + "\n")
         with self.assertRaisesRegex(audit.AttestationError, "Source changed"):
             self.make_report(snapshot)
 
