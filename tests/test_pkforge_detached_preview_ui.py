@@ -15,6 +15,14 @@ from scripts.pkforge_detached_preview_ui import (
 VIEW_SOURCE = """using PKForge.App.Services;
 public sealed partial class BoxBrowserPage {
     private readonly HashSet<int> _lockedSlots = [];
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+    }
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+    }
         viewModel.PropertyChanged += (_, args) =>
         {
         }
@@ -35,6 +43,11 @@ class PinnedMauiPreviewTests(unittest.TestCase):
         self.assertIn("ProviderBoundRetailNicknameEditor.PreviewAsync(", result)
         self.assertNotIn("SaveInputSnapshot.FromBytes(session.Serialize().Span)", result)
         self.assertIn("Interlocked.Increment(ref _previewRequest)", result)
+        # Navigation is a separate stale-preview trigger from slot changes.
+        for method in ("OnAppearing", "OnDisappearing"):
+            start = result.index("protected override void " + method + "()")
+            self.assertIn("Interlocked.Increment(ref _previewRequest);",
+                          result[start:result.index("}", start)])
         self.assertIn("Provider bytes rechecked", result)
         self.assertIn("var slot = _viewModel.SelectedSlot;", result)
         self.assertIn("panel.Children.Add(detachedPreview);", result)
@@ -49,6 +62,11 @@ class PinnedMauiPreviewTests(unittest.TestCase):
             adapt_view(VIEW_SOURCE.replace("panel.Children.Add(monActions);", ""))
         with self.assertRaises(ProbeRefusal):
             adapt_view(VIEW_SOURCE + VIEW_SOURCE)
+        for method in ("OnAppearing", "OnDisappearing"):
+            broken = VIEW_SOURCE.replace("protected override void " + method + "()",
+                                         "protected override void MissingLifecycle()")
+            with self.assertRaises(ProbeRefusal):
+                adapt_view(broken)
         with self.assertRaises(ProbeRefusal):
             adapt_view(adapt_view(VIEW_SOURCE))
 
