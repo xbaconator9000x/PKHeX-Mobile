@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "6f53e65cba40401ec959437f4552bb45b5c1e03a",
+  "main_sha": "afd1702a43198d7a5171ac99696e0f52cdd29288",
   "observed_utc": "2026-10-29",
-  "last_pr": 114,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40865720030",
-  "note": "PR #114 merged at 6f53e65cba40401ec959437f4552bb45b5c1e03a. Exact PR head 84e4c88641115d734153e5a8a032c7d7e8caec2c passed Foundation 40865719993, queue 40865719976 and official-Core Android 40865720030. Diagnostic signed APK is now cryptographically verified by Android SDK apksigner, with parsed certificate SHA-256 and verified scheme bound to exact selected SHA-256, source pin and source freeze. A first CI run failed on modern V3 signer output; parser was corrected and all three workflows reran green. No APK uploaded or release signing approved. Queue claim released; 22 modelled QUEUE-RUN hours remain. Draft emulator PR #83 still needs integration of signer gate, exact APK install and foreground Activity, plus provider/QR/backup tests. No device, private fixture, safe export or full parity certification."
+  "last_pr": 83,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40873500804",
+  "note": "PR #83 merged at afd1702a43198d7a5171ac99696e0f52cdd29288. Exact PR head 9c09dec982249f5d80e2ce4a9f957c5d2acdf461 passed Foundation 40873500839, queue 40873500963 and official-Core Android 40873500804. The same cryptographically verified signed APK SHA-256 dd1360d5b386fa87b524a658d3f6867d0bea8f82373548a4cc404fbd765216d3 was installed in an API 35 emulator; resumed foreground Activity, background-PID negative and relaunch passed. Source-freeze, compiled offline/backup/media and no-write guards passed. PORT-APK verified for ephemeral diagnostic APK only, NOT redistribution rights, physical device, provider/QR/backup transfer, private fixtures, Save As or full desktop parity. Next PORT-DEVICE is dependency eligible."
 }
