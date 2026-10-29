@@ -141,21 +141,29 @@ def wait_for(predicate, seconds: int = 20) -> bool:
     return False
 
 
-def open_picker() -> None:
-    # The pinned DialogueBox advances on B; the first-run PadMenu cancels
-    # safely on B. Unlike A, B can NEVER select the default "Link an emulator"
-    # option (which could open a folder picker and cause a false-positive).
-    # Once Home owns the router, X calls its existing LinkFileAsync path.
-    # No picker is launched by this script and no document is selected.
+def open_picker(package: str) -> None:
+    """Reach only PKForge's single-file route; never blindly Back out of Home.
+
+    The previous B-then-X loop could send B before the first-run router owned
+    the key. Android then returned to Launcher, where subsequent inputs were
+    meaningless. Try Home's safe X route first, and use B only when an actual
+    pinned welcome-dialogue label is visible. Never choose the folder option.
+    """
     last_ui_state = "no accessible labels"
-    for _ in range(20):
-        adb("shell", "input", "keyevent", "97")  # KEYCODE_BUTTON_B: advance/cancel, never choose
-        time.sleep(0.3)
+    welcome_fragments = ("Hello!", "This is a place where", "I can edit them",
+                         "And every change", "Now then")
+    for attempt in range(20):
+        if not wait_for(lambda text: is_app(text, package), 3):
+            raise RuntimeError("PKForge left foreground before picker interaction")
+        # X is a no-op while a dialogue/menu owns the router. On Home it
+        # reaches LinkFileAsync directly without choosing an emulator folder.
         adb("shell", "logcat", "-c", "-b", "main")
-        adb("shell", "input", "keyevent", "99")  # KEYCODE_BUTTON_X -> HomePage LinkFileAsync
+        adb("shell", "input", "keyevent", "99")
         if wait_for(is_picker, 3):
             verify_file_picker_launch()
             return
+        if not is_app(adb("shell", "dumpsys", "activity", "activities"), package):
+            raise RuntimeError("PKForge left foreground after safe X input")
         try:
             nodes = ui_nodes(retries=2)
         except RuntimeError as error:
@@ -168,7 +176,10 @@ def open_picker() -> None:
             if wait_for(is_picker, 8):
                 verify_file_picker_launch()
                 return
-        # Report only known public onboarding labels, never arbitrary UI text.
+            if not is_app(adb("shell", "dumpsys", "activity", "activities"), package):
+                raise RuntimeError("PKForge left foreground after explicit file tap")
+        # Report only pinned, public onboarding text. Never dump arbitrary UI
+        # labels, document names, or the accessibility hierarchy into CI logs.
         labels = [node.get("text", "") or node.get("content-desc", "") for node in nodes]
         known = ("Get started", "Open a single save file", "Maybe later",
                  "Link an emulator", "File", "Hello! Welcome to PKForge!")
@@ -176,9 +187,18 @@ def open_picker() -> None:
         if visible:
             last_ui_state = ", ".join(visible)
         else:
-            # Classes are safe diagnostics even when MAUI text is inaccessible.
             classes = sorted({node.get("class", "?") for node in nodes})
             last_ui_state = f"accessible nodes={len(nodes)}; classes={classes[:8]}"
+        if any(any(fragment in label for fragment in welcome_fragments) for label in labels):
+            # B advances only a proven welcome dialogue. Never press B on an
+            # unrecognized screen: it can exit the app before the router binds.
+            adb("shell", "input", "keyevent", "97")
+            if not wait_for(lambda text: is_app(text, package), 3):
+                raise RuntimeError("PKForge left foreground during welcome dialogue")
+        elif "Get started" in visible:
+            raise RuntimeError("Welcome menu lacks an accessible safe single-file choice")
+        else:
+            time.sleep(0.5)
     raise RuntimeError("Real PKForge file picker did not open; " + last_ui_state)
 
 
@@ -186,7 +206,7 @@ def run(package: str) -> None:
     for attempt in range(2):
         if not wait_for(lambda text: is_app(text, package), 10):
             raise RuntimeError("PKForge not foreground before picker")
-        open_picker()
+        open_picker(package)
         adb("shell", "input", "keyevent", "4")  # Cancel ACTION_OPEN_DOCUMENT.
         if not wait_for(lambda text: is_app(text, package), 15):
             raise RuntimeError("PKForge failed to resume after picker cancellation")
