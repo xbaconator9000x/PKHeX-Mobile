@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "4cf8c9c3753d52d141c6ef4e324b6922b2e78134",
+  "main_sha": "ef5fd07c712b2a9d9c657e49bce0ba4a3623038b",
   "observed_utc": "2026-10-29",
-  "last_pr": 75,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40819120857",
-  "note": "Initial observed HEAD. Update on validated GitHub PR after each integration; never infer certification from commit count."
+  "last_pr": 78,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40822807217",
+  "note": "PR #78 merged: diagnostic source-level share/export and backup refusal passed Android compile. Compiled backup manifest and device/upgrade persistence gates remain; no release or save-write certification."
 }
