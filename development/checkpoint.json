@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "repository": "xbaconator9000x/PKHeX-Mobile",
+  "main_sha": "4cf8c9c3753d52d141c6ef4e324b6922b2e78134",
+  "observed_utc": "2026-10-29",
+  "last_pr": 75,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40819120857",
+  "note": "Initial observed HEAD. Update on validated GitHub PR after each integration; never infer certification from commit count."
+}
