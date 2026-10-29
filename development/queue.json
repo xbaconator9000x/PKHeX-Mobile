@@ -368,7 +368,7 @@
       "title": "Contain independent PKForge whole-save sharing and Android backup",
       "owner": "implementation",
       "priority": "P0",
-      "status": "ready",
+      "status": "in_progress",
       "total_hours": 35,
       "remaining_hours": 12,
       "dependencies": [
@@ -386,7 +386,9 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/78",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40822807217"
       ],
-      "blockers": []
+      "blockers": [],
+      "claim_branch": "impl/preview-private-storage-refusal-20261029",
+      "claim_base_sha": "f46318a6e75d9d8356ecaca757dba6338a72550a"
     }
   ]
 }
