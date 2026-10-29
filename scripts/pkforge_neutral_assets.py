@@ -16,6 +16,7 @@ from scripts.pkforge_offline_preview import checked_file, verify_pins, OfflineRe
 APP = "src/PKForge.App/"
 PROJECT = APP + "PKForge.App.csproj"
 MANIFEST = APP + "Platforms/Android/AndroidManifest.xml"
+ACTIVITY = APP + "Platforms/Android/MainActivity.cs"
 GAME_ART = APP + "Services/GameArt.cs"
 HOME = APP + "Views/HomePage.cs"
 ABOUT = APP + "Views/AboutPopup.cs"
@@ -75,7 +76,7 @@ def once(source: str, before: str, after: str, label: str) -> str:
 
 def transform(root: Path) -> dict[Path, str]:
     root = root.resolve(strict=True)
-    files = [PROJECT, MANIFEST, GAME_ART, HOME, ABOUT, MAUI, PIXEL, BOX, BANK_EDITOR, DEX_PICKER, GENERATE]
+    files = [PROJECT, MANIFEST, ACTIVITY, GAME_ART, HOME, ABOUT, MAUI, PIXEL, BOX, BANK_EDITOR, DEX_PICKER, GENERATE]
     originals = {p: checked_file(root, p).read_text(encoding="utf-8") for p in files}
     for rel in (ICON, SPLASH):
         path = root / rel
@@ -152,7 +153,13 @@ def transform(root: Path) -> dict[Path, str]:
         'android:label="PKForge Diagnostics" android:icon="@mipmap/neutral_icon"',
         "Android manifest icon and label")
 
+    activity = once(originals[ACTIVITY],
+        'Icon = "@mipmap/pkforge", RoundIcon = "@mipmap/pkforge_round",',
+        'Icon = "@mipmap/neutral_icon",',
+        "MainActivity generated manifest icon")
+
     return {
+        root / ACTIVITY: activity,
         root / MANIFEST: manifest,
         root / BANK_EDITOR: bank_editor, root / DEX_PICKER: dex, root / GENERATE: generate,
         root / BOX: box,
