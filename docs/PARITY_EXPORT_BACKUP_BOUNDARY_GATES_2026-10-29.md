@@ -4,7 +4,7 @@
 
 | Gate | Setup / action / required observable result | Priority |
 | --- | --- | --- |
-| EB-01 pinned bypass reproducer | At exact pinned PKForge SHA inspect `BoxBrowserPage.ShowSaveDataMenuAsync` and `ExportModifiedSaveAsync`; static/source fixture asserts menu dispatch exists, calls `session.Serialize().ToArray()`, writes `-modified` cache file and invokes `Share.Default` without `ISafeSaveWriter`. Reproducer **fails** diagnostic no-export policy on unmodified source. | P0 |
+| EB-01 pinned bypass reproducer | At exact pinned PKForge SHA inspect `BoxBrowserPage.ShowSaveDataAsync` and `ExportModifiedSaveAsync`; static/source fixture asserts menu dispatch exists, calls `session.Serialize().ToArray()`, writes `-modified` cache file and invokes `Share.Default` without `ISafeSaveWriter`. Reproducer **fails** diagnostic no-export policy on unmodified source. | P0 |
 | EB-02 adapted menu refusal | Run all current temporary-checkout adapters in CI order, then open Save data menu in diagnostic mode. “Export modified save” is absent or clearly disabled; no silent success status. | P0 |
 | EB-03 method-level denial | Invoke export method through a test seam/reflection/alternate menu dispatch with synthetic retail session, including gamepad route. Before `Serialize`, `WriteAllBytesAsync` or `Share.Default`, it refuses with explicit preview-only message. UI hiding alone fails. | P0 |
 | EB-04 stale cache negative | Prepopulate `CacheDirectory/test-modified.sav` with synthetic sentinel bytes. Trigger denied export and share-cancellation path. No share intent, no overwrite, no misleading “Exported” status; stale file is not surfaced. | P0 |
