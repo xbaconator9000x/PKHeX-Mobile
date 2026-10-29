@@ -183,6 +183,7 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
             # resources. Source project Include globs alone cannot prove contents.
             entry_hash = hashlib.sha256()
             media_count = 0
+            media_entries = []
             for info in sorted(infos, key=lambda item: item.filename):
                 h = hashlib.sha256()
                 with archive.open(info) as stream:
@@ -196,6 +197,12 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
                             (".png", ".jpg", ".jpeg", ".webp", ".ttf", ".otf",
                              ".svg", ".mp3", ".wav", ".gif"))):
                     media_count += 1
+                    media_entries.append({
+                        "path": info.filename,
+                        "size_bytes": info.file_size,
+                        "sha256": h.hexdigest(),
+                        "rights": "unreviewed-packaged-entry",
+                    })
     except (zipfile.BadZipFile, RuntimeError, OSError) as exc:
         raise AttestationError("Invalid APK ZIP") from exc
     try:
@@ -219,7 +226,70 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
         "packaged_entry_count": len(infos),
         "packaged_entry_manifest_sha256": entry_hash.hexdigest(),
         "packaged_media_entry_count_unreviewed": media_count,
+        "packaged_media_entries": media_entries,
+        "packaged_media_manifest_sha256": hashlib.sha256(
+            json.dumps(media_entries, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
         "packaged_media_rights_verified": False,
+    }
+
+
+
+
+def verify_packaged_media_review(apk_report: dict, review: dict) -> dict:
+    """Compare an independently reviewed allowlist to the *actual APK entries*.
+
+    An XML Include inventory is not sufficient: default/imported MSBuild
+    resources can enter the APK without a matching explicit Include. Even a
+    complete media match does NOT clear embedded assembly resources, transitive
+    binaries, or the GPL distribution obligations. This never authorizes
+    redistribution by itself.
+    """
+    if not isinstance(review, dict) or review.get("schema") != 1:
+        raise AttestationError("Missing or invalid packaged-media review schema")
+    entries = review.get("entries")
+    if not isinstance(entries, list):
+        raise AttestationError("Missing packaged-media review entries")
+    observed = apk_report.get("packaged_media_entries")
+    if not isinstance(observed, list):
+        raise AttestationError("APK lacks actual packaged-media inventory")
+    actual = {item["path"]: item["sha256"] for item in observed}
+    if len(actual) != len(observed):
+        raise AttestationError("Duplicate packaged-media inventory path")
+    reviewed = {}
+    for item in entries:
+        if not isinstance(item, dict):
+            raise AttestationError("Invalid packaged-media review record")
+        path = item.get("path")
+        if not isinstance(path, str) or path in reviewed:
+            raise AttestationError("Duplicate or invalid packaged-media review path")
+        for field in ("sha256", "license", "attribution", "provenance", "reviewer"):
+            value = item.get(field)
+            if not isinstance(value, str) or not value.strip():
+                raise AttestationError(f"Packaged-media review missing {field}")
+        if item["license"].strip().lower() in ("unknown", "unreviewed", "none"):
+            raise AttestationError("Packaged-media licence remains unresolved")
+        if item.get("approved") is not True:
+            raise AttestationError("Packaged-media entry lacks affirmative approval")
+        reviewed[path] = item["sha256"]
+    if actual != reviewed:
+        missing = sorted(set(actual) - set(reviewed))
+        stale = sorted(set(reviewed) - set(actual))
+        changed = sorted(path for path in set(actual) & set(reviewed)
+                         if actual[path] != reviewed[path])
+        raise AttestationError(
+            f"Packaged-media review mismatch: unreviewed={missing[:8]!r} "
+            f"not-packaged={stale[:8]!r} changed={changed[:8]!r}"
+        )
+    return {
+        "media_entries_matched": len(actual),
+        "media_review_matches_apk": True,
+        "redistribution_authorized": False,
+        "remaining_gates": [
+            "embedded-resource and transitive-binary rights",
+            "GPL corresponding-source and notice compliance",
+            "independent media licence verification",
+        ],
     }
 
 

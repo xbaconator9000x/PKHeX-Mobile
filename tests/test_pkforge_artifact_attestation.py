@@ -255,5 +255,85 @@ class ArtifactAttestationTests(unittest.TestCase):
         self.assertEqual(len(report["apks"]), 2)
 
 
+    def approved_media_review(self, apk_report):
+        return {
+            "schema": 1,
+            "entries": [{
+                "path": item["path"],
+                "sha256": item["sha256"],
+                "license": "CC0-1.0",
+                "attribution": "Synthetic test fixture",
+                "provenance": "Generated inside this unit test",
+                "reviewer": "Synthetic test reviewer",
+                "approved": True,
+            } for item in apk_report["packaged_media_entries"]],
+        }
+
+    def test_implicit_packaged_asset_is_visible_even_without_project_include(self):
+        self.make_apk(extra_entries=[("res/drawable/unlisted.png", b"implicit-resource")])
+        report = self.make_report()
+        apk = report["apks"][0]
+        self.assertEqual(apk["packaged_media_entry_count_unreviewed"], 1)
+        self.assertEqual(apk["packaged_media_entries"][0]["path"],
+                         "res/drawable/unlisted.png")
+        self.assertEqual(apk["packaged_media_entries"][0]["sha256"],
+                         __import__("hashlib").sha256(b"implicit-resource").hexdigest())
+        self.assertFalse(report["redistribution_authorized"])
+
+    def test_media_review_rejects_implicit_unlisted_resource(self):
+        self.make_apk(extra_entries=[("res/drawable/implicit.png", b"implicit")])
+        apk = self.make_report()["apks"][0]
+        with self.assertRaisesRegex(audit.AttestationError, "unreviewed"):
+            audit.verify_packaged_media_review(apk, {"schema": 1, "entries": []})
+
+    def test_media_review_matching_hash_still_does_not_authorize_distribution(self):
+        self.make_apk(extra_entries=[("assets/neutral.txt", b"synthetic")])
+        apk = self.make_report()["apks"][0]
+        verdict = audit.verify_packaged_media_review(
+            apk, self.approved_media_review(apk))
+        self.assertTrue(verdict["media_review_matches_apk"])
+        self.assertFalse(verdict["redistribution_authorized"])
+
+    def test_media_review_rejects_changed_packaged_bytes(self):
+        self.make_apk(extra_entries=[("assets/logo.png", b"original")])
+        first = self.make_report()["apks"][0]
+        review = self.approved_media_review(first)
+        self.make_apk(extra_entries=[("assets/logo.png", b"replacement")])
+        with self.assertRaisesRegex(audit.AttestationError, "changed"):
+            audit.verify_packaged_media_review(self.make_report()["apks"][0],
+                                               review)
+
+    def test_media_review_rejects_missing_attribution(self):
+        self.make_apk(extra_entries=[("assets/logo.png", b"synthetic")])
+        apk = self.make_report()["apks"][0]
+        review = self.approved_media_review(apk)
+        review["entries"][0]["attribution"] = ""
+        with self.assertRaisesRegex(audit.AttestationError, "missing attribution"):
+            audit.verify_packaged_media_review(apk, review)
+
+    def test_media_review_rejects_unknown_licence_and_unapproved_entry(self):
+        self.make_apk(extra_entries=[("assets/logo.png", b"synthetic")])
+        apk = self.make_report()["apks"][0]
+        review = self.approved_media_review(apk)
+        review["entries"][0]["license"] = "unknown"
+        with self.assertRaisesRegex(audit.AttestationError, "licence"):
+            audit.verify_packaged_media_review(apk, review)
+        review["entries"][0]["license"] = "CC0-1.0"
+        review["entries"][0]["approved"] = False
+        with self.assertRaisesRegex(audit.AttestationError, "affirmative approval"):
+            audit.verify_packaged_media_review(apk, review)
+
+    def test_media_review_rejects_duplicate_and_stale_paths(self):
+        self.make_apk(extra_entries=[("assets/logo.png", b"synthetic")])
+        apk = self.make_report()["apks"][0]
+        review = self.approved_media_review(apk)
+        review["entries"].append(dict(review["entries"][0]))
+        with self.assertRaisesRegex(audit.AttestationError, "Duplicate"):
+            audit.verify_packaged_media_review(apk, review)
+        review["entries"][-1]["path"] = "assets/removed.png"
+        with self.assertRaisesRegex(audit.AttestationError, "not-packaged"):
+            audit.verify_packaged_media_review(apk, review)
+
+
 if __name__ == "__main__":
     unittest.main()
