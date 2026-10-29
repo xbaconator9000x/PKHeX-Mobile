@@ -97,6 +97,32 @@ cancelled.Cancel();
 await Refuses<OperationCanceledException>(
     () => ProviderBoundRetailNicknameEditor.PreviewAsync(sessions, access, 0, 0, "PROVIDER", cancelled.Token),
     "pre-cancelled preview");
+// A real async provider can be suspended when navigation cancels the UI request.
+// This must propagate through PreviewAsync instead of waiting for the provider.
+sessions.Reset(snapshot);
+var stalled = new BlockingAccess();
+using (var inFlight = new CancellationTokenSource())
+{
+    var pending = ProviderBoundRetailNicknameEditor.PreviewAsync(
+        sessions, stalled, 0, 0, "PROVIDER", inFlight.Token);
+    await stalled.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    inFlight.Cancel();
+    await Refuses<OperationCanceledException>(() => pending, "in-flight provider cancellation");
+}
+Check(stalled.Reads == 1 && stalled.Writes == 0, "Cancelled provider read reached a writer.");
+
+// Cancellation arriving during the second provider recheck must not return a
+// candidate, even if the provider has already handed back matching bytes.
+access.Reset(original);
+using (var late = new CancellationTokenSource())
+{
+    access.OnRead = count => { if (count == 2) late.Cancel(); };
+    await Refuses<OperationCanceledException>(
+        () => ProviderBoundRetailNicknameEditor.PreviewAsync(
+            sessions, access, 0, 0, "PROVIDER", late.Token),
+        "cancellation during second provider recheck");
+}
+Check(access.Reads == 2, "Late cancellation skipped the second provider recheck.");
 Check(access.Writes == 0, "A refusal or cancellation reached a provider writer.");
 Check(original.AsSpan().SequenceEqual(untouched), "Refusals mutated original provider bytes.");
 Console.WriteLine($"Provider-bound retail preview: {checks} synthetic checks passed; no writes.");
@@ -145,6 +171,28 @@ sealed class SpyAccess(byte[] initial) : ISaveFileAccess
     }
     public ValueTask WriteAtomicallyAsync(string documentId, ReadOnlyMemory<byte> bytes,
         CancellationToken cancellationToken = default)
+    {
+        Writes++;
+        throw new InvalidOperationException("Provider writes must never be reached.");
+    }
+}
+
+sealed class BlockingAccess : ISaveFileAccess
+{
+    public int Reads { get; private set; }
+    public int Writes { get; private set; }
+    public TaskCompletionSource<bool> Started { get; } =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public async ValueTask<ReadOnlyMemory<byte>> ReadAsync(
+        string documentId, CancellationToken cancellationToken = default)
+    {
+        Reads++;
+        Started.TrySetResult(true);
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        return ReadOnlyMemory<byte>.Empty;
+    }
+    public ValueTask WriteAtomicallyAsync(
+        string documentId, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default)
     {
         Writes++;
         throw new InvalidOperationException("Provider writes must never be reached.");

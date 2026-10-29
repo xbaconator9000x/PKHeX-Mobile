@@ -32,7 +32,16 @@ def adapt_view(source: str) -> str:
         "using PKHeXMobile.PortConsolidation;\n", "UI namespaces")
     source = replace_once(source,
         "    private readonly HashSet<int> _lockedSlots = [];",
-        "    private long _previewRequest;\n    private readonly HashSet<int> _lockedSlots = [];",
+        "    private long _previewRequest;\n"
+        "    private CancellationTokenSource? _previewCancellation;\n"
+        "    private void InvalidatePreview()\n"
+        "    {\n"
+        "        Interlocked.Increment(ref _previewRequest);\n"
+        "        var previous = Interlocked.Exchange(ref _previewCancellation, null);\n"
+        "        try { previous?.Cancel(); }\n"
+        "        catch (ObjectDisposedException) { }\n"
+        "    }\n"
+        "    private readonly HashSet<int> _lockedSlots = [];",
         "preview request generation")
     source = replace_once(source,
         "        viewModel.PropertyChanged += (_, args) =>\n        {",
@@ -40,7 +49,7 @@ def adapt_view(source: str) -> str:
         "            if (args.PropertyName is nameof(BoxBrowserViewModel.Save) or\n"
         "                nameof(BoxBrowserViewModel.BoxIndex) or nameof(BoxBrowserViewModel.SelectedSlot) or\n"
         "                nameof(BoxBrowserViewModel.EditNickname))\n"
-        "                Interlocked.Increment(ref _previewRequest);",
+        "                InvalidatePreview();",
         "preview selection invalidation")
     # Navigation away or back must invalidate any in-flight provider read. A
     # preview may finish after the page has left the navigation stack even
@@ -48,12 +57,12 @@ def adapt_view(source: str) -> str:
     source = replace_once(source,
         "    protected override void OnAppearing()\n    {",
         "    protected override void OnAppearing()\n    {\n"
-        "        Interlocked.Increment(ref _previewRequest);",
+        "        InvalidatePreview();",
         "preview appearing invalidation")
     source = replace_once(source,
         "    protected override void OnDisappearing()\n    {",
         "    protected override void OnDisappearing()\n    {\n"
-        "        Interlocked.Increment(ref _previewRequest);",
+        "        InvalidatePreview();",
         "preview disappearing invalidation")
     anchor = '        var save = FocusButton(EditorTool("Save changes", primary: true), "SAVE CHANGES");'
     preview = """        // A provider-origin baseline is captured before the engine opens; never
@@ -66,9 +75,15 @@ def adapt_view(source: str) -> str:
             var box = _viewModel.BoxIndex;
             var slot = _viewModel.SelectedSlot;
             var proposed = _viewModel.EditNickname;
-            var request = Interlocked.Increment(ref _previewRequest);
+            // Cancel an older provider read before beginning a new preview.
+            InvalidatePreview();
+            var request = Interlocked.Read(ref _previewRequest);
             if (session is null || slot < 0 || string.IsNullOrWhiteSpace(proposed))
                 return;
+            using var cancellation = new CancellationTokenSource();
+            var previous = Interlocked.Exchange(ref _previewCancellation, cancellation);
+            try { previous?.Cancel(); }
+            catch (ObjectDisposedException) { }
             try
             {
                 var sessions = IPlatformApplication.Current!.Services.GetRequiredService<ISaveSessionService>();
@@ -76,7 +91,7 @@ def adapt_view(source: str) -> str:
                 if (!ReferenceEquals(sessions.CurrentSession, session))
                     return;
                 var result = await ProviderBoundRetailNicknameEditor.PreviewAsync(
-                    sessions, access, box, slot, proposed);
+                    sessions, access, box, slot, proposed, cancellation.Token);
                 // Async provider reads must not display a result for a different
                 // selection, nickname, session, or later picker operation.
                 if (request != Interlocked.Read(ref _previewRequest)
@@ -98,6 +113,11 @@ def adapt_view(source: str) -> str:
                 if (request == Interlocked.Read(ref _previewRequest))
                     await PadMenu.ShowAsync(_hostGrid, "Preview refused",
                         error.Message, "OK");
+            }
+            finally
+            {
+                // Clear only this request; never detach a newer selection.
+                Interlocked.CompareExchange(ref _previewCancellation, null, cancellation);
             }
         };
 

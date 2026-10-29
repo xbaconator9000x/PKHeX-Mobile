@@ -46,7 +46,7 @@ class PinnedMauiPreviewTests(unittest.TestCase):
         # Navigation is a separate stale-preview trigger from slot changes.
         for method in ("OnAppearing", "OnDisappearing"):
             start = result.index("protected override void " + method + "()")
-            self.assertIn("Interlocked.Increment(ref _previewRequest);",
+            self.assertIn("InvalidatePreview();",
                           result[start:result.index("}", start)])
         self.assertIn("Provider bytes rechecked", result)
         self.assertIn("var slot = _viewModel.SelectedSlot;", result)
@@ -56,6 +56,26 @@ class PinnedMauiPreviewTests(unittest.TestCase):
         self.assertNotIn("WriteAtomicallyAsync", result)
         self.assertLess(result.index("panel.Children.Add(detachedPreview);"),
                         result.index("panel.Children.Add(save);"))
+
+    def test_navigation_and_reselection_cancel_inflight_provider_read(self):
+        result = adapt_view(VIEW_SOURCE)
+        self.assertIn("private CancellationTokenSource? _previewCancellation;", result)
+        self.assertIn("private void InvalidatePreview()", result)
+        self.assertIn("Interlocked.Exchange(ref _previewCancellation, null)", result)
+        self.assertIn("previous?.Cancel();", result)
+        self.assertIn("using var cancellation = new CancellationTokenSource();", result)
+        self.assertIn("Interlocked.Exchange(ref _previewCancellation, cancellation)", result)
+        self.assertIn("box, slot, proposed, cancellation.Token);", result)
+        self.assertIn("Interlocked.CompareExchange(ref _previewCancellation, null, cancellation)", result)
+        self.assertIn("if (request != Interlocked.Read(ref _previewRequest)", result)
+        self.assertIn("catch (OperationCanceledException) { }", result)
+        self.assertNotIn("ProviderBoundRetailNicknameEditor.PreviewAsync(\\n                    sessions, access, box, slot, proposed);", result)
+        # No token source is created for invalid/empty selections.
+        self.assertLess(result.index("if (session is null || slot < 0"),
+                        result.index("using var cancellation = new CancellationTokenSource();"))
+        # Selection and page lifecycle events invalidate AND cancel, rather
+        # than just suppressing the stale result after provider I/O completes.
+        self.assertGreaterEqual(result.count("InvalidatePreview();"), 3)
 
     def test_refuses_missing_and_duplicate_anchors(self):
         with self.assertRaises(ProbeRefusal):
