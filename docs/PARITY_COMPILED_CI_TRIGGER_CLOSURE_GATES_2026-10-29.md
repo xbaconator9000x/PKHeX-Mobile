@@ -1,0 +1,16 @@
+# Adapted-editor CI trigger and merged-SHA evidence gates (2026-10-29)
+
+Paired [source handoff](UPSTREAM_COMPILED_CI_TRIGGER_CLOSURE_HANDOFF_2026-10-29.md). Baseline main `1c2255f32c212b134480dc4aeff35fa402d79b09`; official Core 26.10.18 `bfe89c74a3f5265805e364b79bc04ad38ebbc5ea`; PKForge `2df04430e532b78c247f45b936f3068d8f824987`; PKHeX MAUI `a6f7cfb78e1c96155baa67660fd7ae97895e375f`. **The cases below are proposed, NOT executed.** Existing PR #94 official-Core Android [run 40835217135](https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40835217135) passed at `ad8280c`; current main has only [Foundation](https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40835826563) and [queue](https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40835826581) runs.
+
+| Gate | Priority | Executable acceptance criterion |
+| --- | --- | --- |
+| CTC-01 | P0 | Create a PR that changes **only** a safe, nonfunctional line in `src/PKHeXMobile.Domain/**`. GitHub must enqueue official-Core adapted editor compilation for that PR head. Native read-only Android or Foundation alone is insufficient. |
+| CTC-02 | P0 | Create a PR that changes **only** `scripts/pkforge_residual_cache_refusal.py` (no test or private-storage file). Official-Core CI must enqueue, run transitive `private_storage_refusal` and compile the adapted MAUI APK. |
+| CTC-03 | P0 | Merge an integration-affecting, green PR to main. The merged SHA must have its **own** official-Core workflow run, not only a green PR head or preceding parent. Assert exact `head_sha` through Actions API. |
+| CTC-04 | P0 | For that merged run, inspect official-Core job steps: engine, source freeze, Android compile, backup manifest, network/install permission refusal, media inventory and provenance must all succeed. A green Foundation check cannot replace missing steps. |
+| CTC-05 | P1 | Add a deterministic workflow-trigger regression: fail if any direct source project referenced by `PKHeXMobile.PortConsolidation.csproj` or transitive `pkforge_*.py` adapter is absent from the allowlist. Include a negative fixture with one removed path and require failure. |
+| CTC-06 | P1 | Change a docs-only audit file; expensive official-Core workflow should **not** start from that PR alone. Keep source build budget bounded and preserve existing manual dispatch. |
+| CTC-07 | P0 | Rebase draft emulator PR #83 on current main; ensure its added workflow steps retain new triggers and the PR-head official-Core/Foundation/queue tests pass. Old-head emulator process survival is not current-main Activity or SAF evidence. |
+| CTC-08 | P0 | On a fresh, attested emulator APK from merged code, verify installed SHA-256, foreground Activity, no unintended share/export, no backup capability and QR close/rotation. These are **not** implied by CI trigger repair and require separate runtime evidence. |
+
+**Status distinction:** CTC-01–08 proposed/unexecuted; previous source-drift, synthetic, compiled APK and older-head emulator tests retain only their documented scope. Implementation owns workflow/scripts/tests/queue fixes; audit owns these docs only. No APK, ROM, proprietary asset, save or personal data is required for trigger tests. No safe Save As or desktop parity claim follows from these gates.
