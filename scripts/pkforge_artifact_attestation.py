@@ -223,7 +223,73 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
     }
 
 
-def attestation(root: Path, mobile: Path, packager: Path | None = None) -> dict:
+
+SOURCE_SUFFIXES = frozenset({
+    ".cs", ".csproj", ".xaml", ".xml", ".props", ".targets",
+    ".json", ".resx", ".razor",
+})
+
+
+def source_tree_manifest(root: Path) -> dict[str, str]:
+    """Hash all application/engine source inputs, including generated adapters.
+
+    Exclude build products only; no contents are uploaded. A separate frozen
+    pre-build manifest is compared after packaging to detect source drift.
+    """
+    src = root / "src"
+    if not src.is_dir() or src.is_symlink():
+        raise AttestationError("Missing or symlinked PKForge source directory")
+    result: dict[str, str] = {}
+    for file in sorted(src.rglob("*")):
+        relative = file.relative_to(src)
+        if any(part in ("bin", "obj", ".git") for part in relative.parts):
+            continue
+        if file.is_symlink():
+            raise AttestationError("Symlink in PKForge source tree")
+        if file.is_file() and file.suffix.lower() in SOURCE_SUFFIXES:
+            result[file.relative_to(root).as_posix()] = digest(file)
+    if not result or "src/PKForge.App/PKForge.App.csproj" not in result:
+        raise AttestationError("Missing PKForge source manifest inputs")
+    return result
+
+
+def write_source_snapshot(root: Path, destination: Path) -> dict:
+    files = source_tree_manifest(root.resolve(strict=True))
+    report = {"schema": 1, "files": files}
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        json.dumps(report, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return report
+
+
+def verify_source_snapshot(root: Path, snapshot: Path) -> dict:
+    try:
+        report = json.loads(snapshot.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise AttestationError("Missing or invalid frozen source snapshot") from exc
+    if (not isinstance(report, dict) or report.get("schema") != 1
+            or not isinstance(report.get("files"), dict)):
+        raise AttestationError("Invalid frozen source snapshot schema")
+    current = source_tree_manifest(root)
+    expected = report["files"]
+    if current != expected:
+        changed = sorted(
+            path for path in set(current) | set(expected)
+            if current.get(path) != expected.get(path)
+        )
+        raise AttestationError(
+            f"Source changed after frozen pre-build snapshot: {changed[:12]!r}"
+        )
+    return {
+        "files": len(current),
+        "sha256": digest(snapshot),
+        "source_unchanged_after_build": True,
+    }
+
+
+def attestation(root: Path, mobile: Path, packager: Path | None = None), source_snapshot: Path | None = None) -> dict:
     root, mobile = root.resolve(strict=True), mobile.resolve(strict=True)
     check_pins(root)
     project = root / PROJECT
@@ -243,6 +309,8 @@ def attestation(root: Path, mobile: Path, packager: Path | None = None) -> dict:
         raise AttestationError("Android build produced no APK")
     packager = packager or find_android_packager()
     inspected = [inspect_apk(p, packager) for p in apks]
+    frozen_source = (verify_source_snapshot(root, source_snapshot)
+                     if source_snapshot is not None else None)
     assets = inventory_assets(root, project)
     scripts = sorted((mobile / "scripts").glob("pkforge_*.py"))
     if not scripts:
@@ -273,6 +341,7 @@ def attestation(root: Path, mobile: Path, packager: Path | None = None) -> dict:
             "transitive_licences_verified": False,
         },
         "apks": inspected,
+        "frozen_source": frozen_source,
         "assets": assets,
         "rights_review_complete": False,
         "gate": "metadata-only; do not upload APK or advertise an installable editor",
@@ -284,8 +353,17 @@ def main() -> None:
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--mobile", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--source-snapshot", type=Path)
+    parser.add_argument("--snapshot-only", action="store_true")
     args = parser.parse_args()
-    report = attestation(args.repo, args.mobile)
+    if args.snapshot_only:
+        if args.source_snapshot is not None:
+            parser.error("--snapshot-only cannot combine with --source-snapshot")
+        snapshot = write_source_snapshot(args.repo, args.output)
+        print(f"Froze {len(snapshot['files'])} source files before Android packaging")
+        return
+    report = attestation(args.repo, args.mobile,
+                         source_snapshot=args.source_snapshot)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     print(f"Verified {len(report['apks'])} diagnostic APK(s), "
