@@ -1,0 +1,343 @@
+{
+  "schema_version": 1,
+  "repository": "xbaconator9000x/PKHeX-Mobile",
+  "estimate_basis": "Forward-looking modelled engineering hours; not elapsed hours, feature verification, or release certification.",
+  "tasks": [
+    {
+      "id": "BASE-CORE",
+      "title": "Existing pinned Core read-only inspector and smoke baseline",
+      "owner": "implementation",
+      "priority": "P0",
+      "status": "verified",
+      "total_hours": 70,
+      "remaining_hours": 0,
+      "dependencies": [],
+      "locks": [
+        "readonly"
+      ],
+      "acceptance": [
+        "Pinned Core synthetic read-only smoke checks passed; no retail certification"
+      ],
+      "evidence": [
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40664266243"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "BASE-CI",
+      "title": "Existing Foundation and Android debug compilation",
+      "owner": "implementation",
+      "priority": "P0",
+      "status": "verified",
+      "total_hours": 35,
+      "remaining_hours": 0,
+      "dependencies": [],
+      "locks": [
+        "ci-android"
+      ],
+      "acceptance": [
+        "Foundation and Android debug builds passed; no device certification"
+      ],
+      "evidence": [
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40664266531"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "BASE-PORT",
+      "title": "PKForge pinned source and official Core code-only compatibility probes",
+      "owner": "implementation",
+      "priority": "P0",
+      "status": "verified",
+      "total_hours": 75,
+      "remaining_hours": 0,
+      "dependencies": [],
+      "locks": [
+        "probe"
+      ],
+      "acceptance": [
+        "Official-Core compile probe green",
+        "No NC media/installer permissions in diagnostic routes"
+      ],
+      "evidence": [
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40818777800",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/75"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "AUD-ADOPT",
+      "title": "Adopt/adapt/reject audit: PKForge, MAUI component rights and runtime safety",
+      "owner": "audit",
+      "priority": "P0",
+      "status": "ready",
+      "total_hours": 65,
+      "remaining_hours": 35,
+      "dependencies": [],
+      "locks": [
+        "docs-audit"
+      ],
+      "acceptance": [
+        "Pinned SHA source and licence disposition",
+        "Executable acceptance gates for each reused module"
+      ],
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "PORT-APK",
+      "title": "Build rights-cleared consolidated PKForge Android debug preview with official Core",
+      "owner": "implementation",
+      "priority": "P0",
+      "status": "ready",
+      "total_hours": 110,
+      "remaining_hours": 110,
+      "dependencies": [
+        "BASE-PORT"
+      ],
+      "locks": [
+        "Installable debug APK with manifest, compile and smoke evidence",
+        "Forbidden artwork, network and installer capability absent",
+        "Editing/export remain fail-closed"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "PORT-DEVICE",
+      "title": "Launch adapted UI and inspect saves using Android provider end-to-end",
+      "owner": "implementation",
+      "priority": "P0",
+      "status": "ready",
+      "total_hours": 105,
+      "remaining_hours": 105,
+      "dependencies": [
+        "PORT-APK"
+      ],
+      "locks": [
+        "Emulator/device provider cancellation, document identity and rotation tests",
+        "Party and box read-only view matched to Core"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "FIXTURES",
+      "title": "Independent desktop PKHeX 26.10.18 fixture and false-positive verification",
+      "owner": "implementation",
+      "priority": "P0",
+      "status": "ready",
+      "total_hours": 120,
+      "remaining_hours": 120,
+      "dependencies": [
+        "BASE-CORE"
+      ],
+      "locks": [
+        "No proprietary fixtures committed",
+        "Same-version desktop outputs, per-game checksums and hack negative cases",
+        "Unknown/hack profile remains read-only"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "PORT-EDITOR",
+      "title": "Adapt PKForge Pokémon, party and box editing into detached staging only",
+      "owner": "implementation",
+      "priority": "P1",
+      "status": "ready",
+      "total_hours": 155,
+      "remaining_hours": 155,
+      "dependencies": [
+        "PORT-APK"
+      ],
+      "locks": [
+        "No source/save write before permission",
+        "Test protected slots, cancellation and original fingerprints",
+        "Reproduce and mitigate MoveBox and pointer hazards"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "SAFE-EXPORT",
+      "title": "Backup, staged Save As, identity recheck and rollback through authenticated profiles",
+      "owner": "implementation",
+      "priority": "P0",
+      "status": "ready",
+      "total_hours": 175,
+      "remaining_hours": 175,
+      "dependencies": [
+        "FIXTURES",
+        "PORT-EDITOR"
+      ],
+      "locks": [
+        "Independent desktop round trips and untouched-region diffs",
+        "Stale provider, revoked grant, partial write and recovery regressions",
+        "Backups byte-identical; no hack fallback"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "CORE-LEGAL",
+      "title": "Reuse PKForge Core legality, conversion, Showdown and batch UI",
+      "owner": "implementation",
+      "priority": "P1",
+      "status": "ready",
+      "total_hours": 105,
+      "remaining_hours": 105,
+      "dependencies": [
+        "PORT-EDITOR",
+        "FIXTURES"
+      ],
+      "locks": [
+        "Same-version legality parity and generation context",
+        "Detached batch previews and cancellation semantics"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "CORE-WORLD",
+      "title": "Reuse PKForge/MAUI trainer, inventory, dex, event editors",
+      "owner": "implementation",
+      "priority": "P1",
+      "status": "ready",
+      "total_hours": 155,
+      "remaining_hours": 155,
+      "dependencies": [
+        "PORT-EDITOR"
+      ],
+      "locks": [
+        "Field width, offsets, no-op normalization and rollback tests",
+        "Per-title desktop parity gates"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "CORE-ADV",
+      "title": "Adapt remaining desktop feature groups and game-specific editors",
+      "owner": "implementation",
+      "priority": "P2",
+      "status": "ready",
+      "total_hours": 245,
+      "remaining_hours": 245,
+      "dependencies": [
+        "CORE-WORLD",
+        "CORE-LEGAL"
+      ],
+      "locks": [
+        "Feature-level supported/missing matrix",
+        "Same-version regressions, no silent unsupported behaviors"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "ANDROID-UX",
+      "title": "Phone/tablet touch, Back, gamepad and accessible UX",
+      "owner": "implementation",
+      "priority": "P2",
+      "status": "ready",
+      "total_hours": 105,
+      "remaining_hours": 105,
+      "dependencies": [
+        "PORT-DEVICE"
+      ],
+      "locks": [
+        "Device and screenreader tests for navigation and cancellation"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "HACK-PROFILES",
+      "title": "Authenticate per-hack/per-version write-safe save layouts",
+      "owner": "implementation",
+      "priority": "P2",
+      "status": "ready",
+      "total_hours": 180,
+      "remaining_hours": 180,
+      "dependencies": [
+        "SAFE-EXPORT"
+      ],
+      "locks": [
+        "Per-profile independent round trip and negative false-positive tests",
+        "Unknown layouts strictly read-only"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "POKEBACON",
+      "title": "Versioned opt-in metadata interchange with PokéBacon Studio",
+      "owner": "implementation",
+      "priority": "P3",
+      "status": "ready",
+      "total_hours": 90,
+      "remaining_hours": 90,
+      "dependencies": [
+        "HACK-PROFILES"
+      ],
+      "locks": [
+        "Versioned schema and adversarial mismatched profile tests",
+        "GPL and data-interchange boundaries checked"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "RELEASE",
+      "title": "Physical Android provider regression, signed release and disaster recovery",
+      "owner": "implementation",
+      "priority": "P1",
+      "status": "ready",
+      "total_hours": 150,
+      "remaining_hours": 150,
+      "dependencies": [
+        "SAFE-EXPORT",
+        "PORT-DEVICE"
+      ],
+      "locks": [
+        "Signed artifact provenance and rights review",
+        "Real device/provider and restore coverage; stable crash handling"
+      ],
+      "acceptance": "ready",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "QUEUE-RUN",
+      "title": "Queue-driven implementation and verification checkpoint handoff",
+      "owner": "implementation",
+      "priority": "P0",
+      "status": "ready",
+      "total_hours": 45,
+      "remaining_hours": 45,
+      "dependencies": [],
+      "locks": [
+        "queue"
+      ],
+      "acceptance": [
+        "Selector drives existing watchdogs",
+        "PR exact SHA, CI and checkpoint evidence before verified",
+        "Parallel task isolation and stale ref recovery tested"
+      ],
+      "evidence": [],
+      "blockers": []
+    }
+  ]
+}
