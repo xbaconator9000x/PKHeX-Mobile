@@ -40,8 +40,8 @@ class PickerCancelTests(unittest.TestCase):
         xml = iter(["<?xml version='1.0'?>", good])
         def fake_adb(*args):
             return next(xml) if args[:2] == ("exec-out", "cat") else ""
-        with patch.object(module, "adb", side_effect=fake_adb) as adb_call, \\
-             patch.object(module.time, "sleep") as pause:
+        with (patch.object(module, "adb", side_effect=fake_adb) as adb_call,
+              patch.object(module.time, "sleep") as pause):
             nodes = module.ui_nodes(retries=2)
         self.assertEqual("File", nodes[0]["text"])
         self.assertEqual(8, adb_call.call_count)
