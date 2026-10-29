@@ -1,0 +1,52 @@
+# Adapted-editor artifact, provider identity and Android parity gates — 2026-10-29
+
+Companion to [UPSTREAM_EDITOR_ARTIFACT_PROVIDER_HANDOFF_2026-10-29.md](UPSTREAM_EDITOR_ARTIFACT_PROVIDER_HANDOFF_2026-10-29.md). **These are proposed acceptance tests, not executed tests.** The latest verified baseline is [main `2c759621c5728c03c050bffbb7efd5ab7598db83`](https://github.com/xbaconator9000x/PKHeX-Mobile/tree/2c759621c5728c03c050bffbb7efd5ab7598db83); [PR #63 probe](https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40787474099) passed compilation and synthetic containment. [PR #62](https://github.com/xbaconator9000x/PKHeX-Mobile/pull/62) activation interleavings and [PR #63](https://github.com/xbaconator9000x/PKHeX-Mobile/pull/63) PKSM multi-import refusal are **implemented**, not new outstanding tasks.
+
+## Test rules and evidence contract
+
+- Use synthetic or explicitly consented **non-committed** save fixtures; no ROMs, signing keys, private saves or console keys in repository, logs or CI artifacts. Record only fixture hashes, expected format, legal provenance and redacted outcomes.
+- Pin PKForge `2df04430e532b78c247f45b936f3068d8f824987` (fork Core `91e9c88667a6a191a000db68e2db19505eb87561`), PKHeX MAUI `a6f7cfb78e1c96155baa67660fd7ae97895e375f` and official Core release source `bfe89c74a3f5265805e364b79bc04ad38ebbc5ea` / package `26.10.18`. Capture exact package dependency closure and the transformation scripts' blob SHAs.
+- Every gate records command/test name, fixture provenance, assertions, CI run URL, exit status, API/provider where applicable, output hash and **whether the gate was actually run**. A passed build is not a passed device, save-format or export gate.
+- No publication/write capability until **all P0 identity, source, format, scope and destination gates** pass for each advertised format. A refused/cancelled test must verify the original bytes remain unchanged.
+
+## P0: deliver the actual editor, not the separate viewer
+
+| ID | Reproducible procedure | Required result |
+| --- | --- | --- |
+| EA-01 — source pin | Fetch exact PKForge commit and gitlinks; apply the ordered scripts from the [official-Core probe](https://github.com/xbaconator9000x/PKHeX-Mobile/blob/2c759621c5728c03c050bffbb7efd5ab7598db83/.github/workflows/pkforge-official-core-probe.yml); record SHA-256 of each transformed source, package lock/restore manifest and SDK version. Repeat from clean checkout. | Both builds use identical source/transforms/dependencies; fail if pinned anchor or gitlink differs; no untracked user data. |
+| EA-02 — APK identity | Build adapted `PKForge.App` with `net10.0-android`; inspect APK package ID, assembly metadata, feature entry points and SHA-256. Separately inspect the artifact from [native viewer workflow](https://github.com/xbaconator9000x/PKHeX-Mobile/blob/2c759621c5728c03c050bffbb7efd5ab7598db83/.github/workflows/android-build.yml). | Distinct, explicitly labelled artifacts; editor APK contains provider-origin nickname preview, writer refusal and disabled PKSM import. Native viewer must not be passed off as adapted editor. |
+| EA-03 — artifact handoff | In a controlled internal CI job, publish only the reviewed adapted-editor APK and provenance text after checks, with short retention and no fixture bytes. Re-download and verify SHA-256 against build log. | Downloaded bytes match build output; no art/media distributed until rights manifest passes EA-04. |
+| EA-04 — licence / dependency gate | Inventory [PKForge app csproj](https://github.com/sofianeelhor/PKForge/blob/2df04430e532b78c247f45b936f3068d8f824987/src/PKForge.App/PKForge.App.csproj) assets (PKHeX sprites, Showdown, Luminescent, fonts, game art) and all transitive packages; record origin, copyright, licence and redistribution decision per file. Inspect [MAUI project](https://github.com/santacrab2/PKHeXMAUI/blob/a6f7cfb78e1c96155baa67660fd7ae97895e375f/PKHeX.MAUI.csproj) prebuilt AutoMod/Injection references separately. | GPL notices preserved; every bundled asset approved or excluded; no unreviewed DLL or proprietary media included. No public artifact if unresolved. |
+
+## P0: real Android preview and provider provenance
+
+| ID | Reproducible procedure | Required result |
+| --- | --- | --- |
+| EA-05 — Android UI launch | Install *adapted editor* APK on at least one emulator and one physical Android device; record API, ABI, provider and app ID. Open a synthetic supported save through SAF; navigate party/boxes; preview nickname; dismiss with Back; reopen. | No crash, frozen UI, original URI write or silent switch to native viewer. Record screen-level result, not only package installation. |
+| EA-06 — same-byte identity swap | Test identity-bearing provider adapter with source A, then replace/rebind it with B containing **identical bytes** but a different provider/document key before preview and after first preview read. Separately simulate a provider recycling the **same** document key for a new object: current `DocumentSourceIdentity` has no version token, so document-key equality alone cannot certify this case. Instrument `DocumentReadHandle` identity, session generation and provider reads. | Source identity change is refused despite identical SHA-256; original untouched; missing identity cannot authorize Save As. |
+| EA-07 — changed bytes/permission | Open A, then change bytes, revoke grant, return null stream or throw provider I/O on second verification. Test read-once provider explicitly. | Preview refuses or cancels, never substitutes engine serialization for provider bytes, never writes. No false assertion that a read-once provider is identity-certified. |
+| EA-08 — stale overlay | Stall `PadMenu.ShowAsync` while user changes box/slot/nickname, closes save, navigates Back or opens B. Complete old overlay task. Also test cancellation during both provider reads. | Old preview is dismissed or never displayed for new context; no unhandled exception or old nickname shown under B. This **is not proven** by the existing provider lifecycle smoke. |
+| EA-09 — activation regression | Run existing [actual PKForge lifecycle smoke](https://github.com/xbaconator9000x/PKHeX-Mobile/blob/2c759621c5728c03c050bffbb7efd5ab7598db83/tests/PKHeXMobile.ProviderOriginLifecycle.Smoke/Program.cs) and additionally inject faults in `MakeActive`, snapshot and prior-session disposal. | No stale session publication, no disposed candidate retained, no provider write; PR #62's already-passing interleavings remain green. Fault-injection cases are **new and unexecuted**. |
+| EA-10 — multi-import denial | Launch import UI and call multi-picker/bank import entry points under instrumented fake SAF and bank. | Immediate unsupported/refused result; zero picker launches, reads, retained file buffers and bank mutations; no regressions to single-document picker. PR #63 already provides transformation tests; Android behavior still needs testing. |
+
+## P0: save-format and future Save As authorization
+
+| ID | Reproducible procedure | Required result |
+| --- | --- | --- |
+| EA-11 — positive retail oracle | For each advertised game/format, use authorized known retail fixtures and exact official Core 26.10.18 desktop oracle. Compare source fingerprint, party/box reads, unchanged serialize, nickname candidate, checksum, legality and intended slot bytes. | Byte-identical unchanged round trip and expected field/slot change; discrepancies refuse writes. A single synthetic Gen6 fixture does not pass this gate. |
+| EA-12 — valid-looking hack negatives | For each relevant retail format, construct/obtain consented ROM-hack layout negatives with valid length/header/checksum and realistic slot data. Run parser, layout-risk and candidate preflight; include custom species/item/sector differences. | Refuse write authorization on ambiguous retail/hack lookalikes, even when official Core parses them; unknown layouts remain read-only. No claims of general ROM-hack support. |
+| EA-13 — distinct destination and alias | Fake SAF provider returns new URI with same underlying document, canonical ID, inode/version or provider alias; repeat with different URI, same bytes, and with a genuinely separate new document. | Reject every alias/same-document destination; only separately identified destination can proceed. Never invoke original `rwt` writer. |
+| EA-14 — staged write/readback | After EA-06/11/12/13 pass, generate detached candidate; validate slot scope independently; write **new** destination, independently reopen it, compare checksum, source fingerprint and requested change. Simulate short write, cancellation, process kill, provider rejection and output replacement. | No partial result declared successful; original bytes unchanged; independently reopened candidate matches expected; backup/recovery semantics proven for supported providers. Until then Save As remains disabled. |
+
+## P1: desktop parity after safe transactions
+
+| ID | Procedure | Required result |
+| --- | --- | --- |
+| EA-15 — legality report | Compare pinned desktop PKHeX/Core legality report to mobile for the same authorized Pokémon; test no-op, illegal, encounter and suggestion cases. | Same engine-version result and no implicit write, clone leak or online legitimacy claim. |
+| EA-16 — selective MAUI parity | Choose one missing desktop editor (trainer, bag, Pokédex, event flags, Mystery Gift, batch, transfer or generation-specific), compare exact WinForms behavior and PKHeX MAUI source; port only with isolated session and per-format before/after tests. | Feature marked **supported** only after real UI + save transaction + parity tests. Reject static shared `PKTab.sav/pk`, older 26.7.7 API assumptions and unreviewed binaries. |
+
+## Minimal implementer sequence
+
+**Batch A (first):** EA-01 through EA-05 — provenance, reviewed test artifact and actual device launch. This is the most direct way to convert a compiling temporary integration into usable implementation evidence. **Batch B:** EA-06 through EA-10 — provider identity, overlay lifecycle and fault containment. **Batch C:** EA-11 through EA-14 — retail/hack differentiation and independent Save As; do not parallelize publication ahead of its prerequisites. **Batch D:** EA-15/16 — desktop parity.
+
+The documentation-only audit cannot execute Android/provider/real-save tests and does not change the app, tests, scripts, workflows, dependencies or README. Record executed gate counts separately from these 16 proposed scenarios.
