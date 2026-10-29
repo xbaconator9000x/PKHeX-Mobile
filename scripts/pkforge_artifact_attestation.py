@@ -168,7 +168,15 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
             if not native:
                 raise AttestationError("APK missing .NET Android native runtime payload")
             if not managed:
-                raise AttestationError("APK missing embedded managed assembly payload")
+                candidates = sorted(
+                    name for name in names
+                    if ("assembl" in name.lower() or name.endswith(".dll")
+                        or name.endswith(".so"))
+                )[:24]
+                raise AttestationError(
+                    "APK missing embedded managed assembly payload; "
+                    f"runtime-layout candidates={candidates!r}"
+                )
 
             # Hash the actual packaged entries, including implicitly imported
             # resources. Source project Include globs alone cannot prove contents.
