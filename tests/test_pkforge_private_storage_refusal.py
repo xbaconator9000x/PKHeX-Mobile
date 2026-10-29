@@ -69,8 +69,10 @@ class PrivateStorageTests(unittest.TestCase):
             '            using var file = File.Create(path);\n' +
             '            encoded.SaveTo(file);\n        }\n' +
             residual.QR_DISK_END + '\n' +
-            '        void Close() {\n' + residual.QR_CLOSE + '        }\n' +
-            '        var img = new Image { ' + residual.QR_FILE_IMAGE + ' };\n    }\n')
+            residual.QR_CLOSE_START + residual.QR_CLOSE + '        }\n' +
+            '        var content = new VerticalStackLayout\n' +
+            '        {\n            Children =\n            {\n                ' +
+            residual.QR_IMAGE_BLOCK + '\n            }\n        };\n    }\n')
         park = self.root / residual.PARK
         park.parent.mkdir(parents=True, exist_ok=True)
         park.write_text(
@@ -157,9 +159,32 @@ class PrivateStorageTests(unittest.TestCase):
         self.assertNotIn('ImageSource.FromFile(path)', qr)
         self.assertIn(residual.QR_MEMORY_IMAGE, qr)
         self.assertIn('png = encoded.ToArray();', qr)
-        self.assertIn('Array.Clear(png);', qr)
+        self.assertNotIn('Array.Clear(png);', qr)
+        self.assertIn('qrImage.Source = null;', qr)
+        self.assertIn('if (closed) return;', qr)
+        self.assertIn(residual.QR_IMAGE_CALL, qr)
+        self.assertLess(qr.index('if (closed) return;'), qr.index('qrImage.Source = null;'))
+        self.assertLess(qr.index('qrImage.Source = null;'), qr.index('done.TrySetResult();'))
+        # Late MAUI stream callbacks must see unmodified PNG bytes.
+        self.assertEqual(qr.count('png = encoded.ToArray();'), 1)
+        self.assertNotIn('png.AsSpan().Clear()', qr)
         self.assertLess(qr.index(residual.BINARY_GUARD),
                         qr.index('Encoding.Latin1.GetString(payload)'))
+
+    def test_qr_close_and_image_drift_refuse_before_any_staged_write(self):
+        qr = self.root / residual.QR
+        original = qr.read_text()
+        for before, after in (
+            (residual.QR_CLOSE_START, "        void Close(bool force)\\n        {\\n"),
+            (residual.QR_IMAGE_BLOCK, residual.QR_IMAGE_BLOCK.replace("240", "256")),
+        ):
+            qr.write_text(original.replace(before, after))
+            try:
+                with self.assertRaises(guard.OfflineRefusal):
+                    guard.transform(self.root)
+                self.assertNotIn("DIAGNOSTIC", (self.root / guard.PROJECT).read_text())
+            finally:
+                qr.write_text(original)
 
     def test_park_photo_share_is_refused_without_deleting_legacy_media(self):
         out = guard.transform(self.root)
