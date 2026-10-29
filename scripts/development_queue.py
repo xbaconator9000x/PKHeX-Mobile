@@ -59,6 +59,21 @@ def validate(q, c):
                 errors.append(ident + ": duplicate " + key)
         if not task.get("locks") or not task.get("acceptance"):
             errors.append(ident + ": locks and tests are mandatory")
+        claim = task.get("claim")
+        if claim is not None:
+            if task.get("status") != "in_progress":
+                errors.append(ident + ": only active tasks may hold a claim")
+            if not isinstance(claim, dict) or set(claim) != {"branch", "pr", "base_sha"}:
+                errors.append(ident + ": invalid claim structure")
+            else:
+                branch, pr, base_sha = claim["branch"], claim["pr"], claim["base_sha"]
+                prefix = "impl/" if task.get("owner") == "implementation" else "audit/"
+                if not isinstance(branch, str) or not branch.startswith(prefix) or len(branch) <= len(prefix):
+                    errors.append(ident + ": claim branch/owner mismatch")
+                if type(pr) is not int or pr <= 0:
+                    errors.append(ident + ": claim PR must be positive")
+                if not isinstance(base_sha, str) or len(base_sha) != 40 or any(x not in "0123456789abcdef" for x in base_sha):
+                    errors.append(ident + ": claim base SHA must be immutable")
         if task.get("status") == "verified":
             if remain != 0 or not task.get("evidence"):
                 errors.append(ident + ": verified requires zero remaining and evidence")
@@ -95,13 +110,19 @@ def validate(q, c):
     return errors
 
 
-def select(q, owner="implementation", count=5, resume=False):
+def select(q, owner="implementation", count=5, resume=False, claim=None):
+    # A generic --resume must never steal another PR's active queue lock.
+    # The caller must also verify the PR's current head and branch in GitHub;
+    # the selector only compares the recorded immutable claim tuple.
+    def is_owned_claim(t):
+        return (resume and claim is not None and t["owner"] == owner
+                and t["status"] == "in_progress" and t.get("claim") == claim)
     by_id = {x["id"]: x for x in q["tasks"]}
     reserved = {l for t in q["tasks"] if t["status"] == "in_progress"
-                and not (resume and t["owner"] == owner) for l in t["locks"]}
+                and not is_owned_claim(t) for l in t["locks"]}
     candidates = [t for t in q["tasks"]
                   if t["owner"] == owner
-                  and (t["status"] == "ready" or (resume and t["status"] == "in_progress"))
+                  and (t["status"] == "ready" or is_owned_claim(t))
                   and all(by_id[d]["status"] == "verified" for d in t["dependencies"])]
     candidates.sort(key=lambda t: (t["status"] != "in_progress",
                                    PRIORITY[t["priority"]], -t["remaining_hours"], t["id"]))
@@ -149,10 +170,20 @@ def main(argv=None):
     parser.add_argument("--owner", choices=sorted(OWNERS), default="implementation")
     parser.add_argument("--batch-size", type=int, default=5)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--claim-branch")
+    parser.add_argument("--claim-pr", type=int)
+    parser.add_argument("--claim-base-sha")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     if not 1 <= args.batch_size <= 25:
         parser.error("batch size must be 1..25")
+    fields = (args.claim_branch, args.claim_pr, args.claim_base_sha)
+    if args.resume and any(x is None for x in fields):
+        parser.error("--resume requires --claim-branch, --claim-pr and --claim-base-sha")
+    if not args.resume and any(x is not None for x in fields):
+        parser.error("claim identifiers are only valid with --resume")
+    claim = ({"branch": args.claim_branch, "pr": args.claim_pr,
+              "base_sha": args.claim_base_sha} if args.resume else None)
     q, c = load(QUEUE), load(CHECKPOINT)
     errors = validate(q, c)
     if errors:
@@ -164,11 +195,11 @@ def main(argv=None):
     elif args.command == "report":
         obj = report(q, c)
     elif args.command == "next":
-        obj = select(q, args.owner, args.batch_size, args.resume)
+        obj = select(q, args.owner, args.batch_size, args.resume, claim)
     else:
         obj = {"progress": report(q, c),
-               "implementation": select(q, "implementation", args.batch_size, args.resume),
-               "audit": select(q, "audit", args.batch_size, args.resume)}
+               "implementation": select(q, "implementation", args.batch_size, args.resume, claim),
+               "audit": select(q, "audit", args.batch_size, args.resume, claim)}
     content = json.dumps(obj, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.write_text(content, encoding="utf-8")
