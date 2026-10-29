@@ -409,6 +409,16 @@ class ArtifactAttestationTests(unittest.TestCase):
         with self.assertRaisesRegex(audit.AttestationError, "Directory.Build.props"):
             audit.verify_source_snapshot(self.root, snapshot, self.mobile)
 
+    def test_root_tools_build_helper_mutation_is_refused(self):
+        helper = self.root / "tools/prepare_assets.py"
+        helper.parent.mkdir()
+        helper.write_text("# original build helper")
+        snapshot = Path(self.temp.name) / "full-input-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot, self.mobile)
+        helper.write_text("# modified build helper")
+        with self.assertRaisesRegex(audit.AttestationError, "tools/prepare_assets.py"):
+            audit.verify_source_snapshot(self.root, snapshot, self.mobile)
+
     def test_generated_bin_output_does_not_break_input_freeze(self):
         snapshot = Path(self.temp.name) / "full-input-freeze.json"
         audit.write_source_snapshot(self.root, snapshot, self.mobile)
