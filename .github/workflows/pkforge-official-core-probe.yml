@@ -39,6 +39,10 @@ on:
       - 'scripts/pkforge_disable_bulk_import.py'
       - 'tests/test_pkforge_disable_bulk_import.py'
       - 'scripts/pkforge_artifact_attestation.py'
+      - 'scripts/pkforge_emulator_apk_selection.py'
+      - 'scripts/pkforge_apk_signature_gate.py'
+      - 'tests/test_pkforge_emulator_apk_selection.py'
+      - 'tests/test_pkforge_apk_signature_gate.py'
       - 'tests/test_pkforge_artifact_attestation.py'
       - 'scripts/pkforge_offline_preview.py'
       - 'tests/test_pkforge_offline_preview.py'
@@ -90,6 +94,10 @@ on:
       - 'scripts/pkforge_disable_bulk_import.py'
       - 'tests/test_pkforge_disable_bulk_import.py'
       - 'scripts/pkforge_artifact_attestation.py'
+      - 'scripts/pkforge_emulator_apk_selection.py'
+      - 'scripts/pkforge_apk_signature_gate.py'
+      - 'tests/test_pkforge_emulator_apk_selection.py'
+      - 'tests/test_pkforge_apk_signature_gate.py'
       - 'tests/test_pkforge_artifact_attestation.py'
       - 'scripts/pkforge_offline_preview.py'
       - 'tests/test_pkforge_offline_preview.py'
@@ -137,6 +145,8 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_pkforge_session_transaction.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_disable_bulk_import.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_artifact_attestation.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_emulator_apk_selection.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_apk_signature_gate.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_offline_preview.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_neutral_assets.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_export_backup_boundary.py' -v
@@ -340,8 +350,29 @@ jobs:
             --output "$RUNNER_TEMP/pkforge-diagnostic-provenance.json" \
             --source-snapshot "$RUNNER_TEMP/pkforge-source-freeze.json"
           echo 'APK identity verified; upstream artwork redistribution NOT authorized.' >> "$GITHUB_STEP_SUMMARY"
-      - name: Retain provenance metadata only (NEVER upload the APK)
+      - name: Require exact attested APK Android cryptographic signer
+        id: apk-signer
         if: steps.apk-provenance.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          apksigner="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name apksigner -type f | sort -V | tail -n 1)"
+          test -n "$apksigner" && test -x "$apksigner"
+          python3 scripts/pkforge_emulator_apk_selection.py \
+            --provenance "$RUNNER_TEMP/pkforge-diagnostic-provenance.json" \
+            --build-dir /tmp/pkforge/src/PKForge.App/bin/Debug/net10.0-android \
+            --source-snapshot "$RUNNER_TEMP/pkforge-source-freeze.json" \
+            --expected-mobile-sha "$GITHUB_SHA" \
+            --output "$RUNNER_TEMP/pkforge-selected-apk.json"
+          python3 scripts/pkforge_apk_signature_gate.py \
+            --provenance "$RUNNER_TEMP/pkforge-diagnostic-provenance.json" \
+            --selection "$RUNNER_TEMP/pkforge-selected-apk.json" \
+            --build-dir /tmp/pkforge/src/PKForge.App/bin/Debug/net10.0-android \
+            --source-snapshot "$RUNNER_TEMP/pkforge-source-freeze.json" \
+            --expected-mobile-sha "$GITHUB_SHA" --apksigner "$apksigner"
+          echo 'Exact diagnostic APK signer verified; debug signer is NOT release authorization.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain provenance metadata only (NEVER upload the APK)
+        if: steps.apk-provenance.outcome == 'success' && steps.apk-signer.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: pkforge-adapted-editor-provenance-only
@@ -380,6 +411,7 @@ jobs:
           SOURCE_FREEZE: ${{ steps.source-freeze.outcome }}
           ANDROID: ${{ steps.android.outcome }}
           APK_PROVENANCE: ${{ steps.apk-provenance.outcome }}
+          APK_SIGNER: ${{ steps.apk-signer.outcome }}
         shell: bash
         run: |
           {
@@ -415,13 +447,14 @@ jobs:
             echo "Full build-input freeze: $SOURCE_FREEZE"
             echo "Android compile: $ANDROID"
             echo "APK identity/media provenance (metadata only): $APK_PROVENANCE"
-            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$PRIVATE_STORAGE" != success ] || [ "$PRIVATE_STORAGE_SMOKE" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$BACKUP_APK_MANIFEST" != success ] || [ "$NEUTRAL_APK_MEDIA" != success ] || [ "$APK_PROVENANCE" != success ]; then
+            echo "Exact selected APK cryptographic signer: $APK_SIGNER"
+            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$PRIVATE_STORAGE" != success ] || [ "$PRIVATE_STORAGE_SMOKE" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$BACKUP_APK_MANIFEST" != success ] || [ "$NEUTRAL_APK_MEDIA" != success ] || [ "$APK_PROVENANCE" != success ] || [ "$APK_SIGNER" != success ]; then
               echo '**OFFICIAL-CORE COMPATIBILITY GATE FAILED.** Inspect compilation and runtime smoke diagnostics.'
             else
               echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$PRIVATE_STORAGE" != success ] || [ "$PRIVATE_STORAGE_SMOKE" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$BACKUP_APK_MANIFEST" != success ] || [ "$NEUTRAL_APK_MEDIA" != success ] || [ "$APK_PROVENANCE" != success ]; then
+          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$PRIVATE_STORAGE" != success ] || [ "$PRIVATE_STORAGE_SMOKE" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$BACKUP_APK_MANIFEST" != success ] || [ "$NEUTRAL_APK_MEDIA" != success ] || [ "$APK_PROVENANCE" != success ] || [ "$APK_SIGNER" != success ]; then
             echo 'Retail-only official-Core compatibility gate failed.' >&2
             exit 1
           fi

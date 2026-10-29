@@ -354,7 +354,7 @@
       "title": "Queue-driven implementation and verification checkpoint handoff",
       "owner": "implementation",
       "priority": "P0",
-      "status": "ready",
+      "status": "in_progress",
       "total_hours": 45,
       "remaining_hours": 25,
       "dependencies": [],
@@ -396,7 +396,12 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40857993388",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40857993395"
       ],
-      "blockers": []
+      "blockers": [],
+      "claim": {
+        "branch": "impl/apk-cryptographic-signature-gate-20261029",
+        "pr": 114,
+        "base_sha": "3279b0bad68020dc34fc2b71147195dd30b0faab"
+      }
     },
     {
       "id": "PREVIEW-EXPORT-BACKUP",
