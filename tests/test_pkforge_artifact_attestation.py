@@ -123,6 +123,13 @@ class ArtifactAttestationTests(unittest.TestCase):
         self.assertTrue(entry["payload_structural_check"])
         self.assertFalse(entry["apk_tested_on_device"])
 
+    def test_real_dotnet_android_embedded_dll_so_layout(self):
+        self.make_apk(managed=False, extra_entries=[
+            ("lib/arm64-v8a/lib-PKForge.App.dll.so", b"synthetic app assembly")])
+        entry = self.make_report()["apks"][0]
+        self.assertEqual(entry["managed_payload_entries"],
+                         ["lib/arm64-v8a/lib-PKForge.App.dll.so"])
+
     def test_duplicate_zip_entry_refused(self):
         import warnings
         with warnings.catch_warnings():
