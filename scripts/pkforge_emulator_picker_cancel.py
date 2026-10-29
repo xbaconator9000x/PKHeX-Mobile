@@ -124,7 +124,12 @@ def open_picker() -> None:
         known = ("Get started", "Open a single save file", "Maybe later",
                  "Link an emulator", "File", "Hello! Welcome to PKForge!")
         visible = [label for label in known if any(label in text for text in labels)]
-        last_ui_state = ", ".join(visible) if visible else f"accessible nodes={len(nodes)}"
+        if visible:
+            last_ui_state = ", ".join(visible)
+        else:
+            # Classes are safe diagnostics even when MAUI text is inaccessible.
+            classes = sorted({node.get("class", "?") for node in nodes})
+            last_ui_state = f"accessible nodes={len(nodes)}; classes={classes[:8]}"
     raise RuntimeError("Real PKForge file picker did not open; " + last_ui_state)
 
 
