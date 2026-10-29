@@ -99,6 +99,31 @@ def is_picker(dump: str) -> bool:
     return any(package in activity for package in PICKER_PACKAGES)
 
 
+def exact_readonly_document_launch(log: str) -> bool:
+    """Only the last fresh DocumentsUI START intent can authorize this smoke."""
+    starts = [line for line in log.splitlines()
+              if "START u" in line and "documentsui" in line.lower()]
+    if not starts:
+        return False
+    line = starts[-1]
+    action = re.search(r"\\bact=([^\\s}]+)", line)
+    flags = re.search(r"\\bflg=0x([0-9a-fA-F]+)", line)
+    if action is None or action.group(1) != "android.intent.action.OPEN_DOCUMENT":
+        return False
+    if "android.intent.category.OPENABLE" not in line or flags is None:
+        return False
+    grants = int(flags.group(1), 16)
+    return bool(grants & 0x1) and not bool(grants & 0x2)
+
+
+def verify_file_picker_launch() -> None:
+    # The ActivityTaskManager START record is cleared immediately before the
+    # input that opens the picker. Foreground DocumentsUI alone is insufficient.
+    events = adb("shell", "logcat", "-d", "-b", "main", "-s", "ActivityTaskManager:I")
+    if not exact_readonly_document_launch(events):
+        raise RuntimeError("DocumentsUI did not prove fresh read-only ACTION_OPEN_DOCUMENT")
+
+
 def is_app(dump: str, package: str) -> bool:
     activity = resumed_activity(dump)
     return package + "/" in activity
@@ -122,8 +147,10 @@ def open_picker() -> None:
     for _ in range(20):
         adb("shell", "input", "keyevent", "97")  # KEYCODE_BUTTON_B: advance/cancel, never choose
         time.sleep(0.3)
+        adb("shell", "logcat", "-c", "-b", "main")
         adb("shell", "input", "keyevent", "99")  # KEYCODE_BUTTON_X -> HomePage LinkFileAsync
         if wait_for(is_picker, 3):
+            verify_file_picker_launch()
             return
         try:
             nodes = ui_nodes(retries=2)
@@ -132,8 +159,10 @@ def open_picker() -> None:
             nodes = []
         point = find_target(nodes)
         if point is not None:
+            adb("shell", "logcat", "-c", "-b", "main")
             adb("shell", "input", "tap", str(point[0]), str(point[1]))
             if wait_for(is_picker, 8):
+                verify_file_picker_launch()
                 return
         # Report only known public onboarding labels, never arbitrary UI text.
         labels = [node.get("text", "") or node.get("content-desc", "") for node in nodes]
