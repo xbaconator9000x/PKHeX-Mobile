@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "32e6b683be279d77bdfd87d079ad7566be75cfcf",
+  "main_sha": "b891827a510a553b0b09f82fd83ffe76d5e4455d",
   "observed_utc": "2026-10-29",
-  "last_pr": 120,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40878000895",
-  "note": "PR #120 merged at 32e6b683be279d77bdfd87d079ad7566be75cfcf. Exact head c2ded3b9892772dd25eb16fcfaebe9418d38cca9 passed queue 40878000895 (including live read-only open-PR lease scan) and Foundation 40878000893. GitHub Actions only selects/validates, never codes or publishes. QUEUE-RUN remains ready with 16 modelled hours; branch/PR lease released. PORT-DEVICE remains independently claimed by PR #118, with actual emulator provider picker CI pending. No export or release authorized."
+  "last_pr": 126,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40883278868",
+  "note": "Merged PR #124 at c89275c007b50c0b8ba0d25373014f41cf22e5cb (exact-head official-Core 40881697235, Foundation 40881697052, queue 40881697065): non-publishing PKForge detached nickname preview invalidates in-flight requests on MAUI page navigation. PR #125 checkpoint failed Foundation due real cancellation race; closed unmerged. Merged PR #126 at b891827a510a553b0b09f82fd83ffe76d5e4455d (official-Core 40883278868, Foundation 40883278895, Android read-only 40883278872, queue 40883279050): provider descriptor-close IOException is normalized against direct cancelled tokens, stress-tested. PORT-EDITOR and QUEUE-RUN leases released, remain ready with 153 and 14 modelled hours. PR #118 retains PORT-DEVICE claim; emulator picker still not certified and latest safe resumed-package diagnostic pending CI. No Save As or release authorized."
 }
