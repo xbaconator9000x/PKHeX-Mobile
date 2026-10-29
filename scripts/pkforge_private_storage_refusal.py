@@ -81,9 +81,15 @@ def adapt_maui(source):
     return once(source, IDENTITY_REG, "        builder.Services.AddSingleton<ISaveIdentityStore>(_ => new JsonSaveIdentityStore(null));")
 
 
+def remove_once(source, needle):
+    if source.count(needle) != 1:
+        raise OfflineRefusal("Pinned diagnostic privacy menu source drift or repeat adaptation")
+    return source.replace(needle, "", 1)
+
+
 def adapt_home(source):
-    source = once(source, LOG_MENU, "")
-    source = once(source, LOG_CASE, "")
+    source = remove_once(source, LOG_MENU)
+    source = remove_once(source, LOG_CASE)
     source = replace_section(source, LOG_START, LOG_END,
         ("AppLog.BuildShareArchive", "Share.Default.RequestAsync", "private async Task ShareLogsAsync"),
         '''    // Diagnostic preview never archives or shares logs, scan results or file names.
