@@ -76,13 +76,43 @@ class PickerCancelTests(unittest.TestCase):
               patch.object(module, "wait_for", return_value=True),
               patch.object(module, "verify_file_picker_launch") as verified,
               patch.object(module, "ui_nodes", side_effect=AssertionError("not needed"))):
-            module.open_picker()
+            module.open_picker("org.pkforge.app.debug")
         self.assertEqual([
-            ("shell", "input", "keyevent", "97"),
             ("shell", "logcat", "-c", "-b", "main"),
             ("shell", "input", "keyevent", "99"),
         ], [call.args for call in adb_call.call_args_list])
         verified.assert_called_once_with()
+
+    def test_unrecognized_foreground_never_receives_blind_back(self):
+        pkg = "org.pkforge.app.debug"
+        activity = "topResumedActivity=ActivityRecord{u0 " + pkg + "/crc.MainActivity}"
+        def fake_adb(*args):
+            return activity if args[:3] == ("shell", "dumpsys", "activity") else ""
+        with (patch.object(module, "adb", side_effect=fake_adb) as calls,
+              patch.object(module, "wait_for",
+                           side_effect=lambda predicate, seconds=20: predicate(activity)),
+              patch.object(module, "ui_nodes", return_value=[]),
+              patch.object(module.time, "sleep")):
+            with self.assertRaisesRegex(RuntimeError, "file picker did not open"):
+                module.open_picker(pkg)
+        self.assertNotIn(("shell", "input", "keyevent", "97"),
+                         [call.args for call in calls.call_args_list])
+
+    def test_welcome_dialogue_is_the_only_b_advance_route(self):
+        pkg = "org.pkforge.app.debug"
+        activity = "topResumedActivity=ActivityRecord{u0 " + pkg + "/crc.MainActivity}"
+        def fake_adb(*args):
+            return activity if args[:3] == ("shell", "dumpsys", "activity") else ""
+        with (patch.object(module, "adb", side_effect=fake_adb) as calls,
+              patch.object(module, "wait_for",
+                           side_effect=lambda predicate, seconds=20: predicate(activity)),
+              patch.object(module, "ui_nodes", return_value=[
+                  {"text": "Hello! Welcome to PKForge!", "class": "android.widget.TextView"}]),
+              patch.object(module.time, "sleep")):
+            with self.assertRaisesRegex(RuntimeError, "file picker did not open"):
+                module.open_picker(pkg)
+        self.assertIn(("shell", "input", "keyevent", "97"),
+                      [call.args for call in calls.call_args_list])
 
     def test_fresh_intent_parser_rejects_tree_stale_and_write_grants(self):
         def start(action, flags="0x41", category="android.intent.category.OPENABLE"):
