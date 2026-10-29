@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 import sys
 import tempfile
@@ -210,8 +211,8 @@ class AttestedEmulatorSelectionTests(unittest.TestCase):
         self.report["apks"] = [self.entry(self.unsigned)]
         with self.assertRaisesRegex(SelectionError, "Expected one"):
             self.choose()
-        self.assertEqual(self.choose(variant="single")["path"],
-                         str(self.unsigned.absolute()))
+        with self.assertRaisesRegex(SelectionError, "Only signed"):
+            self.choose(variant="single")
 
     def test_stale_commit_rejected(self):
         self.report["pins"]["mobile_head"] = "c" * 40
@@ -258,6 +259,53 @@ class AttestedEmulatorSelectionTests(unittest.TestCase):
         self.report["apks"].append(copy.deepcopy(self.report["apks"][0]))
         with self.assertRaisesRegex(SelectionError, "duplicate"):
             self.choose()
+
+
+    def cli(self, *extra):
+        provenance = self.build / "provenance.json"
+        if not provenance.exists():
+            provenance.write_text(json.dumps(self.report), encoding="utf-8")
+        return subprocess.run([
+            sys.executable,
+            str(Path(__file__).resolve().parents[1] /
+                "scripts/pkforge_emulator_apk_selection.py"),
+            "--provenance", str(provenance),
+            "--build-dir", str(self.build),
+            "--source-snapshot", str(self.snapshot),
+            "--expected-mobile-sha", SOURCE_SHA,
+            *extra,
+        ], capture_output=True, text=True, check=False)
+
+    def test_cli_atomic_selection_and_immediate_reverification(self):
+        output = self.build / "selected.json"
+        first = self.cli("--output", str(output))
+        self.assertEqual(first.returncode, 0, first.stderr)
+        selected = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(selected["path"], str(self.signed.absolute()))
+        again = self.cli("--verify-selection", str(output))
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.signed.write_bytes(b"x" * self.signed.stat().st_size)
+        changed = self.cli("--verify-selection", str(output))
+        self.assertNotEqual(changed.returncode, 0)
+
+    def test_cli_clears_stale_selection_before_failed_provenance(self):
+        output = self.build / "selected.json"
+        output.write_text('{"stale": true}', encoding="utf-8")
+        provenance = self.build / "provenance.json"
+        provenance.write_text("{invalid", encoding="utf-8")
+        failed = self.cli("--output", str(output))
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertFalse(output.exists(), "Stale selection must not survive failure")
+
+    def test_cli_rejects_output_alias_and_unsigned_variant(self):
+        provenance = self.build / "provenance.json"
+        provenance.write_text(json.dumps(self.report), encoding="utf-8")
+        aliased = self.cli("--output", str(provenance))
+        self.assertNotEqual(aliased.returncode, 0)
+        self.assertTrue(provenance.exists(), "Do not erase provenance itself")
+        unsupported = self.cli("--variant", "single",
+                               "--output", str(self.build / "selection.json"))
+        self.assertNotEqual(unsupported.returncode, 0)
 
     def test_size_mismatch_rejected(self):
         self.report["apks"][0]["size_bytes"] += 1

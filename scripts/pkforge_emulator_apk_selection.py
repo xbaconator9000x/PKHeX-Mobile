@@ -7,6 +7,8 @@ save-write, or release certification. Never silently select the first find resul
 import argparse
 import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 import re
 
@@ -85,8 +87,8 @@ def select_apk(report: dict, build_dir: Path, expected_mobile_sha: str,
                source_snapshot: Path | None = None) -> dict:
     """Verify source pin, unique attested filename and actual APK bytes.
 
-    signed: exactly one attested *-Signed.apk; no unsigned fallback.
-    single: exactly one attested APK of any name. Both reject ambiguity.
+    Only one attested *-Signed.apk is accepted. Never use a generic
+    single-APK/unsigned fallback for an emulator installation.
     """
     _require_sha(expected_mobile_sha, GIT_SHA, "expected source commit")
     if not isinstance(report, dict) or report.get("schema") != 1:
@@ -121,12 +123,9 @@ def select_apk(report: dict, build_dir: Path, expected_mobile_sha: str,
         names.append(name)
     if len(names) != len(set(names)):
         raise SelectionError("Ambiguous duplicate attested APK names")
-    if variant == "signed":
-        candidates = [x for x in apks if x["filename"].endswith("-Signed.apk")]
-    elif variant == "single":
-        candidates = apks
-    else:
-        raise SelectionError("Unknown selection variant")
+    if variant != "signed":
+        raise SelectionError("Only signed APK selection is permitted")
+    candidates = [x for x in apks if x["filename"].endswith("-Signed.apk")]
     if len(candidates) != 1:
         raise SelectionError(f"Expected one {variant} APK, got {len(candidates)}")
     chosen = candidates[0]
@@ -190,11 +189,26 @@ def main() -> None:
     parser.add_argument("--expected-mobile-sha", required=True)
     parser.add_argument("--source-snapshot", type=Path, required=True,
                         help="Same-run prebuild snapshot; never use a downloaded artifact")
-    parser.add_argument("--variant", choices=("signed", "single"), default="signed")
+    parser.add_argument("--variant", choices=("signed",), default="signed")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--verify-selection", type=Path,
                         help="Fail closed if the selected APK or source attestation changed")
     args = parser.parse_args()
+    # Clear any prior selection before consuming provenance. A failed producer
+    # or failed selection must not leave an installable stale selection record.
+    # The workflow must also remove stale producer provenance before its run.
+    if args.verify_selection is None:
+        if args.output is None:
+            parser.error("--output is required when not verifying a selection")
+        if (args.output.is_symlink() or args.output.parent.is_symlink()
+                or args.output.resolve() in (
+                    args.provenance.resolve(), args.source_snapshot.resolve())):
+            raise SelectionError("Unsafe or aliased selection output path")
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        if args.output.exists():
+            if not args.output.is_file():
+                raise SelectionError("Selection output is not a regular file")
+            args.output.unlink()
     report = json.loads(args.provenance.read_text(encoding="utf-8"))
     if args.verify_selection is not None:
         selected = json.loads(args.verify_selection.read_text(encoding="utf-8"))
@@ -203,13 +217,22 @@ def main() -> None:
                             args.source_snapshot)
         print("Exact attested APK reverified immediately before emulator install.")
         return
-    if args.output is None:
-        parser.error("--output is required when not verifying a selection")
     result = select_apk(report, args.build_dir, args.expected_mobile_sha,
                         args.variant, args.source_snapshot)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n",
-                           encoding="utf-8")
+    # Publish only a complete validated record, never a partially written JSON.
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=args.output.parent,
+                prefix=".apk-selection-", suffix=".tmp", delete=False) as stream:
+            temp_path = Path(stream.name)
+            stream.write(json.dumps(result, sort_keys=True, indent=2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_path, args.output)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
     print("Selected exact attested diagnostic APK for ephemeral emulator only; "
           "no APK uploaded or release authorized.")
 
