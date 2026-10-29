@@ -47,7 +47,7 @@ class OpenPrLeaseTests(unittest.TestCase):
             lease.collect(self.queue, [self.pr], lambda sha: wrong)
         other = copy.deepcopy(self.pr)
         other["number"] = 124
-        other["head"] = {**self.pr["head"], "ref": "impl/pr-lease-other"}
+        other["head"] = {**self.pr["head"], "ref": "impl/pr-lease-other", "sha": "c" * 40}
         other_branch = copy.deepcopy(self.branch)
         next(t for t in other_branch["tasks"] if t["id"] == "QUEUE-RUN")["claim"] = {
             "branch": "impl/pr-lease-other", "pr": 124, "base_sha": "c" * 40}
