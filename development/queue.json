@@ -170,9 +170,9 @@
       "title": "Adapt PKForge Pokémon, party and box editing into detached staging only",
       "owner": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 155,
-      "remaining_hours": 153,
+      "remaining_hours": 149,
       "dependencies": [
         "PORT-APK"
       ],
@@ -187,14 +187,13 @@
       "evidence": [
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/124",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40881697235",
-        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40881697052"
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40881697052",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/129",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40892183078",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40892183705",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40892183077"
       ],
-      "blockers": [],
-      "claim": {
-        "branch": "impl/preview-request-cancellation-20261030",
-        "pr": 129,
-        "base_sha": "2326c8a215c56bcf271af0fca033d71b29e1bc71"
-      }
+      "blockers": []
     },
     {
       "id": "SAFE-EXPORT",
@@ -373,9 +372,9 @@
       "title": "Queue-driven implementation and verification checkpoint handoff",
       "owner": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 45,
-      "remaining_hours": 14,
+      "remaining_hours": 11,
       "dependencies": [],
       "locks": [
         "queue"
@@ -424,14 +423,12 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/126",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40883278895",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40883278872",
-        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40883278868"
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40883278868",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/130",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40892452813",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40892452776"
       ],
-      "blockers": [],
-      "claim": {
-        "branch": "impl/queue-lease-ancestry-20261030",
-        "pr": 130,
-        "base_sha": "2326c8a215c56bcf271af0fca033d71b29e1bc71"
-      }
+      "blockers": []
     },
     {
       "id": "PREVIEW-EXPORT-BACKUP",
