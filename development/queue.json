@@ -368,9 +368,9 @@
       "title": "Contain independent PKForge whole-save sharing and Android backup",
       "owner": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 35,
-      "remaining_hours": 5,
+      "remaining_hours": 3,
       "dependencies": [
         "BASE-PORT"
       ],
@@ -382,7 +382,8 @@
         "Diagnostic Infrastructure bank mutations and raw-save backup creation refused by executable synthetic smoke",
         "Android emulator/device cold-install, upgrade and cloud/D2D transfer tests with synthetic sentinels remain outstanding",
         "Audit other app-private gift, identity, cache and share persistence before release",
-        "Diagnostic injected-gift history and save identity metadata use upstream nullable in-memory stores; log archives and crash sharing prompts are removed in adapted MAUI, with pinned-source drift tests and official-Core Android compile"
+        "Diagnostic injected-gift history and save identity metadata use upstream nullable in-memory stores; log archives and crash sharing prompts are removed in adapted MAUI, with pinned-source drift tests and official-Core Android compile",
+        "Diagnostic PKForge single-slot and bulk Pokémon export, bank entity export and event-card/entity export are denied before cache bytes or sharing, with pinned-source tests and official-Core Android compile"
       ],
       "evidence": [
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/78",
@@ -393,11 +394,12 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40824075390",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/84",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825365765",
-        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825365775"
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825365775",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/86",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825923538",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825923821"
       ],
-      "blockers": [],
-      "claim_branch": "impl/diagnostic-entity-cache-export-containment-20261029",
-      "claim_base_sha": "55d853e4b41ec7e764bf39c30a5736c568d4c881"
+      "blockers": []
     }
   ]
 }
