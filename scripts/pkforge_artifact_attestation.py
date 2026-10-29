@@ -156,30 +156,28 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
                                 r"lib(?:monodroid|monosgen-2\.0|xamarin-app)\.so",
                                 name))
             managed = sorted(name for name in names if (
-                name.startswith("assemblies/") and
-                (name.endswith(".dll") or name.endswith("assemblies.blob"))
-            ) or re.fullmatch(
-                r"lib/(?:arm64-v8a|armeabi-v7a|x86|x86_64)/"
-                r"lib(?:-PKForge\.App\.dll|PKForge\.App\.dll|assemblies|monodroid_bundle_app)\.so",
-                name
+                re.fullmatch(
+                    r"assemblies/PKForge\\.(?:App|Engine|Infrastructure)\\.dll",
+                    name,
+                ) or re.fullmatch(
+                    r"lib/(?:arm64-v8a|armeabi-v7a|x86|x86_64)/"
+                    r"lib[_-]PKForge\\.(?:App|Engine|Infrastructure)\\.dll\\.so",
+                    name,
+                )
             ))
             if not dex:
                 raise AttestationError("APK missing executable classes.dex payload")
             if not native:
                 raise AttestationError("APK missing .NET Android native runtime payload")
-            if not managed:
-                candidates = sorted(
-                    name for name in names
-                    if ("PKForge" in name or "assembl" in name.lower()
-                        or "bundle" in name.lower())
-                )[:32]
-                if not candidates:
-                    candidates = sorted(name for name in names
-                                        if name.endswith(".dll.so"))[-12:]
-                raise AttestationError(
-                    "APK missing embedded managed assembly payload; "
-                    f"runtime-layout candidates={candidates!r}"
-                )
+            for component in ("App", "Engine", "Infrastructure"):
+                if not any(f"PKForge.{component}.dll" in name for name in managed):
+                    candidates = sorted(
+                        name for name in names if "PKForge" in name
+                    )[:20]
+                    raise AttestationError(
+                        f"APK missing embedded PKForge.{component} managed payload; "
+                        f"observed={candidates!r}"
+                    )
 
             # Hash the actual packaged entries, including implicitly imported
             # resources. Source project Include globs alone cannot prove contents.
