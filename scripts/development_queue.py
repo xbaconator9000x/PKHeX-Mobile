@@ -45,6 +45,10 @@ def validate(q, c):
         ids[ident] = task
         for key in KEYS - task.keys():
             errors.append(ident + ": missing " + key)
+        # Schema 1 is strict: legacy claim_branch/claim_base_sha keys must
+        # never silently bypass the reviewed branch/PR/base-SHA lease.
+        for key in sorted(task.keys() - KEYS - {"claim"}):
+            errors.append(ident + ": unsupported task field " + key)
         if task.get("owner") not in OWNERS or task.get("status") not in STATES or task.get("priority") not in PRIORITY:
             errors.append(ident + ": invalid owner/status/priority")
         total, remain = task.get("total_hours"), task.get("remaining_hours")
@@ -60,6 +64,8 @@ def validate(q, c):
         if not task.get("locks") or not task.get("acceptance"):
             errors.append(ident + ": locks and tests are mandatory")
         claim = task.get("claim")
+        if task.get("status") == "in_progress" and claim is None:
+            errors.append(ident + ": active task requires an exact claim")
         if claim is not None:
             if task.get("status") != "in_progress":
                 errors.append(ident + ": only active tasks may hold a claim")

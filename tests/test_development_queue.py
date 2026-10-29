@@ -90,6 +90,26 @@ class QueueGates(unittest.TestCase):
         task["status"] = "ready"
         self.assertTrue(dq.validate(q, self.checkpoint))
 
+    def test_active_claim_is_mandatory_and_legacy_fields_are_refused(self):
+        q = copy.deepcopy(self.queue)
+        task = next(t for t in q["tasks"] if t["id"] == "PORT-APK")
+        task["status"] = "in_progress"
+        self.assertTrue(any("requires an exact claim" in error
+                            for error in dq.validate(q, self.checkpoint)))
+        task["claim_branch"] = "impl/legacy"
+        task["claim_base_sha"] = "a" * 40
+        errors = dq.validate(q, self.checkpoint)
+        self.assertTrue(any("unsupported task field claim_branch" in e for e in errors))
+        self.assertTrue(any("unsupported task field claim_base_sha" in e for e in errors))
+        task["claim"] = {"branch": "impl/reviewed", "pr": 106, "base_sha": "a" * 40}
+        self.assertTrue(dq.validate(q, self.checkpoint))
+        del task["claim_branch"]
+        del task["claim_base_sha"]
+        self.assertEqual([], dq.validate(q, self.checkpoint))
+        task["unreviewed_extension"] = "unsafe"
+        self.assertTrue(any("unsupported task field" in e
+                            for e in dq.validate(q, self.checkpoint)))
+
     def test_resume_requires_full_explicit_claim(self):
         q = copy.deepcopy(self.queue)
         task = next(t for t in q["tasks"] if t["id"] == "PORT-APK")
