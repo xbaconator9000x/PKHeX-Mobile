@@ -66,7 +66,7 @@ class ArtifactAttestationTests(unittest.TestCase):
             + "'" + package + "'\n")
         self.packager.chmod(0o755)
 
-    def make_report(self):
+    def make_report(self, source_snapshot=None):
         def head(path):
             if path == self.root:
                 return audit.PKFORGE
@@ -78,7 +78,7 @@ class ArtifactAttestationTests(unittest.TestCase):
                 return "a" * 40
             raise AssertionError(path)
         with patch.object(audit, "git_head", side_effect=head):
-            return audit.attestation(self.root, self.mobile, self.packager)
+            return audit.attestation(self.root, self.mobile, self.packager,\n                                     source_snapshot=source_snapshot)
 
     def test_reports_actual_apk_hash_and_disallows_distribution(self):
         report = self.make_report()
@@ -90,6 +90,48 @@ class ArtifactAttestationTests(unittest.TestCase):
         self.assertFalse(report["rights_review_complete"])
         self.assertEqual(report["nuget"]["libraries"], ["PKHeX.Core/26.10.18"])
         self.assertTrue(report["assets"][0]["sha256"])
+
+    def test_frozen_source_snapshot_matches_after_packaging(self):
+        snapshot = Path(self.temp.name) / "source-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot)
+        report = self.make_report(snapshot)
+        self.assertTrue(report["frozen_source"]["source_unchanged_after_build"])
+        self.assertEqual(report["frozen_source"]["sha256"], audit.digest(snapshot))
+
+    def test_source_mutation_after_freeze_refused(self):
+        snapshot = Path(self.temp.name) / "source-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot)
+        (self.app / "PKForge.App.csproj").write_text(PROJECT_XML + "\\n")
+        with self.assertRaisesRegex(audit.AttestationError, "Source changed"):
+            self.make_report(snapshot)
+
+    def test_new_source_file_after_freeze_refused(self):
+        snapshot = Path(self.temp.name) / "source-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot)
+        new_file = self.root / "src/PKForge.Engine/Unexpected.cs"
+        new_file.parent.mkdir()
+        new_file.write_text("class Unexpected {}")
+        with self.assertRaisesRegex(audit.AttestationError, "Unexpected.cs"):
+            self.make_report(snapshot)
+
+    def test_generated_obj_files_do_not_break_source_freeze(self):
+        snapshot = Path(self.temp.name) / "source-freeze.json"
+        audit.write_source_snapshot(self.root, snapshot)
+        (self.app / "obj/Generated.cs").write_text("class Generated {}")
+        self.assertTrue(self.make_report(snapshot)["frozen_source"]
+                        ["source_unchanged_after_build"])
+
+    def test_missing_snapshot_is_refused(self):
+        snapshot = Path(self.temp.name) / "missing.json"
+        with self.assertRaisesRegex(audit.AttestationError, "frozen source snapshot"):
+            self.make_report(snapshot)
+
+    def test_source_symlink_is_refused(self):
+        target = Path(self.temp.name) / "other.cs"
+        target.write_text("class Other {}")
+        (self.app / "Other.cs").symlink_to(target)
+        with self.assertRaisesRegex(audit.AttestationError, "Symlink"):
+            audit.source_tree_manifest(self.root)
 
     def test_payload_gate_rejects_manifest_only_spoof(self):
         self.make_apk(dex=False, native=False, managed=False)
