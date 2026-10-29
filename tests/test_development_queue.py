@@ -23,13 +23,25 @@ class QueueGates(unittest.TestCase):
             self.assertTrue(dq.validate(q, self.checkpoint))
 
     def test_priority_and_conflicting_locks(self):
-        selected = dq.select(self.queue, count=25)["selected"]
+        # An implementation PR may legitimately claim PORT-APK in_progress.
+        # Exercise both states explicitly rather than requiring main's live queue
+        # to remain unclaimed while the emulator PR is under review.
+        q = copy.deepcopy(self.queue)
+        apk = next(t for t in q["tasks"] if t["id"] == "PORT-APK")
+        apk["status"] = "ready"
+        selected = dq.select(q, count=25)["selected"]
         names = {x["id"] for x in selected}
         self.assertIn("PORT-APK", names)
         self.assertNotIn("PORT-DEVICE", names)
         self.assertNotIn("SAFE-EXPORT", names)
         locks = [l for x in selected for l in x["locks"]]
         self.assertEqual(len(locks), len(set(locks)))
+
+        apk["status"] = "in_progress"
+        claimed = {x["id"] for x in dq.select(q, count=25)["selected"]}
+        self.assertNotIn("PORT-APK", claimed)
+        resumed = {x["id"] for x in dq.select(q, count=25, resume=True)["selected"]}
+        self.assertIn("PORT-APK", resumed)
 
     def test_active_tasks_not_stolen(self):
         q = copy.deepcopy(self.queue)
@@ -43,6 +55,7 @@ class QueueGates(unittest.TestCase):
         x = next(t for t in q["tasks"] if t["id"] == "PORT-APK")
         x["status"] = "verified"
         x["remaining_hours"] = 0
+        x["evidence"] = []
         self.assertTrue(dq.validate(q, self.checkpoint))
         x["evidence"].append("https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/1")
         self.assertFalse(dq.validate(q, self.checkpoint))
