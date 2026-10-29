@@ -4,6 +4,6 @@
   "main_sha": "374e2e35a2d131feb4f64a637c50de217b708a20",
   "observed_utc": "2026-10-29",
   "last_pr": 101,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40843392176",
-  "note": "PR #101 merged at 374e2e35a2d131feb4f64a637c50de217b708a20 after PR-head official-Core Android, Foundation and queue CI green. Official-Core workflow now triggers on relevant merged-main push and covers Domain/ReadOnly/residual-cache transitive sources. Merged-main official-Core run 40843980513 was triggered but its conclusion remains pending at this checkpoint draft; do not count it green without inspection. QUEUE-RUN ready with 36 modelled hours; emulator PR #83 independently owned; save writes disabled."
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40843980513",
+  "note": "PR #101 merged at 374e2e35a2d131feb4f64a637c50de217b708a20; exact merged-main official-Core Android integration run 40843980513, Foundation 40843980515 and queue 40843980539 all PASSED. PR-head official-Core 40843392176 also passed. Main push trigger now covers Domain/ReadOnly and transitive residual-cache adapter with negative trigger tests. QUEUE-RUN ready with 36 modelled hours, not verified; emulator PR #83 independently owned; no Android device/provider or save-write certification."
 }
