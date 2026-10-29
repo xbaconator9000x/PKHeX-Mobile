@@ -170,7 +170,7 @@
       "title": "Adapt PKForge Pokémon, party and box editing into detached staging only",
       "owner": "implementation",
       "priority": "P1",
-      "status": "ready",
+      "status": "in_progress",
       "total_hours": 155,
       "remaining_hours": 155,
       "dependencies": [
@@ -185,7 +185,12 @@
         "Reproduce and mitigate MoveBox and pointer hazards"
       ],
       "evidence": [],
-      "blockers": []
+      "blockers": [],
+      "claim": {
+        "branch": "impl/preview-navigation-invalidation-20261029",
+        "pr": 124,
+        "base_sha": "cc55ca64ce2a3387167c960a9afac09a07467f49"
+      }
     },
     {
       "id": "SAFE-EXPORT",
