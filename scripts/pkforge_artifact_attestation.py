@@ -124,13 +124,70 @@ def find_android_packager() -> Path:
 
 
 def inspect_apk(apk: Path, packager: Path) -> dict:
+    """Inspect actual packaged runtime, not merely a spoofable package label.
+
+    This is a structural diagnostic, NOT an Android launch or rights certificate.
+    Managed assemblies may use the .NET Android assembly store, so both the
+    ordinary DLL layout and the documented packed layouts are recognized.
+    """
     if apk.is_symlink() or not apk.is_file() or apk.stat().st_size == 0:
         raise AttestationError("Missing, symlinked or empty APK")
     try:
         with zipfile.ZipFile(apk) as archive:
-            if archive.testzip() is not None or "AndroidManifest.xml" not in archive.namelist():
+            infos = [info for info in archive.infolist() if not info.is_dir()]
+            names = [info.filename for info in infos]
+            if len(names) != len(set(names)):
+                raise AttestationError("Duplicate APK ZIP entries")
+            if any(
+                name.startswith("/") or "\\" in name
+                or any(part in ("", ".", "..") for part in name.split("/"))
+                or (info.external_attr >> 16) & 0o170000 == 0o120000
+                for info, name in zip(infos, names)
+            ):
+                raise AttestationError("Unsafe APK ZIP entry path or symlink")
+            if archive.testzip() is not None or "AndroidManifest.xml" not in names:
                 raise AttestationError("Invalid APK archive or missing manifest")
-    except zipfile.BadZipFile as exc:
+
+            dex = sorted(name for name in names
+                         if re.fullmatch(r"classes(?:[0-9]+)?\\.dex", name))
+            native = sorted(name for name in names
+                            if re.fullmatch(
+                                r"lib/(?:arm64-v8a|armeabi-v7a|x86|x86_64)/"
+                                r"lib(?:monodroid|monosgen-2\\.0|xamarin-app)\\.so",
+                                name))
+            managed = sorted(name for name in names if (
+                name.startswith("assemblies/") and
+                (name.endswith(".dll") or name.endswith("assemblies.blob"))
+            ) or re.fullmatch(
+                r"lib/(?:arm64-v8a|armeabi-v7a|x86|x86_64)/"
+                r"lib(?:PKForge\\.App\\.dll|assemblies|monodroid_bundle_app)\\.so",
+                name
+            ))
+            if not dex:
+                raise AttestationError("APK missing executable classes.dex payload")
+            if not native:
+                raise AttestationError("APK missing .NET Android native runtime payload")
+            if not managed:
+                raise AttestationError("APK missing embedded managed assembly payload")
+
+            # Hash the actual packaged entries, including implicitly imported
+            # resources. Source project Include globs alone cannot prove contents.
+            entry_hash = hashlib.sha256()
+            media_count = 0
+            for info in sorted(infos, key=lambda item: item.filename):
+                h = hashlib.sha256()
+                with archive.open(info) as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        h.update(chunk)
+                entry_hash.update(
+                    f"{info.filename}\\0{info.file_size}\\0{h.hexdigest()}\\n".encode()
+                )
+                if (info.filename.startswith(("assets/", "res/", "resources/"))
+                        or info.filename.lower().endswith(
+                            (".png", ".jpg", ".jpeg", ".webp", ".ttf", ".otf",
+                             ".svg", ".mp3", ".wav", ".gif"))):
+                    media_count += 1
+    except (zipfile.BadZipFile, RuntimeError, OSError) as exc:
         raise AttestationError("Invalid APK ZIP") from exc
     try:
         result = subprocess.run(
@@ -139,13 +196,21 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
         )
     except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         raise AttestationError("Android package identity inspection failed") from exc
-    match = re.search(r"^package:\s+name='([^']+)'", result.stdout, re.MULTILINE)
+    match = re.search(r"^package:\\s+name='([^']+)'", result.stdout, re.MULTILINE)
     if not match or match.group(1) != EXPECTED_PACKAGE:
         raise AttestationError("Unexpected Android package ID; refuse artifact handoff")
     return {
         "filename": apk.name, "sha256": digest(apk),
         "size_bytes": apk.stat().st_size, "application_id": match.group(1),
         "apk_tested_on_device": False,
+        "payload_structural_check": True,
+        "dex_entries": dex,
+        "native_runtime_entries": native,
+        "managed_payload_entries": managed,
+        "packaged_entry_count": len(infos),
+        "packaged_entry_manifest_sha256": entry_hash.hexdigest(),
+        "packaged_media_entry_count_unreviewed": media_count,
+        "packaged_media_rights_verified": False,
     }
 
 
