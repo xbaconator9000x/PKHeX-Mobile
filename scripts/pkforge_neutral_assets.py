@@ -135,11 +135,55 @@ def prepare(root: Path) -> None:
     for path, content in staged.items():
         path.write_text(content, encoding="utf-8")
 
+def verify_apks(root: Path) -> list[str]:
+    """Refuse known media in the *actual* diagnostic APK, not only project XML.
+
+    This is a negative gate, not positive redistribution clearance. Native
+    resources, managed embedded data and NuGet licensing still need review.
+    """
+    import zipfile
+    verify_pins(root)
+    apks = sorted((root / "src/PKForge.App/bin/Debug/net10.0-android").rglob("*.apk"))
+    if not apks:
+        raise NeutralAssetRefusal("No diagnostic APK to inspect")
+    forbidden_prefixes = (
+        "assets/gameart/", "assets/gamehero/", "assets/gamelogo/",
+        "assets/badapple/", "assets/showdown/", "assets/sprites/",
+        "assets/artwork/", "assets/ribbons/", "assets/wallpapers/",
+        "assets/pokepark/", "assets/dex/", "assets/events/",
+        "assets/balls/", "assets/ui/", "assets/NDS12",
+    )
+    verified = []
+    for apk in apks:
+        if apk.is_symlink() or not apk.is_file() or not apk.resolve().is_relative_to(root.resolve()):
+            raise NeutralAssetRefusal("Untrusted diagnostic APK path")
+        try:
+            with zipfile.ZipFile(apk) as archive:
+                names = [entry.filename for entry in archive.infolist() if not entry.is_dir()]
+                suspicious = [
+                    name for name in names
+                    if name.lower().endswith((".ttf", ".otf", ".m4a", ".mp3", ".wav"))
+                    or name.lower().startswith(tuple(p.lower() for p in forbidden_prefixes))
+                    or "badapple" in name.lower() or "nds12" in name.lower()
+                ]
+                if suspicious:
+                    raise NeutralAssetRefusal("Forbidden packaged media: " + repr(suspicious[:10]))
+                if archive.testzip() is not None:
+                    raise NeutralAssetRefusal("Corrupt diagnostic APK ZIP")
+        except (OSError, zipfile.BadZipFile) as exc:
+            raise NeutralAssetRefusal("Unreadable diagnostic APK") from exc
+        verified.append(str(apk))
+    return verified
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--verify-apks", action="store_true")
     args = parser.parse_args()
-    prepare(args.repo)
+    if args.verify_apks:
+        print("Neutral APK negative-media gate:", *verify_apks(args.repo), sep="\n")
+    else:
+        prepare(args.repo)
 
 if __name__ == "__main__":
     main()
