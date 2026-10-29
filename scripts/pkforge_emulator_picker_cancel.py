@@ -97,27 +97,35 @@ def wait_for(predicate, seconds: int = 20) -> bool:
 
 
 def open_picker() -> None:
-    # Pinned HomePage routes gamepad X to LinkFileAsync. Prefer that existing
-    # path: accessibility hierarchy dumps can transiently return no root on
-    # Android 35. Never launch a picker ourselves or choose a document.
-    last_ui_error = "not attempted"
-    for _ in range(16):
+    # The pinned DialogueBox advances on B; the first-run PadMenu cancels
+    # safely on B. Unlike A, B can NEVER select the default "Link an emulator"
+    # option (which could open a folder picker and cause a false-positive).
+    # Once Home owns the router, X calls its existing LinkFileAsync path.
+    # No picker is launched by this script and no document is selected.
+    last_ui_state = "no accessible labels"
+    for _ in range(20):
+        adb("shell", "input", "keyevent", "97")  # KEYCODE_BUTTON_B: advance/cancel, never choose
+        time.sleep(0.3)
         adb("shell", "input", "keyevent", "99")  # KEYCODE_BUTTON_X -> HomePage LinkFileAsync
         if wait_for(is_picker, 3):
             return
         try:
             nodes = ui_nodes(retries=2)
         except RuntimeError as error:
-            last_ui_error = str(error)
+            last_ui_state = str(error)
             nodes = []
         point = find_target(nodes)
         if point is not None:
             adb("shell", "input", "tap", str(point[0]), str(point[1]))
             if wait_for(is_picker, 8):
                 return
-        adb("shell", "input", "keyevent", "96")  # gamepad A: advance intro
-        time.sleep(0.4)
-    raise RuntimeError("Real PKForge file picker did not open; " + last_ui_error)
+        # Report only known public onboarding labels, never arbitrary UI text.
+        labels = [node.get("text", "") or node.get("content-desc", "") for node in nodes]
+        known = ("Get started", "Open a single save file", "Maybe later",
+                 "Link an emulator", "File", "Hello! Welcome to PKForge!")
+        visible = [label for label in known if any(label in text for text in labels)]
+        last_ui_state = ", ".join(visible) if visible else f"accessible nodes={len(nodes)}"
+    raise RuntimeError("Real PKForge file picker did not open; " + last_ui_state)
 
 
 def run(package: str) -> None:
