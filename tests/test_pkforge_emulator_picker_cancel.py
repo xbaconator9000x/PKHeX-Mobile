@@ -37,13 +37,31 @@ class PickerCancelTests(unittest.TestCase):
 
     def test_transient_empty_accessibility_dump_recovers_without_ui_leak(self):
         good = "<hierarchy><node text='File' bounds='[0,0][20,20]'/></hierarchy>"
-        with patch.object(module, "adb", side_effect=[
-            "dumped", "<?xml version='1.0'?>", "dumped", good,
-        ]) as adb_call, patch.object(module.time, "sleep") as pause:
+        xml = iter(["<?xml version='1.0'?>", good])
+        def fake_adb(*args):
+            return next(xml) if args[:2] == ("exec-out", "cat") else ""
+        with patch.object(module, "adb", side_effect=fake_adb) as adb_call, \\
+             patch.object(module.time, "sleep") as pause:
             nodes = module.ui_nodes(retries=2)
         self.assertEqual("File", nodes[0]["text"])
-        self.assertEqual(4, adb_call.call_count)
+        self.assertEqual(8, adb_call.call_count)
+        paths = [call.args[-1] for call in adb_call.call_args_list
+                 if call.args[:3] == ("shell", "rm", "-f")]
+        self.assertEqual(2, len(paths))
+        self.assertEqual(2, len(set(paths)))
+        self.assertTrue(all(path.startswith("/data/local/tmp/") for path in paths))
+        self.assertEqual(2, sum(call.args[:4] == ("shell", "test", "!", "-e")
+                                for call in adb_call.call_args_list))
         pause.assert_called_once_with(0.5)
+
+    def test_xml_cleanup_failure_is_never_swallowed(self):
+        def fake_adb(*args):
+            if args[:3] == ("shell", "rm", "-f"):
+                raise RuntimeError("synthetic cleanup failure")
+            return "<hierarchy/>" if args[:2] == ("exec-out", "cat") else ""
+        with patch.object(module, "adb", side_effect=fake_adb):
+            with self.assertRaises(module.CleanupFailure):
+                module.ui_nodes(retries=2)
 
     def test_persistent_missing_accessibility_root_fails_closed(self):
         with patch.object(module, "adb", return_value="ERROR"), patch.object(module.time, "sleep"):
@@ -75,6 +93,8 @@ class PickerCancelTests(unittest.TestCase):
         self.assertIn('keyevent", "97"', source)
         self.assertNotIn('keyevent", "96"', source)  # A could choose the folder picker.
         self.assertIn("ui_nodes(retries=2)", source)
+        self.assertNotIn("/sdcard/", source)
+        self.assertIn('adb("shell", "test", "!", "-e", path)', source)
         self.assertIn("No document selected", source)
 
 
