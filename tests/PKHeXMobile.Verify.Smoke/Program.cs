@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text.Json;
 using PKHeXMobile.ReadOnly;
 using PKHeXMobile.Verify;
 
@@ -113,3 +116,60 @@ if (openCount != 2 || !FixtureOutcomePolicy.RefusalMatches(refusal.IsRecognized,
     refusal.Result is not null || !invalidFixture.SequenceEqual(untouched))
     throw new Exception("Two-open negative fixture was accepted, mutated or incompletely verified.");
 Console.WriteLine("Fixture schema-17 negative/positive policy and synthetic two-open refusal passed.");
+
+
+// Exercise the real CLI manifest parser and reader, not only the policy helper.
+// All inputs are generated in a private temporary directory and removed.
+static async Task<int> RunVerifierAsync(string project, string manifest)
+{
+    var psi = new ProcessStartInfo("dotnet")
+    {
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+    };
+    foreach (var arg in new[] { "run", "--no-build", "--project", project,
+        "--configuration", "Release", "--", manifest })
+        psi.ArgumentList.Add(arg);
+    using var process = Process.Start(psi) ?? throw new Exception("Could not start fixture verifier.");
+    _ = await process.StandardOutput.ReadToEndAsync();
+    _ = await process.StandardError.ReadToEndAsync();
+    await process.WaitForExitAsync();
+    return process.ExitCode;
+}
+var projectPath = Path.Combine(Directory.GetCurrentDirectory(), "src",
+    "PKHeXMobile.Verify", "PKHeXMobile.Verify.csproj");
+if (!File.Exists(projectPath))
+    throw new Exception("Run fixture smoke from the repository root.");
+var fixtureRoot = Path.Combine(Path.GetTempPath(), "pkhex-negative-fixture-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(fixtureRoot);
+try
+{
+    var binaryPath = Path.Combine(fixtureRoot, "synthetic.bin");
+    var manifestPath = Path.Combine(fixtureRoot, "manifest.json");
+    await File.WriteAllBytesAsync(binaryPath, invalidFixture);
+    var digest = Convert.ToHexString(SHA256.HashData(invalidFixture));
+    async Task<int> VerifyAsync(int schema, string hash, string? outcome)
+    {
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(new
+        {
+            schemaVersion = schema,
+            coreVersion = "26.10.18",
+            fixtures = new[] { new { path = "synthetic.bin", sha256 = hash,
+                expectedOutcome = outcome } },
+        }));
+        return await RunVerifierAsync(projectPath, manifestPath);
+    }
+    if (await VerifyAsync(17, digest, "refused") != 0 ||
+        await VerifyAsync(17, new string('0', 64), "refused") == 0 ||
+        await VerifyAsync(17, digest, "recognized") == 0 ||
+        await VerifyAsync(16, digest, null) == 0)
+        throw new Exception("CLI negative fixture success/refusal/hash/legacy gates failed.");
+    if (!invalidFixture.SequenceEqual(await File.ReadAllBytesAsync(binaryPath)))
+        throw new Exception("Verifier modified the synthetic fixture on disk.");
+}
+finally
+{
+    Directory.Delete(fixtureRoot, recursive: true);
+}
+Console.WriteLine("Fixture schema-17 CLI positive/negative contract and input-hash refusal passed.");
