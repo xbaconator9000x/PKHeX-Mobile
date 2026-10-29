@@ -20,6 +20,7 @@ HOME = APP + "Views/HomePage.cs"
 ABOUT = APP + "Views/AboutPopup.cs"
 MAUI = APP + "MauiProgram.cs"
 PIXEL = APP + "Views/PixelFont.cs"
+BOX = APP + "Views/BoxBrowserPage.cs"
 ICON = APP + "Resources/AppIcon/neutral-preview.svg"
 SPLASH = APP + "Resources/Splash/neutral-preview.svg"
 
@@ -70,7 +71,7 @@ def once(source: str, before: str, after: str, label: str) -> str:
 
 def transform(root: Path) -> dict[Path, str]:
     root = root.resolve(strict=True)
-    files = [PROJECT, GAME_ART, HOME, ABOUT, MAUI, PIXEL]
+    files = [PROJECT, GAME_ART, HOME, ABOUT, MAUI, PIXEL, BOX]
     originals = {p: checked_file(root, p).read_text(encoding="utf-8") for p in files}
     for rel in (ICON, SPLASH):
         path = root / rel
@@ -123,7 +124,15 @@ def transform(root: Path) -> dict[Path, str]:
     maui = once(maui, font_block, "builder.UseMauiApp<App>().UseSkiaSharp();", "font registration")
     if "NDS12" not in originals[PIXEL] or "MPLUSRounded1c" not in originals[PIXEL]:
         raise NeutralAssetRefusal("Unexpected original Skia font loader")
+    box = originals[BOX]
+    box = once(box, "internal static SKTypeface PixelTypeface()\n    {",
+        "internal static SKTypeface PixelTypeface()\n    {\n        if (PreviewRuntimePolicy.Offline) return SKTypeface.Default;", "cached NDS12 font")
+    for signature in ("private static string? RibbonIconPath(string id)\n    {",
+                      "private static string? BallIconPath(int ball)\n    {"):
+        box = once(box, signature, signature + "\n        if (PreviewRuntimePolicy.Offline) return null;", "cached game icon")
+
     return {
+        root / BOX: box,
         root / PROJECT: project, root / GAME_ART: game, root / HOME: home,
         root / ABOUT: about, root / MAUI: maui, root / PIXEL: PIXEL_SOURCE,
         root / ICON: ICON_SVG, root / SPLASH: SPLASH_SVG,
