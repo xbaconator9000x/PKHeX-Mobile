@@ -373,7 +373,7 @@
       "title": "Contain independent PKForge whole-save sharing and Android backup",
       "owner": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 35,
       "remaining_hours": 3,
       "dependencies": [
@@ -389,7 +389,8 @@
         "Audit other app-private gift, identity, cache and share persistence before release",
         "Diagnostic injected-gift history and save identity metadata use upstream nullable in-memory stores; log archives and crash sharing prompts are removed in adapted MAUI, with pinned-source drift tests and official-Core Android compile",
         "Diagnostic PKForge single-slot and bulk Pokémon export, bank entity export and event-card/entity export are denied before cache bytes or sharing, with pinned-source tests and official-Core Android compile",
-        "Pinned Showdown/audit/park sharing guards and memory-only QR compiled against official Core; source-drift synthetic gates passed. Real Android QR, provider, transfer and cache-lifecycle tests remain outstanding"
+        "Pinned Showdown/audit/park sharing guards and memory-only QR compiled against official Core; source-drift synthetic gates passed. Real Android QR, provider, transfer and cache-lifecycle tests remain outstanding",
+        "Diagnostic text QR stream pixels are never zeroed before delayed MAUI callbacks; image source released on idempotent close, with source-drift regression and official-Core Android compilation. Real device close/rotation remains unverified"
       ],
       "evidence": [
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/78",
@@ -407,7 +408,11 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/89",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40829202408",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40829202417",
-        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40829202481"
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40829202481",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/94",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40835217111",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40835217135",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40835217199"
       ],
       "blockers": []
     }
