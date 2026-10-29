@@ -1,0 +1,74 @@
+name: Android read-only prototype build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/PKHeXMobile.Android/**'
+      - 'src/PKHeXMobile.ReadOnly/**'
+      - 'src/PKHeXMobile.Domain/**'
+      - 'Directory.Build.*'
+      - 'Directory.Packages.props'
+      - 'NuGet.Config'
+      - 'global.json'
+      - '.github/workflows/android-build.yml'
+  pull_request:
+    paths:
+      - 'src/PKHeXMobile.Android/**'
+      - 'src/PKHeXMobile.ReadOnly/**'
+      - 'src/PKHeXMobile.Domain/**'
+      - 'Directory.Build.*'
+      - 'Directory.Packages.props'
+      - 'NuGet.Config'
+      - 'global.json'
+      - '.github/workflows/android-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-prototype-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install Android workload
+        run: dotnet workload install android --skip-manifest-update
+      - name: Build Android prototype (debug; no release claim)
+        run: dotnet build src/PKHeXMobile.Android/PKHeXMobile.Android.csproj -c Debug -p:AndroidPackageFormat=apk
+      - name: Record debug build provenance and APK SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "Commit: ${GITHUB_SHA}"
+            echo "Runner: ${RUNNER_OS} / ${RUNNER_ARCH}"
+            dotnet --version
+            dotnet workload list
+            java -version 2>&1
+          } > android-build-provenance.txt
+          find src/PKHeXMobile.Android/bin/Debug/net10.0-android -name '*.apk' -type f -print0 |
+            sort -z | xargs -0 -r sha256sum > android-debug-apk.sha256
+          test -s android-debug-apk.sha256
+      - name: Preserve debug APK for device testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkhexmobile-readonly-debug-apk
+          path: |
+            src/PKHeXMobile.Android/bin/Debug/net10.0-android/**/*.apk
+            android-debug-apk.sha256
+            android-build-provenance.txt
+          if-no-files-found: error
+          retention-days: 7

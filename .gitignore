@@ -1,0 +1,51 @@
+# .NET and IDE
+**/bin/
+**/obj/
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+# Android releases and signing
+*.apk
+*.aab
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+# Commercial ROMs, personal saves and entity files
+*.gba
+*.gb
+*.gbc
+*.nds
+*.3ds
+*.cia
+*.nsp
+*.xci
+*.sav
+*.dsv
+*.gci
+*.pk1
+*.pk2
+*.pk3
+*.pk4
+*.pk5
+*.pk6
+*.pk7
+*.pk8
+*.pk9
+*.wc6
+*.wc7
+*.wc8
+*.wc9
+# Local secrets/caches
+.env
+.env.*
+*.log
+__pycache__/
+.pytest_cache/
+# Private fixture manifests and local verification workspaces
+/private-fixtures/
+/fixtures-private/
+*.fixture-manifest.json
+*.private-fixture.json

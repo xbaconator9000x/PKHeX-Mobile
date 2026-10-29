@@ -1,0 +1,53 @@
+# PKForge MAUI preview: write-containment and provider parity gates (2026-10-29)
+
+**Companion:** [UPSTREAM_MAUI_WRITE_SURFACE_REVIEW_2026-10-29.md](UPSTREAM_MAUI_WRITE_SURFACE_REVIEW_2026-10-29.md). Baseline [PKHeX Mobile `4a2fc420367bb12beff1cbb794a0cc2858ba1f6a`](https://github.com/xbaconator9000x/PKHeX-Mobile/tree/4a2fc420367bb12beff1cbb794a0cc2858ba1f6a), upstream PKForge `2df04430e532b78c247f45b936f3068d8f824987`, PKHeX MAUI `a6f7cfb78e1c96155baa67660fd7ae97895e375f`, official Core release source `bfe89c74a3f5265805e364b79bc04ad38ebbc5ea`, package 26.10.18. These are **incremental executable tests**, not a count of implemented features.
+
+## Evidence ledger (do not inflate status)
+
+| Claim | Observed | Current status |
+| --- | --- | --- |
+| Temporary PKForge MAUI preview transform compiles with official Core | [PR #48 probe 40735970146](https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40735970146), successful `compile-probe` including UI injection and Android build | **PASS — compile only** |
+| Synthetic detached nickname preview | Same probe executes `RetailEditor.Smoke`; see [adapter](https://github.com/xbaconator9000x/PKHeX-Mobile/blob/4a2fc420367bb12beff1cbb794a0cc2858ba1f6a/src/PKHeXMobile.PortConsolidation/DetachedRetailNicknameEditor.cs) | **PASS — synthetic, non-publishing only** |
+| Existing upstream Save changes action absent/disabled in temporary MAUI UI | [transformer](https://github.com/xbaconator9000x/PKHeX-Mobile/blob/4a2fc420367bb12beff1cbb794a0cc2858ba1f6a/scripts/pkforge_detached_preview_ui.py) explicitly retains `panel.Children.Add(save)` and upstream binds `SaveEditCommand` | **FAIL — source inspection** |
+| All save-writing routes denied at injected service boundary | No tested `ISafeSaveWriter` denial binding in inspected PR #48 | **NOT RUN / NOT PROVEN** |
+| Actual Android launch and preview/cancel | No emulator/device run in inspected workflow | **NOT RUN** |
+| Independent source URI identity, provider-safe Save As, desktop oracle | No corresponding positive test in inspected workflow | **NOT RUN** |
+
+**Test setup for all gates:** synthetic/consented saves only, no ROMs, proprietary sprites or private save fixtures committed. Record SHA-256 of source/candidate/destination, exact Core and upstream revisions, test harness commit, selected box/party slot, provider URI/document identity, Android API level when applicable, and CI job URL. Use a provider spy that records open modes, document IDs, byte counts and failure timing without exposing save content.
+
+## P0 acceptance gates: execute before enabling an Android editor or export
+
+| ID | Reproducible action | Exact pass condition / fail signal |
+| --- | --- | --- |
+| **W01 — deny writer at DI boundary** | In a disposable adapted PKForge MAUI build, replace the pinned [`MauiProgram.cs` DI registrations](https://github.com/sofianeelhor/PKForge/blob/2df04430e532b78c247f45b936f3068d8f824987/src/PKForge.App/MauiProgram.cs#L60-L95) with an `ISafeSaveWriter` whose `WriteAsync` and `WriteScopedAsync` refuse and an `ISaveFileAccess` whose `ReadAsync` works but `WriteAtomicallyAsync` refuses; capture every call. Exercise original `SaveEditCommand` on a synthetic supported save. | No writable provider open, no original-byte change, no success toast. Exception is surfaced as refusal. UI visibility alone **does not pass**. |
+| **W02 — alternate mutation paths** | Exercise `RunMutationAsync` (e.g. Make mine), one sub-editor mutation and one box/party move using a synthetic provider. Trigger both `WriteAsync` and `WriteScopedAsync` call sites. | Every write is refused by the same central service; source SHA-256 remains unchanged. An unguarded alternate writer is a **release blocker**. |
+| **W03 — original Save changes UI** | Inspect generated temporary `BoxBrowserPage.cs` after `adapt_view`; use a runtime UI test to locate the existing Save changes control. | Until W01/W02 pass, control is disabled/hidden and no command can reach an actual writer. Current PR #48 source leaves it present: **known failing baseline**. |
+| **W04 — in-memory versus provider provenance** | Load a generated retail save, change the live session via a separate tool without publishing, then invoke preview. Compare the adapter's `SourceFingerprint` to initial provider snapshot and current `session.Serialize()`. | UI explicitly identifies an in-memory preview; never claims the adapter fingerprint authenticates the original provider. A provider-backed preview must instead use immutable independently read source bytes. |
+| **W05 — stale document identity** | After selection, change source bytes while retaining the same URI, length and metadata; repeat with an alias URI and a changed document ID pointing at the same bytes. Attempt future Save As. | Fresh independent source fingerprint and provider identity checks refuse stale/ambiguous authority; no destination write. Same bytes alone are not proof of document identity. |
+| **W06 — preview selection race** | Rapidly select box slot A, change nickname, select slot B or switch to party while preview is queued; also close/reopen save. | Preview displays the original bound slot/document identity or cancels; never silently previews/edits another selected Pokémon. No source writes. |
+| **W07 — Android launch and cancel** | Launch the temporary adapted MAUI app on an Android emulator; pick generated retail save, navigate box and party, preview a nickname, press Cancel/Back, reopen source. | Screenshot/log records actual device API, build SHA and navigation; source SHA unchanged; no original-URI writable open; back returns to correct screen. Compile-only job does **not** pass. |
+| **W08 — read-only provider adversary** | Inject a content provider whose read descriptors work and whose write/create/truncate calls throw; execute all editor gestures, menu actions, and Save changes. | Both writer and file-access barriers refuse publication; no write request reaches the real provider before explicit future Save As; no crashes, silent success or partial source mutation. Audit non-save file output paths separately rather than assuming every `File.WriteAllBytesAsync` is a source-save write. Spy logs enumerate any forbidden call. |
+| **W09 — positive retail scope oracle** | Create a Gen 6 synthetic source with two box Pokémon and a party Pokémon; detached edit only box slot A. Reopen candidate in an independent official-Core instance and compare all slots, checksums and byte ranges. Repeat party slot. | Selected slot and required checksum ranges only; all unrelated slots/trainer/events preserved; exact nickname survives; no original bytes touched. Current preview smoke is narrower than a full independent byte-range oracle. |
+| **W10 — hack collision control** | Build a valid-looking retail-sized synthetic save with an intentional CFRU/Unbound marker or layout collision. Compare guarded parser against an isolated guard-disabled control, both using same bytes. | Guarded rejects, unguarded would otherwise accept; if both reject, mark protection **UNPROVEN**. Never enable unknown/hack writes. |
+
+## P0 gates for the *future* distinct-document Save As (must remain disabled until passed)
+
+| ID | Reproducible action | Exact pass condition / fail signal |
+| --- | --- | --- |
+| **W11 — distinct SAF destination and alias refusal** | Use `ACTION_CREATE_DOCUMENT` or equivalent distinct destination; test identical URI, different URI for same provider document, same document ID via different URI, and provider that cannot resolve identity. | Source never opened writable; all aliases/unknown identities refused before writing. Destination must be separately created; never call upstream `AndroidSafFileAccess.WriteAtomicallyAsync(sourceUri)`. |
+| **W12 — provider fault/durability matrix** | Inject destination open denial, cancellation, zero-byte write, partial write, flush error, close error, provider disconnect, interrupted write and mismatched independent readback. | No success receipt until complete independently reopened destination matches candidate hash, expected format, checksums and approved changes; source original hash unchanged. Partial destination is reported explicitly. |
+| **W13 — multi-format and desktop parity** | Use at least two genuinely distinct retail save formats with independently approved synthetic/consented positive fixtures; compare edit, legality, party/box semantics and round-trip to the **same-release** official desktop/Core oracle. | Per-format test records exact version, fixture recipe, pass/fail; no inferred coverage from 18 invalid-input or 14 synthetic preview assertions. Only passing profiles may be export-enabled. |
+
+## P1 gates for packaging and maintenance
+
+| ID | Reproducible action | Pass condition |
+| --- | --- | --- |
+| **W14 — dependency and asset ledger** | Inventory every file/dependency introduced from PKForge or PKHeX MAUI; include PKForge GPLv3, MAUI GPLv3, official Core GPL-3.0-or-later, binary/plugin and font/sprite licenses. | Source provenance and notices are recorded; third-party game artwork, unlicensed fonts and unverified DLLs are excluded. |
+| **W15 — CI negative control** | On disposable PR branch, intentionally fail the UI transformation or smoke and restore. Verify official-Core probe's final verdict, including `continue-on-error` engine step. | Workflow conclusion is failure for real compile/test failure, never green merely because a diagnostic step tolerated an error. |
+| **W16 — feature claim granularity** | For each reused PKForge/MAUI editor mark `source present`, `compiled`, `launched`, `read`, `edited`, `exported`, `desktop-matched` separately. | A compilation or a source file is not counted as device functionality or desktop parity. |
+
+## Minimal 30-hour-target handoff, with strict safety boundary
+
+**First code batch:** W01–W03 + W08; install a single denied writer at the service boundary, keep PKForge's existing UI, and make tests prove *all* existing writer routes fail closed. **Second:** W04, W06, W07 and W09; bind an authenticated detached snapshot to a real Android preview/cancel workflow. **Third:** W05, W10–W13; add provider-safe Save As, independent readback and desktop-matched format gates. W14–W16 run alongside packaging. This avoids reimplementing PKHeX.Core or rebuilding an editor, but does not promise full desktop parity within 30 productive hours.
+
+**Audit execution:** source inspection and GitHub Actions metadata review only; **no new test or Android device run performed in this documentation batch**. Implementation agent owns code/tests/workflows. Audit owns only `docs/UPSTREAM_*` and `docs/PARITY_*`; no README or application files changed.

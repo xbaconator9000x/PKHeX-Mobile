@@ -1,0 +1,56 @@
+name: Foundation checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# One PR validation run per revision; avoid paying for branch-push and PR
+# duplicates, while preserving validation on merges to main.
+concurrency:
+  group: foundation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  documentation-and-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - run: python3 scripts/check_repository.py
+
+  domain-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet build src/PKHeXMobile.Domain/PKHeXMobile.Domain.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Domain.Smoke/PKHeXMobile.Domain.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Candidate.Smoke/PKHeXMobile.Candidate.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Staging.Smoke/PKHeXMobile.Staging.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Provider.Smoke/PKHeXMobile.Provider.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.ReadOnly.Smoke/PKHeXMobile.ReadOnly.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Legality.Smoke/PKHeXMobile.Legality.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Verify.Smoke/PKHeXMobile.Verify.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Inventory.Smoke/PKHeXMobile.Inventory.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Storage.Smoke/PKHeXMobile.Storage.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Trainer.Smoke/PKHeXMobile.Trainer.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Training.Smoke/PKHeXMobile.Training.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Moves.Smoke/PKHeXMobile.Moves.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Identity.Smoke/PKHeXMobile.Identity.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Daycare.Smoke/PKHeXMobile.Daycare.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.WorldState.Smoke/PKHeXMobile.WorldState.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Underground.Smoke/PKHeXMobile.Underground.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Hgss.Smoke/PKHeXMobile.Hgss.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Gen5World.Smoke/PKHeXMobile.Gen5World.Smoke.csproj --configuration Release
+      - run: dotnet run --project tests/PKHeXMobile.Gen6Systems.Smoke/PKHeXMobile.Gen6Systems.Smoke.csproj --configuration Release
+      - run: dotnet run --project src/PKHeXMobile.Inspect/PKHeXMobile.Inspect.csproj --configuration Release -- --help
+      - run: dotnet run --project src/PKHeXMobile.Verify/PKHeXMobile.Verify.csproj --configuration Release -- --help

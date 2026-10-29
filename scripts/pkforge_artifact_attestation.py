@@ -1,0 +1,491 @@
+#!/usr/bin/env python3
+"""Fail-closed provenance for the adapted PKForge Android diagnostic build.
+
+This produces metadata ONLY. It never copies, uploads or authorizes an APK.
+An APK containing unreviewed upstream media must not be published.
+"""
+from __future__ import annotations
+
+import argparse
+import glob
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import xml.etree.ElementTree as ET
+import zipfile
+
+PKFORGE = "2df04430e532b78c247f45b936f3068d8f824987"
+FORK = "91e9c88667a6a191a000db68e2db19505eb87561"
+PLUGINS = "23ab1fc73f7be6ad427fbc900f9b99111cd2d560"
+MAUI = "a6f7cfb78e1c96155baa67660fd7ae97895e375f"
+CORE_SOURCE = "bfe89c74a3f5265805e364b79bc04ad38ebbc5ea"
+CORE_PACKAGE = "26.10.18"
+EXPECTED_PACKAGE = "org.pkforge.app.debug"
+PROJECT = "src/PKForge.App/PKForge.App.csproj"
+ASSET_TAGS = {"MauiAsset", "MauiIcon", "MauiSplashScreen", "MauiFont",
+              "MauiImage", "AndroidAsset", "EmbeddedResource"}
+
+
+class AttestationError(ValueError):
+    pass
+
+
+def digest(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def git_head(root: Path) -> str:
+    return subprocess.check_output(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
+    ).strip()
+
+
+def check_pins(root: Path) -> None:
+    actual = (git_head(root), git_head(root / "external/PKHeX"),
+              git_head(root / "external/PKHeX-Plugins"))
+    if actual != (PKFORGE, FORK, PLUGINS):
+        raise AttestationError("Upstream checkout/gitlink SHA mismatch")
+
+
+def classify(path: str) -> str:
+    path = path.replace("\\", "/")
+    if any(s in path for s in (
+        "PKHeX.Drawing.", "/Showdown/", "/GameArt/", "/GameHero/",
+        "/GameLogo/", "/Pokepark/", "/BadApple/", "/UI/lumi/",
+    )):
+        return "media-rights-unverified"
+    if path.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".ttf",
+                              ".otf", ".svg", ".mp3", ".wav", ".gif")):
+        return "asset-rights-unverified"
+    return "redistribution-unreviewed"
+
+
+def inventory_assets(root: Path, project: Path) -> list[dict]:
+    try:
+        xml = ET.parse(project)
+    except (ET.ParseError, OSError) as exc:
+        raise AttestationError("Unreadable MAUI project") from exc
+    base = project.parent
+    entries = []
+    for element in xml.iter():
+        tag = element.tag.rsplit("}", 1)[-1]
+        if tag not in ASSET_TAGS or "Include" not in element.attrib:
+            continue
+        pattern = element.attrib["Include"].replace("\\", "/")
+        if "$(" in pattern or "@(" in pattern or "%(" in pattern:
+            raise AttestationError("Unresolved asset Include expression")
+        excluded = [s.replace("\\", "/") for s in
+                    element.attrib.get("Exclude", "").split(";") if s]
+        matches = sorted(glob.glob(str(base / pattern), recursive=True))
+        files = [Path(p) for p in matches if Path(p).is_file()]
+        for file in files:
+            resolved = file.resolve(strict=True)
+            if not resolved.is_relative_to(root.resolve()):
+                raise AttestationError("Asset escapes pinned checkout")
+            if any(glob.fnmatch.fnmatch(str(file), str(base / e)) for e in excluded):
+                continue
+            entries.append({
+                "kind": tag,
+                "source": resolved.relative_to(root.resolve()).as_posix(),
+                "sha256": digest(resolved),
+                "rights": classify(resolved.as_posix()),
+            })
+        if not files:
+            entries.append({
+                "kind": tag, "source_pattern": pattern,
+                "rights": "unresolved-pattern-no-distribution",
+            })
+    if not entries:
+        raise AttestationError("No MAUI asset declarations found")
+    return entries
+
+
+def find_android_packager() -> Path:
+    for tool in ("aapt2", "aapt"):
+        found = shutil.which(tool)
+        if found:
+            return Path(found)
+    for env in ("ANDROID_HOME", "ANDROID_SDK_ROOT"):
+        sdk = os.environ.get(env)
+        if sdk:
+            for tool in ("aapt2", "aapt"):
+                found = sorted(Path(sdk).glob("build-tools/*/" + tool), reverse=True)
+                if found:
+                    return found[0]
+    raise AttestationError("No Android aapt/aapt2 available to verify APK identity")
+
+
+def inspect_apk(apk: Path, packager: Path) -> dict:
+    """Inspect actual packaged runtime, not merely a spoofable package label.
+
+    This is a structural diagnostic, NOT an Android launch or rights certificate.
+    Managed assemblies may use the .NET Android assembly store, so both the
+    ordinary DLL layout and the documented packed layouts are recognized.
+    """
+    if apk.is_symlink() or not apk.is_file() or apk.stat().st_size == 0:
+        raise AttestationError("Missing, symlinked or empty APK")
+    try:
+        with zipfile.ZipFile(apk) as archive:
+            infos = [info for info in archive.infolist() if not info.is_dir()]
+            names = [info.filename for info in infos]
+            if len(names) != len(set(names)):
+                raise AttestationError("Duplicate APK ZIP entries")
+            if any(
+                name.startswith("/") or "\\" in name
+                or any(part in ("", ".", "..") for part in name.split("/"))
+                or (info.external_attr >> 16) & 0o170000 == 0o120000
+                for info, name in zip(infos, names)
+            ):
+                raise AttestationError("Unsafe APK ZIP entry path or symlink")
+            if archive.testzip() is not None or "AndroidManifest.xml" not in names:
+                raise AttestationError("Invalid APK archive or missing manifest")
+
+            dex = sorted(name for name in names
+                         if re.fullmatch(r"classes(?:[0-9]+)?\.dex", name))
+            native = sorted(name for name in names
+                            if re.fullmatch(
+                                r"lib/(?:arm64-v8a|armeabi-v7a|x86|x86_64)/"
+                                r"lib(?:monodroid|monosgen-2\.0|xamarin-app)\.so",
+                                name))
+            managed = sorted(name for name in names if (
+                re.fullmatch(
+                    r"assemblies/PKForge\.(?:App|Engine|Infrastructure)\.dll",
+                    name,
+                ) or re.fullmatch(
+                    r"lib/(?:arm64-v8a|armeabi-v7a|x86|x86_64)/"
+                    r"lib[_-]PKForge\.(?:App|Engine|Infrastructure)\.dll\.so",
+                    name,
+                )
+            ))
+            if not dex:
+                raise AttestationError("APK missing executable classes.dex payload")
+            if not native:
+                raise AttestationError("APK missing .NET Android native runtime payload")
+            for component in ("App", "Engine", "Infrastructure"):
+                if not any(f"PKForge.{component}.dll" in name for name in managed):
+                    candidates = sorted(
+                        name for name in names if "PKForge" in name
+                    )[:20]
+                    raise AttestationError(
+                        f"APK missing embedded PKForge.{component} managed payload; "
+                        f"observed={candidates!r}"
+                    )
+
+            # Hash the actual packaged entries, including implicitly imported
+            # resources. Source project Include globs alone cannot prove contents.
+            entry_hash = hashlib.sha256()
+            media_count = 0
+            media_entries = []
+            for info in sorted(infos, key=lambda item: item.filename):
+                h = hashlib.sha256()
+                with archive.open(info) as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        h.update(chunk)
+                entry_hash.update(
+                    f"{info.filename}\0{info.file_size}\0{h.hexdigest()}\n".encode()
+                )
+                if (info.filename.startswith(("assets/", "res/", "resources/"))
+                        or info.filename.lower().endswith(
+                            (".png", ".jpg", ".jpeg", ".webp", ".ttf", ".otf",
+                             ".svg", ".mp3", ".wav", ".gif"))):
+                    media_count += 1
+                    media_entries.append({
+                        "path": info.filename,
+                        "size_bytes": info.file_size,
+                        "sha256": h.hexdigest(),
+                        "rights": "unreviewed-packaged-entry",
+                    })
+    except (zipfile.BadZipFile, RuntimeError, OSError) as exc:
+        raise AttestationError("Invalid APK ZIP") from exc
+    try:
+        result = subprocess.run(
+            [str(packager), "dump", "badging", str(apk)],
+            capture_output=True, text=True, check=True, timeout=45,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        raise AttestationError("Android package identity inspection failed") from exc
+    match = re.search(r"^package:\s+name='([^']+)'", result.stdout, re.MULTILINE)
+    if not match or match.group(1) != EXPECTED_PACKAGE:
+        raise AttestationError("Unexpected Android package ID; refuse artifact handoff")
+    return {
+        "filename": apk.name, "sha256": digest(apk),
+        "size_bytes": apk.stat().st_size, "application_id": match.group(1),
+        "apk_tested_on_device": False,
+        "payload_structural_check": True,
+        "dex_entries": dex,
+        "native_runtime_entries": native,
+        "managed_payload_entries": managed,
+        "packaged_entry_count": len(infos),
+        "packaged_entry_manifest_sha256": entry_hash.hexdigest(),
+        "packaged_media_entry_count_unreviewed": media_count,
+        "packaged_media_entries": media_entries,
+        "packaged_media_manifest_sha256": hashlib.sha256(
+            json.dumps(media_entries, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+        "packaged_media_rights_verified": False,
+    }
+
+
+
+
+def verify_packaged_media_review(apk_report: dict, review: dict) -> dict:
+    """Compare an independently reviewed allowlist to the *actual APK entries*.
+
+    An XML Include inventory is not sufficient: default/imported MSBuild
+    resources can enter the APK without a matching explicit Include. Even a
+    complete media match does NOT clear embedded assembly resources, transitive
+    binaries, or the GPL distribution obligations. This never authorizes
+    redistribution by itself.
+    """
+    if not isinstance(review, dict) or review.get("schema") != 1:
+        raise AttestationError("Missing or invalid packaged-media review schema")
+    entries = review.get("entries")
+    if not isinstance(entries, list):
+        raise AttestationError("Missing packaged-media review entries")
+    observed = apk_report.get("packaged_media_entries")
+    if not isinstance(observed, list):
+        raise AttestationError("APK lacks actual packaged-media inventory")
+    actual = {item["path"]: item["sha256"] for item in observed}
+    if len(actual) != len(observed):
+        raise AttestationError("Duplicate packaged-media inventory path")
+    reviewed = {}
+    for item in entries:
+        if not isinstance(item, dict):
+            raise AttestationError("Invalid packaged-media review record")
+        path = item.get("path")
+        if not isinstance(path, str) or path in reviewed:
+            raise AttestationError("Duplicate or invalid packaged-media review path")
+        for field in ("sha256", "license", "attribution", "provenance", "reviewer"):
+            value = item.get(field)
+            if not isinstance(value, str) or not value.strip():
+                raise AttestationError(f"Packaged-media review missing {field}")
+        if item["license"].strip().lower() in ("unknown", "unreviewed", "none"):
+            raise AttestationError("Packaged-media licence remains unresolved")
+        if item.get("approved") is not True:
+            raise AttestationError("Packaged-media entry lacks affirmative approval")
+        reviewed[path] = item["sha256"]
+    if actual != reviewed:
+        missing = sorted(set(actual) - set(reviewed))
+        stale = sorted(set(reviewed) - set(actual))
+        changed = sorted(path for path in set(actual) & set(reviewed)
+                         if actual[path] != reviewed[path])
+        raise AttestationError(
+            f"Packaged-media review mismatch: unreviewed={missing[:8]!r} "
+            f"not-packaged={stale[:8]!r} changed={changed[:8]!r}"
+        )
+    return {
+        "media_entries_matched": len(actual),
+        "media_review_matches_apk": True,
+        "redistribution_authorized": False,
+        "remaining_gates": [
+            "embedded-resource and transitive-binary rights",
+            "GPL corresponding-source and notice compliance",
+            "independent media licence verification",
+        ],
+    }
+
+
+
+
+# Freeze the complete checked-out source/resource trees, not only C#/XAML.
+# In particular the upstream media, implicit Android resources and both
+# external source submodules can affect the APK even if no csproj changes.
+BUILD_OUTPUT_DIRS = frozenset({"bin", "obj", ".git", ".vs", "TestResults"})
+
+
+def _hash_tree(root: Path, directory: Path, result: dict[str, str]) -> None:
+    if directory.is_symlink() or not directory.is_dir():
+        raise AttestationError(f"Missing or symlinked build input tree: {directory}")
+    for parent, folders, files in os.walk(directory, followlinks=False):
+        current = Path(parent)
+        for name in folders:
+            if name not in BUILD_OUTPUT_DIRS and (current / name).is_symlink():
+                raise AttestationError(f"Symlink in build inputs: {current / name}")
+        folders[:] = sorted(name for name in folders if name not in BUILD_OUTPUT_DIRS)
+        for name in sorted(files):
+            if name == ".git":
+                continue  # Submodule .git control file, never a build input.
+            file = current / name
+            if file.is_symlink() or not file.is_file():
+                raise AttestationError(f"Symlink or unsupported build input: {file}")
+            result[file.relative_to(root).as_posix()] = digest(file)
+
+
+def source_tree_manifest(root: Path, mobile: Path | None = None) -> dict[str, str]:
+    """Freeze transformed source, all media, external sources and restore graph.
+
+    The build-output exclusion is limited to generated bin/obj directories.
+    The MAUI restore graph is the explicit exception: it is frozen after
+    prebuild restore and must remain byte-identical through --no-restore build.
+    This detects input drift, not independent asset licensing or NuGet integrity.
+    """
+    root = root.resolve(strict=True)
+    result: dict[str, str] = {}
+    for relative in ("src", "external/PKHeX", "external/PKHeX-Plugins"):
+        directory = root / relative
+        if directory.is_symlink() or not directory.is_dir():
+            raise AttestationError(f"Missing or symlinked build input tree: {relative}")
+    # Scan the entire checkout: MSBuild can import scripts/config from tools,
+    # tests or root-level directories, not just src and external gitlinks.
+    _hash_tree(root, root, result)
+    graph = root / "src/PKForge.App/obj/project.assets.json"
+    if graph.is_symlink() or not graph.is_file():
+        raise AttestationError("Missing prebuild MAUI restore graph")
+    result[graph.relative_to(root).as_posix()] = digest(graph)
+    if mobile is not None:
+        # The adapted MAUI project references mobile source outside PKForge.
+        # Those C# project/adapter bytes are build inputs, not just the scripts.
+        mobile_sources: dict[str, str] = {}
+        _hash_tree(mobile, mobile / "src", mobile_sources)
+        result.update({f"mobile/{key}": value
+                       for key, value in mobile_sources.items()})
+        scripts = mobile / "scripts"
+        if scripts.is_symlink() or not scripts.is_dir():
+            raise AttestationError("Missing adaptation script directory")
+        adapters = sorted(scripts.glob("pkforge_*.py"))
+        if not adapters:
+            raise AttestationError("Missing adaptation scripts")
+        for script in adapters:
+            if script.is_symlink() or not script.is_file():
+                raise AttestationError(f"Symlinked adaptation script: {script}")
+            result[f"mobile/scripts/{script.name}"] = digest(script)
+    if "src/PKForge.App/PKForge.App.csproj" not in result:
+        raise AttestationError("Missing PKForge application project in input freeze")
+    return result
+
+
+def write_source_snapshot(root: Path, destination: Path,
+                          mobile: Path | None = None) -> dict:
+    files = source_tree_manifest(root, mobile)
+    report = {"schema": 2, "scope": "full-transformed-build-inputs", "files": files}
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        json.dumps(report, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return report
+
+
+def verify_source_snapshot(root: Path, snapshot: Path,
+                           mobile: Path | None = None) -> dict:
+    try:
+        report = json.loads(snapshot.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise AttestationError("Missing or invalid frozen source snapshot") from exc
+    if (not isinstance(report, dict) or report.get("schema") != 2
+            or report.get("scope") != "full-transformed-build-inputs"
+            or not isinstance(report.get("files"), dict)):
+        raise AttestationError("Invalid frozen source snapshot schema")
+    current = source_tree_manifest(root, mobile)
+    expected = report["files"]
+    if current != expected:
+        changed = sorted(
+            path for path in set(current) | set(expected)
+            if current.get(path) != expected.get(path)
+        )
+        raise AttestationError(
+            f"Source changed after frozen pre-build snapshot: {changed[:12]!r}"
+        )
+    return {
+        "files": len(current),
+        "sha256": digest(snapshot),
+        "source_unchanged_after_build": True,
+        "includes_external_sources_and_media": True,
+        "includes_prebuild_restore_graph": True,
+    }
+
+
+def attestation(root: Path, mobile: Path, packager: Path | None = None,
+                source_snapshot: Path | None = None) -> dict:
+    root, mobile = root.resolve(strict=True), mobile.resolve(strict=True)
+    check_pins(root)
+    project = root / PROJECT
+    if not project.is_file() or project.is_symlink():
+        raise AttestationError("Missing/symlinked pinned MAUI project")
+    xml = ET.parse(project).getroot()
+    props = {e.tag.rsplit("}", 1)[-1]: (e.text or "").strip()
+             for e in xml.iter() if e.tag.rsplit("}", 1)[-1] in
+             {"TargetFramework", "UseMaui", "ApplicationId", "RuntimeIdentifiers"}}
+    if props.get("TargetFramework") != "net10.0-android" or props.get("UseMaui") != "true":
+        raise AttestationError("Unexpected PKForge Android framework")
+    # The conditional diagnostic property overrides the production ID at build time.
+    if EXPECTED_PACKAGE not in project.read_text(encoding="utf-8"):
+        raise AttestationError("Diagnostic application ID not declared")
+    apks = sorted((root / "src/PKForge.App/bin/Debug/net10.0-android").rglob("*.apk"))
+    if not apks:
+        raise AttestationError("Android build produced no APK")
+    packager = packager or find_android_packager()
+    inspected = [inspect_apk(p, packager) for p in apks]
+    frozen_source = (verify_source_snapshot(root, source_snapshot, mobile)
+                     if source_snapshot is not None else None)
+    assets = inventory_assets(root, project)
+    scripts = sorted((mobile / "scripts").glob("pkforge_*.py"))
+    if not scripts:
+        raise AttestationError("Missing adaptation scripts")
+    lockfile = root / "src/PKForge.App/obj/project.assets.json"
+    if not lockfile.is_file():
+        raise AttestationError("Missing NuGet restore graph")
+    lock = json.loads(lockfile.read_text(encoding="utf-8"))
+    return {
+        "schema": 1,
+        "purpose": "non-distributable diagnostic metadata",
+        "redistribution_authorized": False,
+        "save_writes_authorized": False,
+        "device_certified": False,
+        "desktop_fixture_parity_certified": False,
+        "pins": {
+            "pkforge": PKFORGE, "fork_core": FORK, "plugins": PLUGINS,
+            "pkhex_maui_reference": MAUI, "official_core_source": CORE_SOURCE,
+            "official_core_package": CORE_PACKAGE,
+            "mobile_head": git_head(mobile),
+        },
+        "project": {"path": PROJECT, "sha256": digest(project),
+                    "target_framework": props["TargetFramework"]},
+        "adaptations": {p.name: digest(p) for p in scripts},
+        "nuget": {
+            "restore_graph_sha256": digest(lockfile),
+            "libraries": sorted(lock.get("libraries", {}).keys()),
+            "transitive_licences_verified": False,
+        },
+        "apks": inspected,
+        "frozen_source": frozen_source,
+        "assets": assets,
+        "rights_review_complete": False,
+        "gate": "metadata-only; do not upload APK or advertise an installable editor",
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--mobile", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--source-snapshot", type=Path)
+    parser.add_argument("--snapshot-only", action="store_true")
+    args = parser.parse_args()
+    if args.snapshot_only:
+        if args.source_snapshot is not None:
+            parser.error("--snapshot-only cannot combine with --source-snapshot")
+        snapshot = write_source_snapshot(args.repo, args.output, args.mobile)
+        print(f"Froze {len(snapshot['files'])} source files before Android packaging")
+        return
+    report = attestation(args.repo, args.mobile,
+                         source_snapshot=args.source_snapshot)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    print(f"Verified {len(report['apks'])} diagnostic APK(s), "
+          f"{len(report['assets'])} asset entries; metadata only, distribution prohibited.")
+    for item in report["apks"]:
+        print(f"{item['filename']} sha256={item['sha256']} package={item['application_id']}")
+
+
+if __name__ == "__main__":
+    main()

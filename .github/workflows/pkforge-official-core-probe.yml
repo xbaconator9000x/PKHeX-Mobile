@@ -1,0 +1,315 @@
+name: PKForge official Core compatibility probe
+
+# One bounded diagnostic on explicit changes or manual dispatch only.
+# Does not distribute upstream art, APKs, ROMs, or private save data.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/pkforge-official-core-probe.yml'
+      - 'scripts/pkforge_official_core_probe.py'
+      - 'tests/test_pkforge_official_core_probe.py'
+      - 'scripts/pkforge_retail_only_probe.py'
+      - 'tests/test_pkforge_retail_only_probe.py'
+      - 'tests/PKHeXMobile.RetailProbe.Smoke/**'
+      - 'src/PKHeXMobile.PortConsolidation/**'
+      - 'tests/PKHeXMobile.RetailEditor.Smoke/**'
+      - 'scripts/pkforge_detached_preview_ui.py'
+      - 'tests/test_pkforge_detached_preview_ui.py'
+      - 'scripts/pkforge_readonly_containment.py'
+      - 'tests/test_pkforge_readonly_containment.py'
+      - 'scripts/pkforge_preview_only_hardening.py'
+      - 'tests/test_pkforge_preview_only_hardening.py'
+      - 'tests/PKHeXMobile.Containment.Smoke/**'
+      - 'scripts/pkforge_source_read_hardening.py'
+      - 'tests/test_pkforge_source_read_hardening.py'
+      - 'tests/PKHeXMobile.BoundedSource.Smoke/**'
+      - 'scripts/pkforge_picker_lifecycle.py'
+      - 'tests/test_pkforge_picker_lifecycle.py'
+      - 'scripts/pkforge_folder_readonly.py'
+      - 'tests/test_pkforge_folder_readonly.py'
+      - 'tests/PKHeXMobile.FolderContainment.Smoke/**'
+      - 'scripts/pkforge_provider_origin_binding.py'
+      - 'tests/test_pkforge_provider_origin_binding.py'
+      - 'tests/PKHeXMobile.ProviderBoundPreview.Smoke/**'
+      - 'tests/PKHeXMobile.ProviderOriginLifecycle.Smoke/**'
+      - 'scripts/pkforge_session_transaction.py'
+      - 'tests/test_pkforge_session_transaction.py'
+      - 'scripts/pkforge_disable_bulk_import.py'
+      - 'tests/test_pkforge_disable_bulk_import.py'
+      - 'scripts/pkforge_artifact_attestation.py'
+      - 'tests/test_pkforge_artifact_attestation.py'
+      - 'scripts/pkforge_offline_preview.py'
+      - 'tests/test_pkforge_offline_preview.py'
+
+permissions:
+  contents: read
+concurrency:
+  group: official-core-probe-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate safe project-reference substitution
+        run: |
+          python3 -m unittest discover -s tests -p 'test_pkforge_official_core_probe.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_retail_only_probe.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_detached_preview_ui.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_readonly_containment.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_preview_only_hardening.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_source_read_hardening.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_picker_lifecycle.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_folder_readonly.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_provider_origin_binding.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_session_transaction.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_disable_bulk_import.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_artifact_attestation.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_offline_preview.py' -v
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Fetch pinned PKForge with exact gitlinks
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init --quiet /tmp/pkforge
+          cd /tmp/pkforge
+          git remote add origin https://github.com/sofianeelhor/PKForge.git
+          git fetch --depth=1 origin 2df04430e532b78c247f45b936f3068d8f824987
+          git checkout --quiet --detach FETCH_HEAD
+          test "$(git rev-parse HEAD:external/PKHeX)" = "91e9c88667a6a191a000db68e2db19505eb87561"
+          test "$(git rev-parse HEAD:external/PKHeX-Plugins)" = "23ab1fc73f7be6ad427fbc900f9b99111cd2d560"
+          git submodule update --init --recursive --depth=1
+      - name: Adapt pinned fork references and AutoMod Seed64 API for official Core
+        run: python3 scripts/pkforge_official_core_probe.py --repo /tmp/pkforge
+      - name: Isolate fork-only handlers in temporary retail-only checkout
+        run: python3 -m scripts.pkforge_retail_only_probe --repo /tmp/pkforge
+      - name: Build portable PKForge engine against official Core
+        id: engine
+        continue-on-error: true
+        working-directory: /tmp/pkforge
+        run: dotnet build src/PKForge.Engine/PKForge.Engine.csproj -c Release -v:minimal
+      - name: Exercise retail-only runtime refusals against official Core
+        id: retail-smoke
+        if: steps.engine.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: dotnet run --project tests/PKHeXMobile.RetailProbe.Smoke/PKHeXMobile.RetailProbe.Smoke.csproj --configuration Release
+      - name: Exercise detached PKForge editor against official Core synthetic save
+        id: retail-editor
+        if: steps.engine.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: dotnet run --project tests/PKHeXMobile.RetailEditor.Smoke/PKHeXMobile.RetailEditor.Smoke.csproj --configuration Release
+      - name: Wire detached preview into pinned MAUI editor (temporary checkout only)
+        id: preview-ui
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success'
+        run: python3 -m scripts.pkforge_detached_preview_ui --repo /tmp/pkforge --mobile "$GITHUB_WORKSPACE"
+      - name: Install read-only writer and provider containment
+        id: containment
+        if: steps.preview-ui.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_readonly_containment --repo /tmp/pkforge
+      - name: Enforce read-only picker grants and block live-session mutation
+        id: hardening
+        if: steps.containment.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_preview_only_hardening --repo /tmp/pkforge
+      - name: Harden single-picker cancellation and read-once grants
+        id: picker-lifecycle
+        if: steps.hardening.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_picker_lifecycle --repo /tmp/pkforge
+      - name: Disable unbounded PKSM multi-import and Android multi-picker
+        id: bulk-import-refusal
+        if: steps.picker-lifecycle.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_disable_bulk_import --repo /tmp/pkforge
+      - name: Exercise denied writer and provider-spy paths
+        id: containment-smoke
+        if: steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: dotnet run --project tests/PKHeXMobile.Containment.Smoke/PKHeXMobile.Containment.Smoke.csproj --configuration Release
+      - name: Install bounded two-open source adapter
+        id: bounded-source
+        if: steps.containment-smoke.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_source_read_hardening --repo /tmp/pkforge
+      - name: Exercise bounded source provider-race tests
+        id: bounded-smoke
+        if: steps.bounded-source.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: dotnet run --project tests/PKHeXMobile.BoundedSource.Smoke/PKHeXMobile.BoundedSource.Smoke.csproj --configuration Release
+      - name: Deny independent folder export routes and bound folder imports
+        id: folder-containment
+        if: steps.bounded-smoke.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_folder_readonly --repo /tmp/pkforge
+      - name: Exercise folder provider-spy refusal tests
+        id: folder-smoke
+        if: steps.folder-containment.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: dotnet run --project tests/PKHeXMobile.FolderContainment.Smoke/PKHeXMobile.FolderContainment.Smoke.csproj --configuration Release
+      - name: Bind immutable provider-origin baseline to PKForge session
+        id: provider-origin
+        if: steps.folder-smoke.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_provider_origin_binding --repo /tmp/pkforge --mobile "$GITHUB_WORKSPACE"
+      - name: Install atomic session activation and lifecycle invalidation
+        id: session-transaction
+        if: steps.provider-origin.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_session_transaction --repo /tmp/pkforge
+      - name: Exercise provider-bound preview and session-race refusals
+        id: provider-preview-smoke
+        if: steps.session-transaction.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: dotnet run --project tests/PKHeXMobile.ProviderBoundPreview.Smoke/PKHeXMobile.ProviderBoundPreview.Smoke.csproj --configuration Release
+      - name: Exercise real PKForge session lifecycle and overlapping-open rejection
+        id: provider-lifecycle-smoke
+        if: steps.provider-preview-smoke.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: dotnet run --project tests/PKHeXMobile.ProviderOriginLifecycle.Smoke/PKHeXMobile.ProviderOriginLifecycle.Smoke.csproj --configuration Release
+      - name: Disable runtime media downloads and APK installation in diagnostic MAUI
+        id: offline-containment
+        if: steps.provider-lifecycle-smoke.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_offline_preview --repo /tmp/pkforge
+      - name: Install Android MAUI only after runtime refusal checks
+        id: maui-workload
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success'
+        run: dotnet workload install maui-android --skip-manifest-update
+      - name: Restore exact diagnostic Android dependency graph before input freeze
+        id: android-restore
+        if: steps.maui-workload.outcome == 'success'
+        env:
+          PKForgeRoot: /tmp/pkforge
+        working-directory: /tmp/pkforge
+        run: |
+          dotnet restore src/PKForge.App/PKForge.App.csproj \
+            -p:DiagnosticBuild=true -p:AndroidPackageFormat=apk -v:minimal
+      - name: Freeze complete transformed inputs, external sources and media
+        id: source-freeze
+        if: steps.android-restore.outcome == 'success'
+        run: |
+          python3 scripts/pkforge_artifact_attestation.py \
+            --repo /tmp/pkforge --mobile "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/pkforge-source-freeze.json" --snapshot-only
+      - name: Build PKForge Android against official Core
+        id: android
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success' && steps.source-freeze.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        working-directory: /tmp/pkforge
+        run: |
+          dotnet build src/PKForge.App/PKForge.App.csproj -f net10.0-android -c Debug --no-restore \
+            -p:DiagnosticBuild=true -p:AndroidPackageFormat=apk -v:minimal
+      - name: Verify compiled APK denies network and package installation permissions
+        id: offline-apk-permissions
+        if: steps.android.outcome == 'success'
+        run: python3 -m scripts.pkforge_offline_preview --repo /tmp/pkforge --verify-apks
+      - name: Attest adapted editor APK identity and inventory bundled media
+        id: apk-provenance
+        if: steps.android.outcome == 'success' && steps.offline-apk-permissions.outcome == 'success'
+        shell: bash
+        run: |
+          python3 scripts/pkforge_artifact_attestation.py \
+            --repo /tmp/pkforge --mobile "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/pkforge-diagnostic-provenance.json" \
+            --source-snapshot "$RUNNER_TEMP/pkforge-source-freeze.json"
+          echo 'APK identity verified; upstream artwork redistribution NOT authorized.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain provenance metadata only (NEVER upload the APK)
+        if: steps.apk-provenance.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkforge-adapted-editor-provenance-only
+          path: ${{ runner.temp }}/pkforge-diagnostic-provenance.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: Record explicit compatibility verdict
+        if: always()
+        env:
+          ENGINE: ${{ steps.engine.outcome }}
+          RETAIL_SMOKE: ${{ steps.retail-smoke.outcome }}
+          RETAIL_EDITOR: ${{ steps.retail-editor.outcome }}
+          PREVIEW_UI: ${{ steps.preview-ui.outcome }}
+          CONTAINMENT: ${{ steps.containment.outcome }}
+          HARDENING: ${{ steps.hardening.outcome }}
+          PICKER_LIFECYCLE: ${{ steps.picker-lifecycle.outcome }}
+          BULK_IMPORT_REFUSAL: ${{ steps.bulk-import-refusal.outcome }}
+          CONTAINMENT_SMOKE: ${{ steps.containment-smoke.outcome }}
+          BOUNDED_SOURCE: ${{ steps.bounded-source.outcome }}
+          BOUNDED_SMOKE: ${{ steps.bounded-smoke.outcome }}
+          FOLDER_CONTAINMENT: ${{ steps.folder-containment.outcome }}
+          FOLDER_SMOKE: ${{ steps.folder-smoke.outcome }}
+          PROVIDER_ORIGIN: ${{ steps.provider-origin.outcome }}
+          SESSION_TRANSACTION: ${{ steps.session-transaction.outcome }}
+          PROVIDER_PREVIEW_SMOKE: ${{ steps.provider-preview-smoke.outcome }}
+          PROVIDER_LIFECYCLE_SMOKE: ${{ steps.provider-lifecycle-smoke.outcome }}
+          OFFLINE_CONTAINMENT: ${{ steps.offline-containment.outcome }}
+          OFFLINE_APK_PERMISSIONS: ${{ steps.offline-apk-permissions.outcome }}
+          MAUI_WORKLOAD: ${{ steps.maui-workload.outcome }}
+          ANDROID_RESTORE: ${{ steps.android-restore.outcome }}
+          SOURCE_FREEZE: ${{ steps.source-freeze.outcome }}
+          ANDROID: ${{ steps.android.outcome }}
+          APK_PROVENANCE: ${{ steps.apk-provenance.outcome }}
+        shell: bash
+        run: |
+          {
+            echo '## Official Core compatibility diagnostic'
+            echo 'PKForge: 2df04430e532b78c247f45b936f3068d8f824987'
+            echo 'Official Core NuGet: [26.10.18]'
+            echo "Engine compile: $ENGINE"
+            echo "Retail-only runtime negative tests: $RETAIL_SMOKE"
+            echo "Detached nickname preview tests: $RETAIL_EDITOR"
+            echo "MAUI detached preview wiring: $PREVIEW_UI"
+            echo "Read-only DI containment: $CONTAINMENT"
+            echo "Read-only source grants and mutation guards: $HARDENING"
+            echo "Picker lifecycle and read-once fallback: $PICKER_LIFECYCLE"
+            echo "Unbounded PKSM import disabled: $BULK_IMPORT_REFUSAL"
+            echo "Writer/provider spy checks: $CONTAINMENT_SMOKE"
+            echo "Bounded source adapter: $BOUNDED_SOURCE"
+            echo "Two-open provider-race smoke: $BOUNDED_SMOKE"
+            echo "Folder picker/provider write denial: $FOLDER_CONTAINMENT"
+            echo "Folder provider spy tests: $FOLDER_SMOKE"
+            echo "Immutable provider-origin session binding: $PROVIDER_ORIGIN"
+            echo "Atomic activation transaction: $SESSION_TRANSACTION"
+            echo "Provider-bound preview smoke: $PROVIDER_PREVIEW_SMOKE"
+            echo "Real PKForge session lifecycle smoke: $PROVIDER_LIFECYCLE_SMOKE"
+            echo "Diagnostic runtime media/installer containment: $OFFLINE_CONTAINMENT"
+            echo "Compiled APK offline permissions: $OFFLINE_APK_PERMISSIONS"
+            echo "Android MAUI workload: $MAUI_WORKLOAD"
+            echo "Frozen prebuild NuGet restore: $ANDROID_RESTORE"
+            echo "Full build-input freeze: $SOURCE_FREEZE"
+            echo "Android compile: $ANDROID"
+            echo "APK identity/media provenance (metadata only): $APK_PROVENANCE"
+            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$APK_PROVENANCE" != success ]; then
+              echo '**OFFICIAL-CORE COMPATIBILITY GATE FAILED.** Inspect compilation and runtime smoke diagnostics.'
+            else
+              echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$APK_PROVENANCE" != success ]; then
+            echo 'Retail-only official-Core compatibility gate failed.' >&2
+            exit 1
+          fi
