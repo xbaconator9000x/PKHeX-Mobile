@@ -170,9 +170,9 @@
       "title": "Adapt PKForge Pokémon, party and box editing into detached staging only",
       "owner": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 155,
-      "remaining_hours": 155,
+      "remaining_hours": 153,
       "dependencies": [
         "PORT-APK"
       ],
@@ -184,13 +184,12 @@
         "Test protected slots, cancellation and original fingerprints",
         "Reproduce and mitigate MoveBox and pointer hazards"
       ],
-      "evidence": [],
-      "blockers": [],
-      "claim": {
-        "branch": "impl/preview-navigation-invalidation-20261029",
-        "pr": 124,
-        "base_sha": "cc55ca64ce2a3387167c960a9afac09a07467f49"
-      }
+      "evidence": [
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/124",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40881697235",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40881697052"
+      ],
+      "blockers": []
     },
     {
       "id": "SAFE-EXPORT",
@@ -369,9 +368,9 @@
       "title": "Queue-driven implementation and verification checkpoint handoff",
       "owner": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 45,
-      "remaining_hours": 16,
+      "remaining_hours": 14,
       "dependencies": [],
       "locks": [
         "queue"
@@ -416,14 +415,13 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40865720030",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/120",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40878000895",
-        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40878000893"
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40878000893",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/126",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40883278895",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40883278872",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40883278868"
       ],
-      "blockers": [],
-      "claim": {
-        "branch": "impl/provider-cancel-race-20261029",
-        "pr": 126,
-        "base_sha": "c89275c007b50c0b8ba0d25373014f41cf22e5cb"
-      }
+      "blockers": []
     },
     {
       "id": "PREVIEW-EXPORT-BACKUP",
