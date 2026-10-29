@@ -15,6 +15,7 @@ from scripts.pkforge_offline_preview import checked_file, verify_pins, OfflineRe
 
 APP = "src/PKForge.App/"
 PROJECT = APP + "PKForge.App.csproj"
+MANIFEST = APP + "Platforms/Android/AndroidManifest.xml"
 GAME_ART = APP + "Services/GameArt.cs"
 HOME = APP + "Views/HomePage.cs"
 ABOUT = APP + "Views/AboutPopup.cs"
@@ -74,7 +75,7 @@ def once(source: str, before: str, after: str, label: str) -> str:
 
 def transform(root: Path) -> dict[Path, str]:
     root = root.resolve(strict=True)
-    files = [PROJECT, GAME_ART, HOME, ABOUT, MAUI, PIXEL, BOX, BANK_EDITOR, DEX_PICKER, GENERATE]
+    files = [PROJECT, MANIFEST, GAME_ART, HOME, ABOUT, MAUI, PIXEL, BOX, BANK_EDITOR, DEX_PICKER, GENERATE]
     originals = {p: checked_file(root, p).read_text(encoding="utf-8") for p in files}
     for rel in (ICON, SPLASH):
         path = root / rel
@@ -146,7 +147,13 @@ def transform(root: Path) -> dict[Path, str]:
     generate = once(originals[GENERATE], "private static async Task<string?> FormSpritePathAsync(int species, int form)\n    {",
         "private static async Task<string?> FormSpritePathAsync(int species, int form)\n    {\n        if (PreviewRuntimePolicy.Offline) return null;", "generated form cached art")
 
+    manifest = once(originals[MANIFEST],
+        'android:label="PKForge" android:icon="@mipmap/pkforge" android:roundIcon="@mipmap/pkforge_round"',
+        'android:label="PKForge Diagnostics" android:icon="@mipmap/neutral_icon"',
+        "Android manifest icon and label")
+
     return {
+        root / MANIFEST: manifest,
         root / BANK_EDITOR: bank_editor, root / DEX_PICKER: dex, root / GENERATE: generate,
         root / BOX: box,
         root / PROJECT: project, root / GAME_ART: game, root / HOME: home,
