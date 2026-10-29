@@ -330,14 +330,12 @@ def source_tree_manifest(root: Path, mobile: Path | None = None) -> dict[str, st
     root = root.resolve(strict=True)
     result: dict[str, str] = {}
     for relative in ("src", "external/PKHeX", "external/PKHeX-Plugins"):
-        _hash_tree(root, root / relative, result)
-    for file in sorted(root.iterdir()):
-        if file.name == ".git":
-            continue
-        if file.is_symlink():
-            raise AttestationError(f"Symlink in root build inputs: {file}")
-        if file.is_file():
-            result[file.name] = digest(file)
+        directory = root / relative
+        if directory.is_symlink() or not directory.is_dir():
+            raise AttestationError(f"Missing or symlinked build input tree: {relative}")
+    # Scan the entire checkout: MSBuild can import scripts/config from tools,
+    # tests or root-level directories, not just src and external gitlinks.
+    _hash_tree(root, root, result)
     graph = root / "src/PKForge.App/obj/project.assets.json"
     if graph.is_symlink() or not graph.is_file():
         raise AttestationError("Missing prebuild MAUI restore graph")
