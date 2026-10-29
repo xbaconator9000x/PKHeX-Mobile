@@ -10,6 +10,8 @@ import argparse
 from pathlib import Path
 import subprocess
 
+from scripts.pkforge_artifact_attestation import find_android_packager
+
 PKFORGE = "2df04430e532b78c247f45b936f3068d8f824987"
 FORK = "91e9c88667a6a191a000db68e2db19505eb87561"
 PLUGINS = "23ab1fc73f7be6ad427fbc900f9b99111cd2d560"
@@ -155,11 +157,47 @@ def prepare(root: Path) -> None:
     for path, source in staged.items():
         path.write_text(source, encoding="utf-8")
 
+FORBIDDEN_PERMISSIONS = (
+    "android.permission.INTERNET",
+    "android.permission.REQUEST_INSTALL_PACKAGES",
+    "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION",
+)
+
+def verify_apk_permissions(root: Path) -> list[str]:
+    """Check actual built APK manifests, not only source manifest declarations."""
+    verify_pins(root)
+    folder = root / "src/PKForge.App/bin/Debug/net10.0-android"
+    apks = sorted(folder.rglob("*.apk"))
+    if not apks:
+        raise OfflineRefusal("No diagnostic APKs available for permission verification")
+    packager = find_android_packager()
+    inspected = []
+    for apk in apks:
+        if apk.is_symlink() or not apk.is_file() or not apk.resolve().is_relative_to(root.resolve()):
+            raise OfflineRefusal("Untrusted APK path")
+        try:
+            output = subprocess.check_output(
+                [str(packager), "dump", "permissions", str(apk)],
+                text=True, stderr=subprocess.PIPE,
+            )
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise OfflineRefusal("Cannot inspect compiled Android permissions") from exc
+        if "package:" not in output.lower():
+            raise OfflineRefusal("Android permissions dump missing package identity")
+        if any(permission in output for permission in FORBIDDEN_PERMISSIONS):
+            raise OfflineRefusal("Offline APK retains network or installer permission: " + str(apk))
+        inspected.append(str(apk))
+    return inspected
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--verify-apks", action="store_true")
     args = parser.parse_args()
-    prepare(args.repo)
+    if args.verify_apks:
+        print("Offline APK permissions verified:", *verify_apk_permissions(args.repo), sep="\n")
+    else:
+        prepare(args.repo)
 
 if __name__ == "__main__":
     main()
