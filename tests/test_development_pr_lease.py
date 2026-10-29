@@ -3,6 +3,7 @@ import copy
 import sys
 from pathlib import Path
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import development_queue as dq
@@ -69,6 +70,26 @@ class OpenPrLeaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not an ancestor"):
             lease.collect(self.queue, [self.pr], lambda sha: self.branch,
                           ancestry_verifier=refuse)
+
+    def test_compare_result_requires_exact_merge_base_and_ancestry(self):
+        base, head = "a" * 40, "b" * 40
+        for result in (
+            {"status": "diverged", "merge_base_commit": {"sha": base}},
+            {"status": "ahead", "merge_base_commit": {"sha": "c" * 40}},
+            {"status": "behind", "merge_base_commit": {"sha": base}},
+            {"status": "ahead"},
+            [],
+        ):
+            with mock.patch.object(lease, "api_json", return_value=result):
+                with self.assertRaises(ValueError):
+                    lease.verify_claim_ancestry(base, head, "")
+        for status in ("ahead", "identical"):
+            with mock.patch.object(lease, "api_json", return_value={
+                "status": status, "merge_base_commit": {"sha": base}}) as api:
+                lease.verify_claim_ancestry(base, head, "")
+                self.assertIn(base + "..." + head, api.call_args.args[0])
+        with self.assertRaises(ValueError):
+            lease.verify_claim_ancestry("main", head, "")
 
     def test_branch_head_sha_must_be_immutable(self):
         pr = copy.deepcopy(self.pr)
