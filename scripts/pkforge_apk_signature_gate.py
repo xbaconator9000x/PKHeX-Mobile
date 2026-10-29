@@ -14,8 +14,8 @@ from pathlib import Path
 
 from pkforge_emulator_apk_selection import SelectionError, verify_selected_apk
 
-CERT = re.compile(r"^Signer #\d+ certificate SHA-256 digest:\s*([0-9a-fA-F]{64})\s*$", re.M)
-SCHEME = re.compile(r"^Verified using v([1-4]) scheme(?:\s*\([^\n]*\))?:\s*true\s*$", re.I | re.M)
+CERT = re.compile(r"^(?:Signer #\d+ certificate|V[234](?:\.\d+)? Signer: certificate) SHA-256 digest:\s*([0-9a-fA-F]{64})\s*$", re.I | re.M)
+SCHEME = re.compile(r"^Verified using v([1-4](?:\.\d+)?) scheme(?:\s*\([^\n]*\))?:\s*true\s*$", re.I | re.M)
 
 
 def verify_signature(report: dict, selection: dict, build_dir: Path,
@@ -36,8 +36,9 @@ def verify_signature(report: dict, selection: dict, build_dir: Path,
         raise SelectionError("Android signature verifier unavailable or timed out") from exc
     if result.returncode != 0:
         raise SelectionError("Android APK signature verification failed")
-    schemes = sorted(set(SCHEME.findall(result.stdout)))
-    certs = sorted(set(d.lower() for d in CERT.findall(result.stdout)))
+    output = result.stdout + "\n" + result.stderr
+    schemes = sorted(set(SCHEME.findall(output)))
+    certs = sorted(set(d.lower() for d in CERT.findall(output)))
     if not schemes or not certs:
         raise SelectionError("Missing verified Android signature scheme or certificate SHA-256")
     # Verify source, provenance, selected file, and bytes again after invoking
