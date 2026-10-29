@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "b891827a510a553b0b09f82fd83ffe76d5e4455d",
+  "main_sha": "48ee9e4f764907052c1666285b8a3d72949c293d",
   "observed_utc": "2026-10-29",
-  "last_pr": 126,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40883278868",
-  "note": "Merged PR #124 at c89275c007b50c0b8ba0d25373014f41cf22e5cb (exact-head official-Core 40881697235, Foundation 40881697052, queue 40881697065): non-publishing PKForge detached nickname preview invalidates in-flight requests on MAUI page navigation. PR #125 checkpoint failed Foundation due real cancellation race; closed unmerged. Merged PR #126 at b891827a510a553b0b09f82fd83ffe76d5e4455d (official-Core 40883278868, Foundation 40883278895, Android read-only 40883278872, queue 40883279050): provider descriptor-close IOException is normalized against direct cancelled tokens, stress-tested. PORT-EDITOR and QUEUE-RUN leases released, remain ready with 153 and 14 modelled hours. PR #118 retains PORT-DEVICE claim; emulator picker still not certified and latest safe resumed-package diagnostic pending CI. No Save As or release authorized."
+  "last_pr": 130,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40892183078",
+  "note": "Merged PR #129 at 9f358f7dcbebeb9b120574668003e49c5d8c1549 (exact-head official-Core 40892183078, Foundation 40892183705, queue 40892183077): pinned PKForge MAUI detached nickname preview now cancels in-flight provider reads on selection/navigation and tests first/second-read cancellation; no Save As or device certification. Merged PR #130 at 48ee9e4f764907052c1666285b8a3d72949c293d (Foundation 40892452813, queue 40892452776): GitHub queue claims require API-confirmed base ancestry of exact PR head; Actions remain read-only. PORT-EDITOR and QUEUE-RUN leases released, ready with 149 and 11 estimated hours. PR #118 retains PORT-DEVICE lease; emulator document picker foreground exit remains unresolved. No original-save writes, distribution or full parity certified."
 }
