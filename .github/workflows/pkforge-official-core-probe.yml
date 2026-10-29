@@ -236,9 +236,13 @@ jobs:
         id: offline-apk-permissions
         if: steps.android.outcome == 'success'
         run: python3 -m scripts.pkforge_offline_preview --repo /tmp/pkforge --verify-apks
+      - name: Reject unresolved fonts, game art and audio in compiled APK
+        id: neutral-apk-media
+        if: steps.offline-apk-permissions.outcome == 'success'
+        run: python3 -m scripts.pkforge_neutral_assets --repo /tmp/pkforge --verify-apks
       - name: Attest adapted editor APK identity and inventory bundled media
         id: apk-provenance
-        if: steps.android.outcome == 'success' && steps.offline-apk-permissions.outcome == 'success'
+        if: steps.android.outcome == 'success' && steps.offline-apk-permissions.outcome == 'success' && steps.neutral-apk-media.outcome == 'success'
         shell: bash
         run: |
           python3 scripts/pkforge_artifact_attestation.py \
@@ -277,6 +281,7 @@ jobs:
           OFFLINE_CONTAINMENT: ${{ steps.offline-containment.outcome }}
           NEUTRAL_ASSETS: ${{ steps.neutral-assets.outcome }}
           OFFLINE_APK_PERMISSIONS: ${{ steps.offline-apk-permissions.outcome }}
+          NEUTRAL_APK_MEDIA: ${{ steps.neutral-apk-media.outcome }}
           MAUI_WORKLOAD: ${{ steps.maui-workload.outcome }}
           ANDROID_RESTORE: ${{ steps.android-restore.outcome }}
           SOURCE_FREEZE: ${{ steps.source-freeze.outcome }}
@@ -308,18 +313,19 @@ jobs:
             echo "Diagnostic runtime media/installer containment: $OFFLINE_CONTAINMENT"
             echo "Neutral asset and cached game-art cutover: $NEUTRAL_ASSETS"
             echo "Compiled APK offline permissions: $OFFLINE_APK_PERMISSIONS"
+            echo "Compiled APK negative-media gate: $NEUTRAL_APK_MEDIA"
             echo "Android MAUI workload: $MAUI_WORKLOAD"
             echo "Frozen prebuild NuGet restore: $ANDROID_RESTORE"
             echo "Full build-input freeze: $SOURCE_FREEZE"
             echo "Android compile: $ANDROID"
             echo "APK identity/media provenance (metadata only): $APK_PROVENANCE"
-            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$APK_PROVENANCE" != success ]; then
+            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$NEUTRAL_APK_MEDIA" != success ] || [ "$APK_PROVENANCE" != success ]; then
               echo '**OFFICIAL-CORE COMPATIBILITY GATE FAILED.** Inspect compilation and runtime smoke diagnostics.'
             else
               echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$APK_PROVENANCE" != success ]; then
+          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$NEUTRAL_APK_MEDIA" != success ] || [ "$APK_PROVENANCE" != success ]; then
             echo 'Retail-only official-Core compatibility gate failed.' >&2
             exit 1
           fi
