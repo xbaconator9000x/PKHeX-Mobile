@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "8f8ccbb1de866b9b7fa7b277fd17f428ebbdb400",
+  "main_sha": "a2bd78db152e967b97f75d9793bb4e8a240124e2",
   "observed_utc": "2026-10-29",
-  "last_pr": 109,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40857294760",
-  "note": "PR #109 merged at 8f8ccbb1de866b9b7fa7b277fd17f428ebbdb400; exact head edcf5ef74199c9f269ec0fe93287217ad41bcf8a Foundation 40857294760 (197 Python tests plus domain smoke) and queue 40857294800 passed. Diagnostic APK consumer now requires exact upstream pins, all three source-freeze predicates, positive file count and same-run source-snapshot SHA-256/schema; pre-install recheck repeats those checks. This does NOT wire selector into emulator PR #83, prove same-job producer exit, certify Android device/provider, establish media rights or authorize save writes. QUEUE-RUN claim released; 27 modelled hours remain. Draft #83 remains independently owned and must rebase/integrate signed-only selector and foreground Activity; FIXTURES remain blocked on independent desktop oracle."
+  "last_pr": 111,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40857993388",
+  "note": "PR #111 merged at a2bd78db152e967b97f75d9793bb4e8a240124e2; exact head 3455b6792f18f05deb7e7ed623b384ccc55164b5 Foundation 40857993388 (200 Python tests and domain smoke) and queue 40857993395 passed. Diagnostic APK selector now refuses unsigned/single fallback, clears stale selection output before consuming provenance, rejects output alias/symlink, and publishes selection JSON atomically with fsync+replace. Previous PR #109 pinned source-freeze contract remains in place. These are source/CLI gates only: independently owned draft emulator #83 still requires rebase, same-run attestation, exact signed APK install, foreground Activity, provider/backup/QR checks. QUEUE-RUN claim released, 25 modelled hours remain. No APK distribution, independent desktop fixture or original-save writing certified."
 }
