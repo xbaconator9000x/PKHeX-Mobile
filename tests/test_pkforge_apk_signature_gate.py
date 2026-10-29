@@ -58,6 +58,13 @@ class SignatureGateTests(unittest.TestCase):
         self.assertFalse(result["distribution_authorized"])
         self.assertFalse(result["save_writes_authorized"])
 
+    def test_modern_v3_certificate_and_scheme_are_accepted(self):
+        modern = ("Verifies\nVerified using v3.1 scheme (APK Signature Scheme v3.1): true\n"
+                  "V3.0 Signer: certificate SHA-256 digest: " + CERT + "\n")
+        result = self.run_gate(subprocess.CompletedProcess([], 0, modern, ""))
+        self.assertEqual(result["signer_certificate_sha256"], [CERT])
+        self.assertEqual(result["verified_signature_schemes"], ["3.1"])
+
     def test_unsigned_suffix_is_not_proof_of_signature(self):
         with self.assertRaisesRegex(SelectionError, "signature verification failed"):
             self.run_gate(subprocess.CompletedProcess([], 1, "DOES NOT VERIFY", ""))
