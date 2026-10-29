@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "41664ca6920afb3f9d056d0f68177c38af3f83d7",
+  "main_sha": "3335892105bb0c319d41151c5f53ae3e5f831a06",
   "observed_utc": "2026-10-29",
-  "last_pr": 89,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40829202408",
-  "note": "PR #89 merged at 41664ca with official-Core Android, Foundation and queue CI green. Diagnostic Showdown clipboard/file, audit-report share, binary .pk QR and park-photo sharing now fail closed; text QR uses per-overlay memory, not qr-latest.png. Source-drift/synthetic gates passed. Emulator/device cache, upgrade/restore, exact provider fixtures, redistribution clearance and safe Save As remain outstanding. PREVIEW-EXPORT-BACKUP returned to ready, not verified."
+  "last_pr": 91,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40829878405",
+  "note": "PR #91 merged with Foundation and queue CI green: selector regression tests now verify both ready and in_progress PORT-APK claims, removing a false failure in draft emulator PR #83. QUEUE-RUN remains ready with 43 forecast hours, not verified. Emulator PR #83 still requires independent rebase/CI and device/provider evidence. PR #89 diagnostic cache guard remains compiled and source-tested; release, independent retail fixtures, Save As and full parity remain unverified."
 }
