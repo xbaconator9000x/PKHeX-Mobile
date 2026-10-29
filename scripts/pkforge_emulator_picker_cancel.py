@@ -106,6 +106,10 @@ def exact_readonly_document_launch(log: str) -> bool:
     if not starts:
         return False
     line = starts[-1]
+    # A corrupted/concatenated log line cannot prove which launch was last.
+    # Never accept its first action while ignoring a later unsafe picker.
+    if line.count("START u") != 1:
+        return False
     action = re.search(r"\bact=([^\s}]+)", line)
     flags = re.search(r"\bflg=0x([0-9a-fA-F]+)", line)
     if action is None or action.group(1) != "android.intent.action.OPEN_DOCUMENT":
