@@ -294,38 +294,78 @@ def verify_packaged_media_review(apk_report: dict, review: dict) -> dict:
 
 
 
-SOURCE_SUFFIXES = frozenset({
-    ".cs", ".csproj", ".xaml", ".xml", ".props", ".targets",
-    ".json", ".resx", ".razor",
-})
+
+# Freeze the complete checked-out source/resource trees, not only C#/XAML.
+# In particular the upstream media, implicit Android resources and both
+# external source submodules can affect the APK even if no csproj changes.
+BUILD_OUTPUT_DIRS = frozenset({"bin", "obj", ".git", ".vs", "TestResults"})
 
 
-def source_tree_manifest(root: Path) -> dict[str, str]:
-    """Hash all application/engine source inputs, including generated adapters.
-
-    Exclude build products only; no contents are uploaded. A separate frozen
-    pre-build manifest is compared after packaging to detect source drift.
-    """
-    src = root / "src"
-    if not src.is_dir() or src.is_symlink():
-        raise AttestationError("Missing or symlinked PKForge source directory")
-    result: dict[str, str] = {}
-    for file in sorted(src.rglob("*")):
-        relative = file.relative_to(src)
-        if any(part in ("bin", "obj", ".git") for part in relative.parts):
-            continue
-        if file.is_symlink():
-            raise AttestationError("Symlink in PKForge source tree")
-        if file.is_file() and file.suffix.lower() in SOURCE_SUFFIXES:
+def _hash_tree(root: Path, directory: Path, result: dict[str, str]) -> None:
+    if directory.is_symlink() or not directory.is_dir():
+        raise AttestationError(f"Missing or symlinked build input tree: {directory}")
+    for parent, folders, files in os.walk(directory, followlinks=False):
+        current = Path(parent)
+        for name in folders:
+            if name not in BUILD_OUTPUT_DIRS and (current / name).is_symlink():
+                raise AttestationError(f"Symlink in build inputs: {current / name}")
+        folders[:] = sorted(name for name in folders if name not in BUILD_OUTPUT_DIRS)
+        for name in sorted(files):
+            if name == ".git":
+                continue  # Submodule .git control file, never a build input.
+            file = current / name
+            if file.is_symlink() or not file.is_file():
+                raise AttestationError(f"Symlink or unsupported build input: {file}")
             result[file.relative_to(root).as_posix()] = digest(file)
-    if not result or "src/PKForge.App/PKForge.App.csproj" not in result:
-        raise AttestationError("Missing PKForge source manifest inputs")
+
+
+def source_tree_manifest(root: Path, mobile: Path | None = None) -> dict[str, str]:
+    """Freeze transformed source, all media, external sources and restore graph.
+
+    The build-output exclusion is limited to generated bin/obj directories.
+    The MAUI restore graph is the explicit exception: it is frozen after
+    prebuild restore and must remain byte-identical through --no-restore build.
+    This detects input drift, not independent asset licensing or NuGet integrity.
+    """
+    root = root.resolve(strict=True)
+    result: dict[str, str] = {}
+    for relative in ("src", "external/PKHeX", "external/PKHeX-Plugins"):
+        directory = root / relative
+        if directory.is_symlink() or not directory.is_dir():
+            raise AttestationError(f"Missing or symlinked build input tree: {relative}")
+    # Scan the entire checkout: MSBuild can import scripts/config from tools,
+    # tests or root-level directories, not just src and external gitlinks.
+    _hash_tree(root, root, result)
+    graph = root / "src/PKForge.App/obj/project.assets.json"
+    if graph.is_symlink() or not graph.is_file():
+        raise AttestationError("Missing prebuild MAUI restore graph")
+    result[graph.relative_to(root).as_posix()] = digest(graph)
+    if mobile is not None:
+        # The adapted MAUI project references mobile source outside PKForge.
+        # Those C# project/adapter bytes are build inputs, not just the scripts.
+        mobile_sources: dict[str, str] = {}
+        _hash_tree(mobile, mobile / "src", mobile_sources)
+        result.update({f"mobile/{key}": value
+                       for key, value in mobile_sources.items()})
+        scripts = mobile / "scripts"
+        if scripts.is_symlink() or not scripts.is_dir():
+            raise AttestationError("Missing adaptation script directory")
+        adapters = sorted(scripts.glob("pkforge_*.py"))
+        if not adapters:
+            raise AttestationError("Missing adaptation scripts")
+        for script in adapters:
+            if script.is_symlink() or not script.is_file():
+                raise AttestationError(f"Symlinked adaptation script: {script}")
+            result[f"mobile/scripts/{script.name}"] = digest(script)
+    if "src/PKForge.App/PKForge.App.csproj" not in result:
+        raise AttestationError("Missing PKForge application project in input freeze")
     return result
 
 
-def write_source_snapshot(root: Path, destination: Path) -> dict:
-    files = source_tree_manifest(root.resolve(strict=True))
-    report = {"schema": 1, "files": files}
+def write_source_snapshot(root: Path, destination: Path,
+                          mobile: Path | None = None) -> dict:
+    files = source_tree_manifest(root, mobile)
+    report = {"schema": 2, "scope": "full-transformed-build-inputs", "files": files}
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(
         json.dumps(report, sort_keys=True, indent=2) + "\n",
@@ -334,15 +374,17 @@ def write_source_snapshot(root: Path, destination: Path) -> dict:
     return report
 
 
-def verify_source_snapshot(root: Path, snapshot: Path) -> dict:
+def verify_source_snapshot(root: Path, snapshot: Path,
+                           mobile: Path | None = None) -> dict:
     try:
         report = json.loads(snapshot.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise AttestationError("Missing or invalid frozen source snapshot") from exc
-    if (not isinstance(report, dict) or report.get("schema") != 1
+    if (not isinstance(report, dict) or report.get("schema") != 2
+            or report.get("scope") != "full-transformed-build-inputs"
             or not isinstance(report.get("files"), dict)):
         raise AttestationError("Invalid frozen source snapshot schema")
-    current = source_tree_manifest(root)
+    current = source_tree_manifest(root, mobile)
     expected = report["files"]
     if current != expected:
         changed = sorted(
@@ -356,6 +398,8 @@ def verify_source_snapshot(root: Path, snapshot: Path) -> dict:
         "files": len(current),
         "sha256": digest(snapshot),
         "source_unchanged_after_build": True,
+        "includes_external_sources_and_media": True,
+        "includes_prebuild_restore_graph": True,
     }
 
 
@@ -380,7 +424,7 @@ def attestation(root: Path, mobile: Path, packager: Path | None = None,
         raise AttestationError("Android build produced no APK")
     packager = packager or find_android_packager()
     inspected = [inspect_apk(p, packager) for p in apks]
-    frozen_source = (verify_source_snapshot(root, source_snapshot)
+    frozen_source = (verify_source_snapshot(root, source_snapshot, mobile)
                      if source_snapshot is not None else None)
     assets = inventory_assets(root, project)
     scripts = sorted((mobile / "scripts").glob("pkforge_*.py"))
@@ -430,7 +474,7 @@ def main() -> None:
     if args.snapshot_only:
         if args.source_snapshot is not None:
             parser.error("--snapshot-only cannot combine with --source-snapshot")
-        snapshot = write_source_snapshot(args.repo, args.output)
+        snapshot = write_source_snapshot(args.repo, args.output, args.mobile)
         print(f"Froze {len(snapshot['files'])} source files before Android packaging")
         return
     report = attestation(args.repo, args.mobile,
