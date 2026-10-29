@@ -354,9 +354,9 @@
       "title": "Queue-driven implementation and verification checkpoint handoff",
       "owner": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 45,
-      "remaining_hours": 36,
+      "remaining_hours": 34,
       "dependencies": [],
       "locks": [
         "queue"
@@ -381,14 +381,13 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40843392176",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40843392305",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40843392144",
-        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40843980513"
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40843980513",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/103",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40845246235",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40845246116",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40845577122"
       ],
-      "blockers": [],
-      "claim": {
-        "branch": "impl/attested-emulator-apk-selection-20261029",
-        "pr": 103,
-        "base_sha": "bcfa2c29460ec99b46eab5d4b12ea152031336c7"
-      }
+      "blockers": []
     },
     {
       "id": "PREVIEW-EXPORT-BACKUP",
