@@ -97,12 +97,13 @@ class PickerCancelTests(unittest.TestCase):
             start("android.intent.action.OPEN_DOCUMENT", flags="0x43"),
             start("android.intent.action.OPEN_DOCUMENT", flags="0x40"),
             start("android.intent.action.OPEN_DOCUMENT", category="android.intent.category.DEFAULT"),
-            good + "\\n" + start("android.intent.action.OPEN_DOCUMENT_TREE"),
+            good + "\n" + start("android.intent.action.OPEN_DOCUMENT_TREE"),
+            good + "\\n" + start("android.intent.action.OPEN_DOCUMENT_TREE"),  # malformed one-line record
             "",
         ):
             self.assertFalse(module.exact_readonly_document_launch(bad))
         self.assertTrue(module.exact_readonly_document_launch(
-            start("android.intent.action.OPEN_DOCUMENT_TREE") + "\\n" + good))
+            start("android.intent.action.OPEN_DOCUMENT_TREE") + "\n" + good))
 
     def test_launch_verification_refuses_missing_or_wrong_action(self):
         with patch.object(module, "adb", return_value=""):
