@@ -377,7 +377,12 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40842772255",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40842772250"
       ],
-      "blockers": []
+      "blockers": [],
+      "claim": {
+        "branch": "impl/ci-trigger-exact-main-20261029",
+        "pr": 101,
+        "base_sha": "bb29e6ee9c28d7a810368915a9e7461480e339d0"
+      }
     },
     {
       "id": "PREVIEW-EXPORT-BACKUP",
