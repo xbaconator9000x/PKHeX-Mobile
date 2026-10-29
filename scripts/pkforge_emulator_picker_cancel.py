@@ -25,9 +25,10 @@ def adb(*args: str, timeout: int = 35) -> str:
 def ui_nodes() -> list[dict]:
     adb("shell", "uiautomator", "dump", "/sdcard/pkforge-ci-window.xml")
     xml = adb("exec-out", "cat", "/sdcard/pkforge-ci-window.xml")
-    start = xml.find("<?xml")
+    # Android platform tools may omit the XML declaration or prepend a dump banner.
+    start = xml.find("<hierarchy")
     if start < 0:
-        raise RuntimeError("Android accessibility hierarchy unavailable")
+        raise RuntimeError(f"Android accessibility hierarchy unavailable (bytes={len(xml)})")
     return [node.attrib for node in ET.fromstring(xml[start:]).iter("node")]
 
 
