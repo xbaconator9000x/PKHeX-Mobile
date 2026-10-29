@@ -6,7 +6,7 @@ using PKHeXMobile.Verify;
 if (args.Length == 1 && args[0] is "--help" or "-h")
 {
     Console.WriteLine("Usage: PKHeXMobile.Verify <local-fixture-manifest.json>");
-    Console.WriteLine("Schema 1: basic slots; schema 2: details; schema 3: awards; schema 4: national dex flags; schema 5: Core-enumerated inventory; schema 6: physical storage slot flags; schema 7: Core trainer progress scalars; schema 8: format-aware training diagnostics; schema 9: raw move PP, PP Ups and relearn getters; schema 10: raw identity and egg provenance; schema 11: bounded nursery metadata and parent-byte digests; schema 12: separate Gen2 egg-buffer fingerprint; schema 13: raw Gen4/BDSP Underground; schema 14: raw HGSS gadgets and Pokéathlon; schema 15: B2W2 medals, habitats and Key System raw diagnostics; schema 16: XY/ORAS Super Training and O-Power raw diagnostics.");
+    Console.WriteLine("Schema 1: basic slots; schema 2: details; schema 3: awards; schema 4: national dex flags; schema 5: Core-enumerated inventory; schema 6: physical storage slot flags; schema 7: Core trainer progress scalars; schema 8: format-aware training diagnostics; schema 9: raw move PP, PP Ups and relearn getters; schema 10: raw identity and egg provenance; schema 11: bounded nursery metadata and parent-byte digests; schema 12: separate Gen2 egg-buffer fingerprint; schema 13: raw Gen4/BDSP Underground; schema 14: raw HGSS gadgets and Pokéathlon; schema 15: B2W2 medals, habitats and Key System raw diagnostics; schema 16: XY/ORAS Super Training and O-Power raw diagnostics; schema 17: explicit expected recognized/refused outcomes (negative fixtures do not require a projection).");
     Console.WriteLine("Compares consented local save projections to separately supplied expected values.");
     Console.WriteLine("Never modifies or exports saves. Never commit real save files or private manifests.");
     return 0;
@@ -24,10 +24,10 @@ try
     var manifest = JsonSerializer.Deserialize<FixtureManifest>(
         await File.ReadAllTextAsync(manifestPath),
         new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-    if (manifest is null || manifest.SchemaVersion is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16) || manifest.CoreVersion != "26.10.18" ||
+    if (manifest is null || manifest.SchemaVersion is < 1 or > 17 || manifest.CoreVersion != "26.10.18" ||
         manifest.Fixtures is null)
     {
-        Console.Error.WriteLine("Manifest must declare schemaVersion=1–16, coreVersion=26.10.18 and nonempty fixtures.");
+        Console.Error.WriteLine("Manifest must declare schemaVersion=1–17, coreVersion=26.10.18 and nonempty fixtures.");
         return 64;
     }
 
@@ -41,9 +41,10 @@ try
         if (fixture is null || string.IsNullOrWhiteSpace(fixture.Path) ||
             Path.IsPathRooted(fixture.Path) || fixture.Sha256 is null ||
             fixture.Sha256.Length != 64 || !fixture.Sha256.All(Uri.IsHexDigit) ||
-            fixture.Expected is null)
+            !FixtureOutcomePolicy.TryResolve(manifest.SchemaVersion, fixture.ExpectedOutcome,
+                fixture.Expected is not null, out _))
         {
-            Console.Error.WriteLine($"Fixture {i + 1}: invalid path, SHA-256 or expected projection.");
+            Console.Error.WriteLine($"Fixture {i + 1}: invalid path, SHA-256 or expected outcome/projection.");
             failed++;
             continue;
         }
@@ -65,14 +66,28 @@ try
                 failed++;
                 continue;
             }
+            _ = FixtureOutcomePolicy.TryResolve(manifest.SchemaVersion, fixture.ExpectedOutcome,
+                fixture.Expected is not null, out var outcome);
+            if (outcome == FixtureExpectedOutcome.Refused)
+            {
+                if (!FixtureOutcomePolicy.RefusalMatches(inspected.IsRecognized, inspected.RejectionReason))
+                {
+                    Console.Error.WriteLine($"Fixture {i + 1}: expected refusal, but reader recognized the input or gave no refusal reason.");
+                    failed++;
+                    continue;
+                }
+                passed++;
+                Console.WriteLine($"Fixture {i + 1}: PASS (read-only parser refusal; no format authorization).");
+                continue;
+            }
             if (!inspected.IsRecognized || inspected.Result is null)
             {
-                Console.Error.WriteLine($"Fixture {i + 1}: reader refused the input ({inspected.RejectionReason}).");
+                Console.Error.WriteLine($"Fixture {i + 1}: expected recognized input, but reader refused it.");
                 failed++;
                 continue;
             }
 
-            var differences = SaveProjectionVerifier.Compare(inspected.Result, fixture.Expected,
+            var differences = SaveProjectionVerifier.Compare(inspected.Result, fixture.Expected!,
                 requireDetails: manifest.SchemaVersion >= 2,
                 requireAwards: manifest.SchemaVersion >= 3,
                 requirePokedex: manifest.SchemaVersion >= 4,
@@ -125,4 +140,5 @@ internal sealed record FixtureManifest(
 internal sealed record FixtureCase(
     [property: JsonRequired] string Path,
     [property: JsonRequired] string Sha256,
-    [property: JsonRequired] ExpectedSaveProjection Expected);
+    ExpectedSaveProjection? Expected,
+    string? ExpectedOutcome = null);
