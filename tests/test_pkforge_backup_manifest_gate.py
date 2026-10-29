@@ -24,6 +24,10 @@ class ManifestGateTests(unittest.TestCase):
     def test_valid_compiled_policy(self):
         validate_xml(MANIFEST, RULES)
 
+    def test_aapt2_namespace_uri_attributes(self):
+        uri = MANIFEST.replace("android:", "http://schemas.android.com/apk/res/android:")
+        validate_xml(uri, RULES)
+
     def test_refuse_backup_true_missing_or_resource(self):
         for bad in (MANIFEST.replace("(type 0x12)0x0", "(type 0x12)0x1", 1),
                     MANIFEST.replace("android:allowBackup", "android:unknown"),

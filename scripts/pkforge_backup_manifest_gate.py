@@ -14,7 +14,7 @@ APK_DIR = "src/PKForge.App/bin/Debug/net10.0-android"
 
 
 def attribute(xml, name):
-    matches = re.findall(r"(?m)^\s*A:\s+android:" + re.escape(name)
+    matches = re.findall(r"(?m)^\s*A:\s+[^\n=]*\b" + re.escape(name)
                          + r"(?:\([^\n]*?\))?\s*=\s*([^\n]+)", xml)
     if len(matches) != 1:
         raise OfflineRefusal("Missing or duplicate compiled attribute: " + name)
