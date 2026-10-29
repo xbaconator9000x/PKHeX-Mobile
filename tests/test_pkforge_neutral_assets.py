@@ -6,7 +6,7 @@ from unittest.mock import patch
 import zipfile
 
 from scripts.pkforge_neutral_assets import (
-    ABOUT, BOX, GAME_ART, HOME, ICON, MAUI, PIXEL, PROJECT, SPLASH,
+    ABOUT, BANK_EDITOR, BOX, DEX_PICKER, GAME_ART, GENERATE, HOME, ICON, MAUI, PIXEL, PROJECT, SPLASH,
     NeutralAssetRefusal, transform, verify_apks,
 )
 
@@ -43,6 +43,9 @@ if (await Task.Run(downloader.CountMissing) == 0)''',
             });''',
             PIXEL: "NDS12.ttf and MPLUSRounded1c-Regular.ttf",
             BOX: """internal static SKTypeface PixelTypeface()\n    {\nvar cache = FileSystem.CacheDirectory;\nprivate static string? RibbonIconPath(string id)\n    {\nvar ribbonCache = FileSystem.CacheDirectory;\nprivate static string? BallIconPath(int ball)\n    {\nvar ballCache = FileSystem.CacheDirectory;""",
+            BANK_EDITOR: "private static string? BallIconPath(int ball)\n    {\nvar cache = FileSystem.CacheDirectory;",
+            DEX_PICKER: """private static async Task EnsureIconsAsync(IGameDataService data)\n    {\nvar missing = new List<int>();\nprivate static async Task NormalizeIconAsync(int id)\n    {\nvar target = IconCachePath(id);\nFile.Exists(icon) ? icon : null,""",
+            GENERATE: "private static async Task<string?> FormSpritePathAsync(int species, int form)\n    {\nvar target = FileSystem.CacheDirectory;",
         }
         for path, content in self.sources.items():
             target = self.root / path
@@ -53,7 +56,7 @@ if (await Task.Run(downloader.CountMissing) == 0)''',
 
     def test_stages_complete_cutover_without_touching_originals(self):
         staged = transform(self.root)
-        self.assertEqual(len(staged), 9)
+        self.assertEqual(len(staged), 12)
         self.assertEqual((self.root / PROJECT).read_text(), self.sources[PROJECT])
         project = staged[self.root / PROJECT]
         self.assertNotIn("<MauiAsset", project)
@@ -76,6 +79,14 @@ if (await Task.Run(downloader.CountMissing) == 0)''',
         self.assertEqual(box.count("if (PreviewRuntimePolicy.Offline) return null;"), 2)
         self.assertLess(box.index("return SKTypeface.Default;"), box.index("var cache"))
         self.assertLess(box.index("return null;"), box.index("var ribbonCache"))
+
+    def test_secondary_cached_sprite_routes_refused(self):
+        staged = transform(self.root)
+        self.assertIn("if (PreviewRuntimePolicy.Offline) return null;", staged[self.root / BANK_EDITOR])
+        dex = staged[self.root / DEX_PICKER]
+        self.assertEqual(dex.count("if (PreviewRuntimePolicy.Offline) return;"), 2)
+        self.assertIn("!PreviewRuntimePolicy.Offline && File.Exists(icon)", dex)
+        self.assertIn("if (PreviewRuntimePolicy.Offline) return null;", staged[self.root / GENERATE])
 
     def test_sprite_ui_truth_and_hidden_media_refusal(self):
         staged = transform(self.root)
