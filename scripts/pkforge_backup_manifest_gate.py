@@ -17,7 +17,10 @@ def attribute(xml, name):
     matches = re.findall(r"(?m)^\s*A:\s+[^\n=]*\b" + re.escape(name)
                          + r"(?:\([^\n]*?\))?\s*=\s*([^\n]+)", xml)
     if len(matches) != 1:
-        raise OfflineRefusal("Missing or duplicate compiled attribute: " + name)
+        observed = [line.strip()[:180] for line in xml.splitlines()
+                    if any(token in line for token in ("allowBackup", "fullBackupContent", "dataExtractionRules"))]
+        raise OfflineRefusal("Missing or duplicate compiled attribute: " + name
+                             + "; observed backup attributes=" + repr(observed[:8]))
     return matches[0].strip()
 
 
