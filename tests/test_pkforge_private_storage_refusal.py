@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from scripts import pkforge_private_storage_refusal as guard
+from scripts import pkforge_residual_cache_refusal as residual
 
 class PrivateStorageTests(unittest.TestCase):
     def setUp(self):
@@ -39,6 +40,45 @@ class PrivateStorageTests(unittest.TestCase):
             p = self.root / name
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content)
+
+        # Source-pinned residual output routes. These are synthetic only, never private saves.
+        box = self.root / guard.BOX
+        box.write_text(box.read_text() + residual.SHOWDOWN_START +
+            '        var text = "SYNTHETIC";\n' +
+            '        await Clipboard.Default.SetTextAsync(text);\n' +
+            '        case "Share as file":\n' +
+            '        await File.WriteAllTextAsync(path, text);\n' +
+            '        await Share.Default.RequestAsync(null);\n    }\n' +
+            residual.SHOWDOWN_END + '\n' +
+            residual.AUDIT_START +
+            '        await File.WriteAllTextAsync(path, text);\n' +
+            '        await Share.Default.RequestAsync(null);\n    }\n' +
+            residual.AUDIT_END + '\n')
+        qr = self.root / residual.QR
+        qr.parent.mkdir(parents=True, exist_ok=True)
+        qr.write_text(
+            residual.BINARY_START +
+            '        var latin1 = Encoding.Latin1.GetString(payload);\n' +
+            '        var matrix = new QRCodeWriter().encode(latin1);\n' +
+            '        return ShowAsync(host, title, matrix);\n    }\n' +
+            residual.BINARY_END + '\n    {\n' +
+            residual.QR_DISK_START +
+            '        using (var bitmap = new SKBitmap(matrix.Width, matrix.Height))\n' +
+            '        {\n            using var image = SKImage.FromBitmap(bitmap);\n' +
+            '            using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);\n' +
+            '            using var file = File.Create(path);\n' +
+            '            encoded.SaveTo(file);\n        }\n' +
+            residual.QR_DISK_END + '\n' +
+            '        void Close() {\n' + residual.QR_CLOSE + '        }\n' +
+            '        var img = new Image { ' + residual.QR_FILE_IMAGE + ' };\n    }\n')
+        park = self.root / residual.PARK
+        park.parent.mkdir(parents=True, exist_ok=True)
+        park.write_text(
+            residual.PARK_START +
+            '        if (_sharing || _photos.Count == 0) return;\n' +
+            '        File.Copy(photo.Path, copy, overwrite: true);\n' +
+            '        await Share.Default.RequestAsync(null);\n    }\n' +
+            residual.PARK_END + '\n')
 
     def test_compile_time_diagnostic_guards(self):
         out = guard.transform(self.root)
@@ -96,6 +136,70 @@ class PrivateStorageTests(unittest.TestCase):
         with self.assertRaises(guard.OfflineRefusal):
             guard.transform(self.root)
         self.assertNotIn("Diagnostic preview: Pokémon export disabled.", p.read_text())
+
+    def test_residual_showdown_and_audit_export_denied_before_cache(self):
+        out = guard.transform(self.root)
+        box = out[self.root / guard.BOX]
+        self.assertLess(box.index(residual.SHOWDOWN_GUARD),
+                        box.index('Clipboard.Default.SetTextAsync(text)'))
+        self.assertLess(box.index(residual.SHOWDOWN_GUARD),
+                        box.index('File.WriteAllTextAsync(path, text)'))
+        self.assertLess(box.index(residual.AUDIT_GUARD, box.index(residual.AUDIT_START)),
+                        box.rindex('File.WriteAllTextAsync(path, text)'))
+        self.assertIn('Showdown sharing and clipboard export disabled', box)
+        self.assertIn('Diagnostic preview: Pokémon export disabled.', box)
+
+    def test_qr_is_per_overlay_memory_only_and_binary_export_denied(self):
+        out = guard.transform(self.root)
+        qr = out[self.root / residual.QR]
+        self.assertNotIn('qr-latest.png', qr)
+        self.assertNotIn('File.Create(path)', qr)
+        self.assertNotIn('ImageSource.FromFile(path)', qr)
+        self.assertIn(residual.QR_MEMORY_IMAGE, qr)
+        self.assertIn('png = encoded.ToArray();', qr)
+        self.assertIn('Array.Clear(png);', qr)
+        self.assertLess(qr.index(residual.BINARY_GUARD),
+                        qr.index('Encoding.Latin1.GetString(payload)'))
+
+    def test_park_photo_share_is_refused_without_deleting_legacy_media(self):
+        out = guard.transform(self.root)
+        park = out[self.root / residual.PARK]
+        self.assertLess(park.index(residual.PARK_GUARD),
+                        park.index('File.Copy(photo.Path, copy, overwrite: true)'))
+        self.assertNotIn('File.Delete(', park)
+
+    def test_residual_drift_fails_before_any_staged_write(self):
+        qr = self.root / residual.QR
+        qr.write_text(qr.read_text().replace('qr-latest.png', 'renamed.png'))
+        with self.assertRaises(guard.OfflineRefusal):
+            guard.transform(self.root)
+        self.assertNotIn('DIAGNOSTIC', (self.root / guard.PROJECT).read_text())
+        self.assertNotIn('Showdown sharing and clipboard export disabled',
+                         (self.root / guard.BOX).read_text())
+
+    def test_residual_repeat_patch_rejected(self):
+        staged = guard.transform(self.root)
+        for path, content in staged.items():
+            path.write_text(content)
+        with self.assertRaises(guard.OfflineRefusal):
+            guard.transform(self.root)
+
+    def test_each_residual_entry_point_fails_closed_on_source_drift(self):
+        changes = [
+            (guard.BOX, 'Clipboard.Default.SetTextAsync(text)', 'UnknownClipboard()'),
+            (guard.BOX, 'Share.Default.RequestAsync(null)', 'UnknownShare()'),
+            (residual.QR, 'Encoding.Latin1.GetString(payload)', 'UnknownEncoding()'),
+            (residual.PARK, 'File.Copy(photo.Path, copy, overwrite: true)', 'UnknownCopy()'),
+        ]
+        for relative, before, after in changes:
+            path = self.root / relative
+            original = path.read_text()
+            path.write_text(original.replace(before, after))
+            try:
+                with self.assertRaises(guard.OfflineRefusal):
+                    guard.transform(self.root)
+            finally:
+                path.write_text(original)
 
     def test_refuse_repeat_patch(self):
         out = guard.transform(self.root)
