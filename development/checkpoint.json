@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "f021b4c0608ec063c0e08eb463817c97188431e3",
+  "main_sha": "8f8ccbb1de866b9b7fa7b277fd17f428ebbdb400",
   "observed_utc": "2026-10-29",
-  "last_pr": 106,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40849598189",
-  "note": "PR #106 merged at f021b4c0608ec063c0e08eb463817c97188431e3: exact PR head de75ca0c52a3294b548dc36e0cab0b2561018f24 Foundation 40849365386 and queue 40849365350 passed. Strict queue claim validation now rejects missing/legacy fields; APK selection supports independent immediate-before-install attestation/byte recheck. Merged-main Foundation 40849598189 and queue 40849598062 were initiated; verify exact result before release claims. QUEUE-RUN claim released with 31 modelled hours remaining; PREVIEW-EXPORT-BACKUP blocked on real emulator/device transfer/QR/provider checks. Independently owned draft emulator PR #83 still requires rebase, attested install and foreground Activity. No APK distributed or original-save writing enabled."
+  "last_pr": 109,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40857294760",
+  "note": "PR #109 merged at 8f8ccbb1de866b9b7fa7b277fd17f428ebbdb400; exact head edcf5ef74199c9f269ec0fe93287217ad41bcf8a Foundation 40857294760 (197 Python tests plus domain smoke) and queue 40857294800 passed. Diagnostic APK consumer now requires exact upstream pins, all three source-freeze predicates, positive file count and same-run source-snapshot SHA-256/schema; pre-install recheck repeats those checks. This does NOT wire selector into emulator PR #83, prove same-job producer exit, certify Android device/provider, establish media rights or authorize save writes. QUEUE-RUN claim released; 27 modelled hours remain. Draft #83 remains independently owned and must rebase/integrate signed-only selector and foreground Activity; FIXTURES remain blocked on independent desktop oracle."
 }
