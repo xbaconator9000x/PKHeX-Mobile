@@ -191,8 +191,8 @@ class QueueGates(unittest.TestCase):
         # An open PR must not override main's already-claimed device task.
         with self.assertRaises(ValueError):
             dq.overlay_pr_claims(q, {"repository": q["repository"],
-                "claims": [{"task_id": "PORT-DEVICE", **{**claim,
-                    "branch": "impl/other-device"}}]})
+                "claims": [{**claim, "task_id": "PORT-DEVICE",
+                    "branch": "impl/other-device"}]})
 
     def test_progress_does_not_claim_release(self):
         r = dq.report(self.queue, self.checkpoint)
