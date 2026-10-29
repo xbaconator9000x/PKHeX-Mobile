@@ -10,6 +10,9 @@ BANK = INF + "FileBankService.cs"
 BACKUP = INF + "FileBackupService.cs"
 MAUI = "src/PKForge.App/MauiProgram.cs"
 HOME = "src/PKForge.App/Views/HomePage.cs"
+BOX = "src/PKForge.App/Views/BoxBrowserPage.cs"
+BANK_PAGE = "src/PKForge.App/Views/BankPage.cs"
+EVENT_GALLERY = "src/PKForge.App/Views/EventGallery.cs"
 PROJECT_ANCHOR = "  </PropertyGroup>\n  <ItemGroup>"
 PROJECT_REPLACE = """  </PropertyGroup>
   <PropertyGroup Condition="'$(DiagnosticBuild)' == 'true'">
@@ -109,10 +112,75 @@ def adapt_home(source):
     return source
 
 
+BOX_BULK_EXPORT = '''            case "Export (.pk files)":
+            {
+'''
+BOX_SLOT_EXPORT = '''    private async Task ExportSlotAsync(int slot)
+    {
+'''
+BANK_ENTITY_EXPORT = '''    private async Task ExportAsync(BankEntry entry)
+    {
+'''
+EVENT_ENTITY_EXPORT = '''        private async Task ExportAsync(bool entity)
+        {
+            if (_busy) return;
+'''
+BOX_BULK_GUARD = '''                if (PKForge.App.Services.PreviewRuntimePolicy.Offline)
+                {
+                    _viewModel.Status = "Diagnostic preview: Pokémon export disabled.";
+                    break;
+                }
+'''
+BOX_SLOT_GUARD = '''        if (PKForge.App.Services.PreviewRuntimePolicy.Offline)
+        {
+            _viewModel.Status = "Diagnostic preview: Pokémon export disabled.";
+            return;
+        }
+'''
+BANK_ENTITY_GUARD = '''        if (PKForge.App.Services.PreviewRuntimePolicy.Offline)
+        {
+            _boxViewModel.Status = "Diagnostic preview: bank export disabled.";
+            return;
+        }
+'''
+EVENT_ENTITY_GUARD = '''            if (PKForge.App.Services.PreviewRuntimePolicy.Offline)
+            {
+                _note.Text = "Diagnostic preview: event export disabled.";
+                return;
+            }
+'''
+
+
+def guard_export(source, anchor, guard, required):
+    if source.count(anchor) != 1 or anchor + guard in source:
+        raise OfflineRefusal("Pinned diagnostic export source drift or repeat adaptation")
+    if any(source.count(token) < 1 for token in required):
+        raise OfflineRefusal("Pinned diagnostic export body changed")
+    return source.replace(anchor, anchor + guard, 1)
+
+
+def adapt_box_exports(source):
+    source = guard_export(source, BOX_BULK_EXPORT, BOX_BULK_GUARD,
+                          ("_viewModel.BulkExport(directory)", "ShareMultipleFilesRequest"))
+    return guard_export(source, BOX_SLOT_EXPORT, BOX_SLOT_GUARD,
+                        ("session.ExportSlot(_viewModel.BoxIndex, slot)", "File.WriteAllBytesAsync(path, export.Data)"))
+
+
+def adapt_bank_export(source):
+    return guard_export(source, BANK_ENTITY_EXPORT, BANK_ENTITY_GUARD,
+                        ("_bank.GetData(entry.Id)", "File.WriteAllBytesAsync(path, bytes)"))
+
+
+def adapt_event_export(source):
+    return guard_export(source, EVENT_ENTITY_EXPORT, EVENT_ENTITY_GUARD,
+                        ("_ctx.Service.ExportEntity", "_ctx.Service.ExportCard",
+                         "File.WriteAllBytesAsync(path, export.Data)"))
+
+
 def transform(root):
     root = root.resolve(strict=True)
     sources = {p: checked_file(root, p).read_text(encoding="utf-8")
-               for p in (PROJECT, BANK, BACKUP, MAUI, HOME)}
+               for p in (PROJECT, BANK, BACKUP, MAUI, HOME, BOX, BANK_PAGE, EVENT_GALLERY)}
     return {
         root / PROJECT: once(sources[PROJECT], PROJECT_ANCHOR, PROJECT_REPLACE),
         root / BANK: once(sources[BANK], BANK_ANCHOR, BANK_REPLACE),
@@ -120,6 +188,9 @@ def transform(root):
                             BACKUP_END, BACKUP_END_REPLACE),
         root / MAUI: adapt_maui(sources[MAUI]),
         root / HOME: adapt_home(sources[HOME]),
+        root / BOX: adapt_box_exports(sources[BOX]),
+        root / BANK_PAGE: adapt_bank_export(sources[BANK_PAGE]),
+        root / EVENT_GALLERY: adapt_event_export(sources[EVENT_GALLERY]),
     }
 
 def prepare(root):
@@ -131,4 +202,4 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--repo", type=Path, required=True)
     prepare(p.parse_args().repo)
-    print("Diagnostic bank, backup, metadata persistence and log sharing refused")
+    print("Diagnostic bank, backup, metadata, log and entity-cache export routes refused")
