@@ -47,16 +47,16 @@ class PickerCancelTests(unittest.TestCase):
 
     def test_persistent_missing_accessibility_root_fails_closed(self):
         with patch.object(module, "adb", return_value="ERROR"), patch.object(module.time, "sleep"):
-            with self.assertRaisesRegex(RuntimeError, r"after 2 tries \\(bytes=5\\)"):
+            with self.assertRaisesRegex(RuntimeError, r"after 2 tries \(bytes=5\)"):
                 module.ui_nodes(retries=2)
         for count in (0, 6):
             with self.assertRaises(ValueError):
                 module.ui_nodes(retries=count)
 
     def test_pinned_homepage_x_route_precedes_unreliable_ui_dump(self):
-        with patch.object(module, "adb") as adb_call, \\
-             patch.object(module, "wait_for", return_value=True), \\
-             patch.object(module, "ui_nodes", side_effect=AssertionError("not needed")):
+        with (patch.object(module, "adb") as adb_call,
+              patch.object(module, "wait_for", return_value=True),
+              patch.object(module, "ui_nodes", side_effect=AssertionError("not needed"))):
             module.open_picker()
         adb_call.assert_called_once_with("shell", "input", "keyevent", "99")
 
