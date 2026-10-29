@@ -52,7 +52,9 @@ class ArtifactAttestationTests(unittest.TestCase):
                 if native:
                     archive.writestr("lib/arm64-v8a/libmonodroid.so", b"synthetic runtime")
                 if managed:
-                    archive.writestr("assemblies/PKForge.App.dll", b"synthetic editor")
+                    for component in ("App", "Engine", "Infrastructure"):
+                        archive.writestr(f"assemblies/PKForge.{component}.dll",
+                                         b"synthetic managed component")
                 for name, data in (extra_entries or []):
                     archive.writestr(name, data)
         else:
@@ -101,7 +103,7 @@ class ArtifactAttestationTests(unittest.TestCase):
 
     def test_missing_managed_editor_payload_refused(self):
         self.make_apk(managed=False)
-        with self.assertRaisesRegex(audit.AttestationError, "managed assembly"):
+        with self.assertRaisesRegex(audit.AttestationError, "managed payload"):
             self.make_report()
 
     def test_packaged_entry_manifest_changes_when_unlisted_asset_changes(self):
@@ -114,21 +116,30 @@ class ArtifactAttestationTests(unittest.TestCase):
         self.assertEqual(first["packaged_media_entry_count_unreviewed"], 1)
         self.assertFalse(first["packaged_media_rights_verified"])
         self.assertEqual(first["managed_payload_entries"],
-                         ["assemblies/PKForge.App.dll"])
+                         ["assemblies/PKForge.App.dll",
+                          "assemblies/PKForge.Engine.dll",
+                          "assemblies/PKForge.Infrastructure.dll"])
 
-    def test_assembly_store_layout_is_accepted_as_structural_only(self):
+    def test_opaque_assembly_store_without_editor_identity_is_refused(self):
         self.make_apk(managed=False, extra_entries=[
             ("assemblies/assemblies.blob", b"synthetic store")])
-        entry = self.make_report()["apks"][0]
-        self.assertTrue(entry["payload_structural_check"])
-        self.assertFalse(entry["apk_tested_on_device"])
+        with self.assertRaisesRegex(audit.AttestationError, "PKForge.App"):
+            self.make_report()
 
     def test_real_dotnet_android_embedded_dll_so_layout(self):
         self.make_apk(managed=False, extra_entries=[
-            ("lib/arm64-v8a/lib-PKForge.App.dll.so", b"synthetic app assembly")])
+            (f"lib/arm64-v8a/lib_PKForge.{part}.dll.so", b"synthetic assembly")
+            for part in ("App", "Engine", "Infrastructure")])
         entry = self.make_report()["apks"][0]
-        self.assertEqual(entry["managed_payload_entries"],
-                         ["lib/arm64-v8a/lib-PKForge.App.dll.so"])
+        self.assertEqual(len(entry["managed_payload_entries"]), 3)
+        self.assertIn("lib/arm64-v8a/lib_PKForge.App.dll.so",
+                      entry["managed_payload_entries"])
+
+    def test_missing_engine_assembly_refused_even_if_app_exists(self):
+        self.make_apk(managed=False, extra_entries=[
+            ("lib/arm64-v8a/lib_PKForge.App.dll.so", b"synthetic app")])
+        with self.assertRaisesRegex(audit.AttestationError, "PKForge.Engine"):
+            self.make_report()
 
     def test_duplicate_zip_entry_refused(self):
         import warnings
