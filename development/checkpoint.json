@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "afd1702a43198d7a5171ac99696e0f52cdd29288",
+  "main_sha": "32e6b683be279d77bdfd87d079ad7566be75cfcf",
   "observed_utc": "2026-10-29",
-  "last_pr": 83,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40873500804",
-  "note": "PR #83 merged at afd1702a43198d7a5171ac99696e0f52cdd29288. Exact PR head 9c09dec982249f5d80e2ce4a9f957c5d2acdf461 passed Foundation 40873500839, queue 40873500963 and official-Core Android 40873500804. The same cryptographically verified signed APK SHA-256 dd1360d5b386fa87b524a658d3f6867d0bea8f82373548a4cc404fbd765216d3 was installed in an API 35 emulator; resumed foreground Activity, background-PID negative and relaunch passed. Source-freeze, compiled offline/backup/media and no-write guards passed. PORT-APK verified for ephemeral diagnostic APK only, NOT redistribution rights, physical device, provider/QR/backup transfer, private fixtures, Save As or full desktop parity. Next PORT-DEVICE is dependency eligible."
+  "last_pr": 120,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40878000895",
+  "note": "PR #120 merged at 32e6b683be279d77bdfd87d079ad7566be75cfcf. Exact head c2ded3b9892772dd25eb16fcfaebe9418d38cca9 passed queue 40878000895 (including live read-only open-PR lease scan) and Foundation 40878000893. GitHub Actions only selects/validates, never codes or publishes. QUEUE-RUN remains ready with 16 modelled hours; branch/PR lease released. PORT-DEVICE remains independently claimed by PR #118, with actual emulator provider picker CI pending. No export or release authorized."
 }
