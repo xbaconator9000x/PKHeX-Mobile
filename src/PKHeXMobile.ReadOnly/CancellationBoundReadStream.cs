@@ -82,11 +82,18 @@ public sealed class CancellationBoundReadStream : Stream
         {
             linked.Token.ThrowIfCancellationRequested();
             int read = await _inner.ReadAsync(buffer, linked.Token).ConfigureAwait(false);
+            // A provider can close on a queued cancellation callback before
+            // the linked CTS has received its own callback. Check both source
+            // tokens directly so an early completion cannot publish bytes.
+            _lifetime.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
             linked.Token.ThrowIfCancellationRequested();
             return read;
         }
         catch (Exception e) when ((e is IOException or ObjectDisposedException) &&
-                                  linked.IsCancellationRequested)
+                                  (_lifetime.IsCancellationRequested ||
+                                   cancellationToken.IsCancellationRequested ||
+                                   linked.IsCancellationRequested))
         {
             throw new OperationCanceledException("Provider read was cancelled.", e, linked.Token);
         }
