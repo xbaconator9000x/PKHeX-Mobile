@@ -96,11 +96,13 @@
         "BASE-PORT"
       ],
       "locks": [
+        "pkforge-android-build"
+      ],
+      "acceptance": [
         "Installable debug APK with manifest, compile and smoke evidence",
         "Forbidden artwork, network and installer capability absent",
         "Editing/export remain fail-closed"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -116,10 +118,12 @@
         "PORT-APK"
       ],
       "locks": [
+        "pkforge-device"
+      ],
+      "acceptance": [
         "Emulator/device provider cancellation, document identity and rotation tests",
         "Party and box read-only view matched to Core"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -135,11 +139,13 @@
         "BASE-CORE"
       ],
       "locks": [
+        "fixtures"
+      ],
+      "acceptance": [
         "No proprietary fixtures committed",
         "Same-version desktop outputs, per-game checksums and hack negative cases",
         "Unknown/hack profile remains read-only"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -155,11 +161,13 @@
         "PORT-APK"
       ],
       "locks": [
+        "pkforge-editor"
+      ],
+      "acceptance": [
         "No source/save write before permission",
         "Test protected slots, cancellation and original fingerprints",
         "Reproduce and mitigate MoveBox and pointer hazards"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -176,11 +184,13 @@
         "PORT-EDITOR"
       ],
       "locks": [
+        "export"
+      ],
+      "acceptance": [
         "Independent desktop round trips and untouched-region diffs",
         "Stale provider, revoked grant, partial write and recovery regressions",
         "Backups byte-identical; no hack fallback"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -197,10 +207,12 @@
         "FIXTURES"
       ],
       "locks": [
+        "legality"
+      ],
+      "acceptance": [
         "Same-version legality parity and generation context",
         "Detached batch previews and cancellation semantics"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -216,10 +228,12 @@
         "PORT-EDITOR"
       ],
       "locks": [
+        "world"
+      ],
+      "acceptance": [
         "Field width, offsets, no-op normalization and rollback tests",
         "Per-title desktop parity gates"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -236,10 +250,12 @@
         "CORE-LEGAL"
       ],
       "locks": [
+        "advanced"
+      ],
+      "acceptance": [
         "Feature-level supported/missing matrix",
         "Same-version regressions, no silent unsupported behaviors"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -255,9 +271,11 @@
         "PORT-DEVICE"
       ],
       "locks": [
+        "android-ux"
+      ],
+      "acceptance": [
         "Device and screenreader tests for navigation and cancellation"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -273,10 +291,12 @@
         "SAFE-EXPORT"
       ],
       "locks": [
+        "hack-profiles"
+      ],
+      "acceptance": [
         "Per-profile independent round trip and negative false-positive tests",
         "Unknown layouts strictly read-only"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -292,10 +312,12 @@
         "HACK-PROFILES"
       ],
       "locks": [
+        "pokebacon"
+      ],
+      "acceptance": [
         "Versioned schema and adversarial mismatched profile tests",
         "GPL and data-interchange boundaries checked"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
@@ -312,10 +334,12 @@
         "PORT-DEVICE"
       ],
       "locks": [
+        "release"
+      ],
+      "acceptance": [
         "Signed artifact provenance and rights review",
         "Real device/provider and restore coverage; stable crash handling"
       ],
-      "acceptance": "ready",
       "evidence": [],
       "blockers": []
     },
