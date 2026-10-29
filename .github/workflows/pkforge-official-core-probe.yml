@@ -401,7 +401,7 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: bash scripts/pkforge_emulator_launch_smoke.sh /tmp/pkforge
       - name: Retain provenance metadata only (NEVER upload the APK)
         if: steps.apk-provenance.outcome == 'success' && steps.apk-signer.outcome == 'success'
