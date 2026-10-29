@@ -74,12 +74,47 @@ class PickerCancelTests(unittest.TestCase):
     def test_pinned_homepage_x_route_precedes_unreliable_ui_dump(self):
         with (patch.object(module, "adb") as adb_call,
               patch.object(module, "wait_for", return_value=True),
+              patch.object(module, "verify_file_picker_launch") as verified,
               patch.object(module, "ui_nodes", side_effect=AssertionError("not needed"))):
             module.open_picker()
         self.assertEqual([
             ("shell", "input", "keyevent", "97"),
+            ("shell", "logcat", "-c", "-b", "main"),
             ("shell", "input", "keyevent", "99"),
         ], [call.args for call in adb_call.call_args_list])
+        verified.assert_called_once_with()
+
+    def test_fresh_intent_parser_rejects_tree_stale_and_write_grants(self):
+        def start(action, flags="0x41", category="android.intent.category.OPENABLE"):
+            return ("I ActivityTaskManager: START u0 {act=" + action
+                    + " cat=[" + category + "] typ=*/* flg=" + flags
+                    + " cmp=com.google.android.documentsui/.files.FilesActivity}")
+        good = start("android.intent.action.OPEN_DOCUMENT")
+        self.assertTrue(module.exact_readonly_document_launch(good))
+        for bad in (
+            start("android.intent.action.OPEN_DOCUMENT_TREE"),
+            start("android.intent.action.GET_CONTENT"),
+            start("android.intent.action.OPEN_DOCUMENT", flags="0x43"),
+            start("android.intent.action.OPEN_DOCUMENT", flags="0x40"),
+            start("android.intent.action.OPEN_DOCUMENT", category="android.intent.category.DEFAULT"),
+            good + "\\n" + start("android.intent.action.OPEN_DOCUMENT_TREE"),
+            "",
+        ):
+            self.assertFalse(module.exact_readonly_document_launch(bad))
+        self.assertTrue(module.exact_readonly_document_launch(
+            start("android.intent.action.OPEN_DOCUMENT_TREE") + "\\n" + good))
+
+    def test_launch_verification_refuses_missing_or_wrong_action(self):
+        with patch.object(module, "adb", return_value=""):
+            with self.assertRaisesRegex(RuntimeError, "fresh read-only"):
+                module.verify_file_picker_launch()
+        with patch.object(module, "adb", return_value=(
+            "I ActivityTaskManager: START u0 {act=android.intent.action.OPEN_DOCUMENT "
+            "cat=[android.intent.category.OPENABLE] flg=0x41 "
+            "cmp=com.android.documentsui/.files.FilesActivity}")) as adb_call:
+            module.verify_file_picker_launch()
+        adb_call.assert_called_once_with("shell", "logcat", "-d", "-b", "main",
+                                         "-s", "ActivityTaskManager:I")
 
     def test_script_never_selects_or_transfers_documents(self):
         source = SCRIPT.read_text()
