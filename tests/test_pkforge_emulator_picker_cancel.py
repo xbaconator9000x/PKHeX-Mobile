@@ -1,6 +1,7 @@
 """Bounded Android accessibility picker-cancellation probes."""
 import importlib.util
 from pathlib import Path
+from unittest.mock import patch
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,31 @@ class PickerCancelTests(unittest.TestCase):
         self.assertFalse(module.is_app(other, "org.pkforge.app.debug"))
         self.assertFalse(module.is_app(picker, "org.pkforge.app.debug"))
 
+    def test_transient_empty_accessibility_dump_recovers_without_ui_leak(self):
+        good = "<hierarchy><node text='File' bounds='[0,0][20,20]'/></hierarchy>"
+        with patch.object(module, "adb", side_effect=[
+            "dumped", "<?xml version='1.0'?>", "dumped", good,
+        ]) as adb_call, patch.object(module.time, "sleep") as pause:
+            nodes = module.ui_nodes(retries=2)
+        self.assertEqual("File", nodes[0]["text"])
+        self.assertEqual(4, adb_call.call_count)
+        pause.assert_called_once_with(0.5)
+
+    def test_persistent_missing_accessibility_root_fails_closed(self):
+        with patch.object(module, "adb", return_value="ERROR"), patch.object(module.time, "sleep"):
+            with self.assertRaisesRegex(RuntimeError, r"after 2 tries \\(bytes=5\\)"):
+                module.ui_nodes(retries=2)
+        for count in (0, 6):
+            with self.assertRaises(ValueError):
+                module.ui_nodes(retries=count)
+
+    def test_pinned_homepage_x_route_precedes_unreliable_ui_dump(self):
+        with patch.object(module, "adb") as adb_call, \\
+             patch.object(module, "wait_for", return_value=True), \\
+             patch.object(module, "ui_nodes", side_effect=AssertionError("not needed")):
+            module.open_picker()
+        adb_call.assert_called_once_with("shell", "input", "keyevent", "99")
+
     def test_script_never_selects_or_transfers_documents(self):
         source = SCRIPT.read_text()
         for forbidden in ("adb pull", "adb push", "adb backup", "adb restore",
@@ -42,6 +68,8 @@ class PickerCancelTests(unittest.TestCase):
             self.assertNotIn(forbidden, source)
         self.assertIn('keyevent", "4"', source)
         self.assertIn("uiautomator", source)
+        self.assertIn('keyevent", "99"', source)
+        self.assertIn("ui_nodes(retries=2)", source)
         self.assertIn("No document selected", source)
 
 
