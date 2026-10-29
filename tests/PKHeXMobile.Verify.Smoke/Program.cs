@@ -165,7 +165,8 @@ try
         await VerifyAsync(17, digest, "recognized") == 0 ||
         await VerifyAsync(16, digest, null) == 0)
         throw new Exception("CLI negative fixture success/refusal/hash/legacy gates failed.");
-    if (!invalidFixture.SequenceEqual(await File.ReadAllBytesAsync(binaryPath)))
+    var diskBytes = await File.ReadAllBytesAsync(binaryPath);
+    if (!invalidFixture.SequenceEqual(diskBytes))
         throw new Exception("Verifier modified the synthetic fixture on disk.");
 }
 finally
