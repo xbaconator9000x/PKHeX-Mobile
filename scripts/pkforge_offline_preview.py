@@ -135,7 +135,7 @@ def transform_sources(root: Path) -> dict[Path, str]:
         path = checked_file(root, relative)
         source = path.read_text(encoding="utf-8")
         for anchor, guard in PATCHES.get(relative, []):
-            if source.count(anchor) != 1 or source.count(guard) != 0:
+            if source.count(anchor) != 1 or anchor + "\n        " + guard in source:
                 raise OfflineRefusal("Pinned method changed or already adapted: " + relative + " " + anchor[:60])
             source = source.replace(anchor, anchor + "\n        " + guard, 1)
         for before, after in REPLACEMENTS.get(relative, []):
