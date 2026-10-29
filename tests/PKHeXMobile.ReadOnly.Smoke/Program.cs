@@ -756,7 +756,10 @@ using (var cancellation = new CancellationTokenSource())
         throw new Exception("Provider descriptor was not closed on cancellation.");
 }
 // A separate per-call token must close a blocked provider even when the
-// Activity lifetime remains live. This is synthetic, not a device guarantee.
+// Activity lifetime remains live. The close callback can win the race against
+// linked-token propagation, so repeat this synthetic cancellation interleave.
+// This is not a device or deadline guarantee.
+for (var attempt = 0; attempt < 12; attempt++)
 using (var lifetime = new CancellationTokenSource())
 using (var readCancellation = new CancellationTokenSource())
 {
