@@ -93,6 +93,7 @@ class QueueGates(unittest.TestCase):
     def test_active_claim_is_mandatory_and_legacy_fields_are_refused(self):
         q = copy.deepcopy(self.queue)
         task = next(t for t in q["tasks"] if t["id"] == "PORT-APK")
+        task.pop("claim", None)  # Live queue may already have PR #83 claimed.
         task["status"] = "in_progress"
         self.assertTrue(any("requires an exact claim" in error
                             for error in dq.validate(q, self.checkpoint)))
@@ -133,6 +134,7 @@ class QueueGates(unittest.TestCase):
     def test_verified_requires_evidence_and_zero_remaining(self):
         q = copy.deepcopy(self.queue)
         x = next(t for t in q["tasks"] if t["id"] == "PORT-APK")
+        x.pop("claim", None)  # A verified task cannot retain an active lease.
         x["status"] = "verified"
         x["remaining_hours"] = 0
         x["evidence"] = []
