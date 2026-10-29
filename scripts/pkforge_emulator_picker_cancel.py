@@ -88,9 +88,14 @@ def find_target(nodes: list[dict]) -> tuple[int, int] | None:
 
 
 def resumed_activity(dump: str) -> str:
-    for line in dump.splitlines():
-        if re.search(r"\b(?:topResumedActivity|mResumedActivity)\s*[:=]", line):
-            return line
+    # Android can retain a legacy mResumedActivity record for a paused app.
+    # Prefer the actual top-resumed activity when both are present.
+    lines = dump.splitlines()
+    for key in ("topResumedActivity", "mResumedActivity"):
+        matching = [line for line in lines if re.search(
+            r"\b" + key + r"\s*[:=]", line)]
+        if matching:
+            return matching[-1]
     return ""
 
 
@@ -180,9 +185,15 @@ def open_picker(package: str) -> None:
                          "-s", "ActivityTaskManager:I")
             action = ("OPEN_DOCUMENT launch seen" if exact_readonly_document_launch(events)
                       else "no verified OPEN_DOCUMENT launch")
+            # Only classify crash presence. Never print arbitrary logcat text,
+            # filenames, UI hierarchy or exception messages into CI output.
+            crash = adb("shell", "logcat", "-d", "-b", "crash", "-s", "AndroidRuntime:E")
+            crash_state = ("AndroidRuntime fatal marker present"
+                           if "FATAL EXCEPTION" in crash and package in crash
+                           else "no matching AndroidRuntime fatal marker")
             packages = ",".join(resumed_packages(current))[:160] or "unavailable"
             raise RuntimeError("PKForge left foreground after safe X input; " +
-                               "resumed packages=" + packages + "; " + action)
+                               "resumed packages=" + packages + "; " + action + "; " + crash_state)
         try:
             nodes = ui_nodes(retries=2)
         except RuntimeError as error:
