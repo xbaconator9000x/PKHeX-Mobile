@@ -170,9 +170,9 @@
       "title": "Adapt PKForge Pokémon, party and box editing into detached staging only",
       "owner": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 155,
-      "remaining_hours": 155,
+      "remaining_hours": 153,
       "dependencies": [
         "PORT-APK"
       ],
@@ -184,13 +184,12 @@
         "Test protected slots, cancellation and original fingerprints",
         "Reproduce and mitigate MoveBox and pointer hazards"
       ],
-      "evidence": [],
-      "blockers": [],
-      "claim": {
-        "branch": "impl/preview-navigation-invalidation-20261029",
-        "pr": 124,
-        "base_sha": "cc55ca64ce2a3387167c960a9afac09a07467f49"
-      }
+      "evidence": [
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/124",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40881697235",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40881697052"
+      ],
+      "blockers": []
     },
     {
       "id": "SAFE-EXPORT",
