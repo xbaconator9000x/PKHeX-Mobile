@@ -2,10 +2,12 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
+import zipfile
 
 from scripts.pkforge_neutral_assets import (
     ABOUT, GAME_ART, HOME, ICON, MAUI, PIXEL, PROJECT, SPLASH,
-    NeutralAssetRefusal, transform,
+    NeutralAssetRefusal, transform, verify_apks,
 )
 
 class NeutralAssetsTests(unittest.TestCase):
@@ -96,6 +98,28 @@ if (await Task.Run(downloader.CountMissing) == 0)''',
         path.unlink()
         path.symlink_to(self.root / PROJECT)
         with self.assertRaises(Exception): transform(self.root)
+
+    def test_compiled_apk_refuses_cached_game_art_and_noncommercial_font(self):
+        folder = self.root / "src/PKForge.App/bin/Debug/net10.0-android"
+        folder.mkdir(parents=True)
+        apk = folder / "diagnostic.apk"
+        for path in ("assets/gameart/gameart-v10-firered.png", "assets/NDS12.ttf",
+                     "assets/badapple/audio.m4a"):
+            with zipfile.ZipFile(apk, "w") as archive:
+                archive.writestr("AndroidManifest.xml", "synthetic")
+                archive.writestr(path, "synthetic")
+            with patch("scripts.pkforge_neutral_assets.verify_pins"):
+                with self.assertRaises(NeutralAssetRefusal): verify_apks(self.root)
+
+    def test_compiled_apk_allows_only_neutral_synthetic_media(self):
+        folder = self.root / "src/PKForge.App/bin/Debug/net10.0-android"
+        folder.mkdir(parents=True)
+        apk = folder / "diagnostic.apk"
+        with zipfile.ZipFile(apk, "w") as archive:
+            archive.writestr("AndroidManifest.xml", "synthetic")
+            archive.writestr("res/drawable/neutral_preview.png", "synthetic")
+        with patch("scripts.pkforge_neutral_assets.verify_pins"):
+            self.assertEqual(verify_apks(self.root), [str(apk)])
 
     def test_vector_assets_are_original_simple_geometry(self):
         staged = transform(self.root)
