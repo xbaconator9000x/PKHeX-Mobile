@@ -160,7 +160,7 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
                 (name.endswith(".dll") or name.endswith("assemblies.blob"))
             ) or re.fullmatch(
                 r"lib/(?:arm64-v8a|armeabi-v7a|x86|x86_64)/"
-                r"lib(?:PKForge\.App\.dll|assemblies|monodroid_bundle_app)\.so",
+                r"lib(?:-PKForge\.App\.dll|PKForge\.App\.dll|assemblies|monodroid_bundle_app)\.so",
                 name
             ))
             if not dex:
