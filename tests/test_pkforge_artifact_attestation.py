@@ -78,7 +78,8 @@ class ArtifactAttestationTests(unittest.TestCase):
                 return "a" * 40
             raise AssertionError(path)
         with patch.object(audit, "git_head", side_effect=head):
-            return audit.attestation(self.root, self.mobile, self.packager,\n                                     source_snapshot=source_snapshot)
+            return audit.attestation(self.root, self.mobile, self.packager,
+                                     source_snapshot=source_snapshot)
 
     def test_reports_actual_apk_hash_and_disallows_distribution(self):
         report = self.make_report()
