@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "a10a5635bf9cbbc32b8299dbd09fabf66632c800",
+  "main_sha": "ea8807d4d46d61592f8766872183dddadeee092e",
   "observed_utc": "2026-10-29",
-  "last_pr": 81,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40824075390",
-  "note": "PRs #78, #80, #81 merged and official-Core Android compile passed. Whole-save sharing, compiled backup/transfer policy, and private bank/raw-backup writes fail closed in diagnostics. No device/upgrade/restore or release certification."
+  "last_pr": 84,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825365765",
+  "note": "PR #84 merged: diagnostic gift/identity metadata now memory-only, log share and crash-report sharing prompts denied; official-Core Android build, Foundation and queue CI green. Previous whole-save export, backup, bank refusal remain. Emulator/device, upgrade/restore, entity/cache sharing, rights and release certification remain outstanding."
 }
