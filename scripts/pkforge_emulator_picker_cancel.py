@@ -22,14 +22,30 @@ def adb(*args: str, timeout: int = 35) -> str:
     return proc.stdout
 
 
-def ui_nodes() -> list[dict]:
-    adb("shell", "uiautomator", "dump", "/sdcard/pkforge-ci-window.xml")
-    xml = adb("exec-out", "cat", "/sdcard/pkforge-ci-window.xml")
-    # Android platform tools may omit the XML declaration or prepend a dump banner.
-    start = xml.find("<hierarchy")
-    if start < 0:
-        raise RuntimeError(f"Android accessibility hierarchy unavailable (bytes={len(xml)})")
-    return [node.attrib for node in ET.fromstring(xml[start:]).iter("node")]
+def ui_nodes(retries: int = 3) -> list[dict]:
+    """Retry transient empty Android UI dumps, without logging private UI text."""
+    if not 1 <= retries <= 5:
+        raise ValueError("Accessibility retry count must be bounded")
+    size = 0
+    for attempt in range(retries):
+        try:
+            adb("shell", "uiautomator", "dump", "/sdcard/pkforge-ci-window.xml")
+            xml = adb("exec-out", "cat", "/sdcard/pkforge-ci-window.xml")
+            size = len(xml)
+            # Android may return only an XML declaration or a transient error.
+            start = xml.find("<hierarchy")
+            if start >= 0:
+                try:
+                    root = ET.fromstring(xml[start:])
+                except ET.ParseError:
+                    pass
+                else:
+                    return [node.attrib for node in root.iter("node")]
+        except RuntimeError:
+            pass
+        if attempt + 1 < retries:
+            time.sleep(0.5)
+    raise RuntimeError(f"Android accessibility hierarchy unavailable after {retries} tries (bytes={size})")
 
 
 def center(bounds: str) -> tuple[int, int]:
@@ -81,18 +97,27 @@ def wait_for(predicate, seconds: int = 20) -> bool:
 
 
 def open_picker() -> None:
-    # First launch can show the upstream professor-style intro. Advance only
-    # until the real file choice becomes accessible; never select a document.
-    for _ in range(20):
-        nodes = ui_nodes()
+    # Pinned HomePage routes gamepad X to LinkFileAsync. Prefer that existing
+    # path: accessibility hierarchy dumps can transiently return no root on
+    # Android 35. Never launch a picker ourselves or choose a document.
+    last_ui_error = "not attempted"
+    for _ in range(16):
+        adb("shell", "input", "keyevent", "99")  # KEYCODE_BUTTON_X -> HomePage LinkFileAsync
+        if wait_for(is_picker, 3):
+            return
+        try:
+            nodes = ui_nodes(retries=2)
+        except RuntimeError as error:
+            last_ui_error = str(error)
+            nodes = []
         point = find_target(nodes)
         if point is not None:
             adb("shell", "input", "tap", str(point[0]), str(point[1]))
-            if wait_for(is_picker, 12):
+            if wait_for(is_picker, 8):
                 return
         adb("shell", "input", "keyevent", "96")  # gamepad A: advance intro
         time.sleep(0.4)
-    raise RuntimeError("Real PKForge file picker did not open")
+    raise RuntimeError("Real PKForge file picker did not open; " + last_ui_error)
 
 
 def run(package: str) -> None:
