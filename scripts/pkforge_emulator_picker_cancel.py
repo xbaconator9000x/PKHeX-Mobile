@@ -8,6 +8,7 @@ import argparse
 import re
 import subprocess
 import time
+import uuid
 from xml.etree import ElementTree as ET
 
 BOUNDS = re.compile(r"^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$")
@@ -22,27 +23,42 @@ def adb(*args: str, timeout: int = 35) -> str:
     return proc.stdout
 
 
+class CleanupFailure(RuntimeError):
+    """A private Android UI hierarchy was not demonstrably removed."""
+
+
 def ui_nodes(retries: int = 3) -> list[dict]:
-    """Retry transient empty Android UI dumps, without logging private UI text."""
+    """Use unique shell-private XML, always remove it, never log visible text."""
     if not 1 <= retries <= 5:
         raise ValueError("Accessibility retry count must be bounded")
     size = 0
     for attempt in range(retries):
+        path = "/data/local/tmp/pkforge-ci-" + uuid.uuid4().hex + ".xml"
         try:
-            adb("shell", "uiautomator", "dump", "/sdcard/pkforge-ci-window.xml")
-            xml = adb("exec-out", "cat", "/sdcard/pkforge-ci-window.xml")
-            size = len(xml)
-            # Android may return only an XML declaration or a transient error.
-            start = xml.find("<hierarchy")
-            if start >= 0:
+            try:
+                adb("shell", "uiautomator", "dump", path)
+                xml = adb("exec-out", "cat", path)
+                size = len(xml)
+                start = xml.find("<hierarchy")
+                if start >= 0:
+                    try:
+                        root = ET.fromstring(xml[start:])
+                    except ET.ParseError:
+                        pass
+                    else:
+                        return [node.attrib for node in root.iter("node")]
+            finally:
+                # No hierarchy containing document names may survive even a
+                # malformed parse, interrupted read or failed dump.
                 try:
-                    root = ET.fromstring(xml[start:])
-                except ET.ParseError:
-                    pass
-                else:
-                    return [node.attrib for node in root.iter("node")]
+                    adb("shell", "rm", "-f", path)
+                    adb("shell", "test", "!", "-e", path)
+                except Exception as error:
+                    raise CleanupFailure("Android private accessibility XML cleanup failed") from error
+        except CleanupFailure:
+            raise
         except RuntimeError:
-            pass
+            pass  # Transient UI dump failures are bounded, not accepted.
         if attempt + 1 < retries:
             time.sleep(0.5)
     raise RuntimeError(f"Android accessibility hierarchy unavailable after {retries} tries (bytes={size})")
