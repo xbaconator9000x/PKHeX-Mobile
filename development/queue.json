@@ -368,9 +368,9 @@
       "title": "Contain independent PKForge whole-save sharing and Android backup",
       "owner": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 35,
-      "remaining_hours": 8,
+      "remaining_hours": 5,
       "dependencies": [
         "BASE-PORT"
       ],
@@ -381,7 +381,8 @@
         "Source whole-save share/export denial passed; compiled APK backup flags and both exclusion XML sections checked by aapt2",
         "Diagnostic Infrastructure bank mutations and raw-save backup creation refused by executable synthetic smoke",
         "Android emulator/device cold-install, upgrade and cloud/D2D transfer tests with synthetic sentinels remain outstanding",
-        "Audit other app-private gift, identity, cache and share persistence before release"
+        "Audit other app-private gift, identity, cache and share persistence before release",
+        "Diagnostic injected-gift history and save identity metadata use upstream nullable in-memory stores; log archives and crash sharing prompts are removed in adapted MAUI, with pinned-source drift tests and official-Core Android compile"
       ],
       "evidence": [
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/78",
@@ -389,11 +390,12 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/80",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/81",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40823602811",
-        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40824075390"
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40824075390",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/84",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825365765",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825365775"
       ],
-      "blockers": [],
-      "claim_branch": "impl/diagnostic-private-metadata-log-containment-20261029",
-      "claim_base_sha": "4a54244915e0daaf2e11dfd239fe6904f42b4778"
+      "blockers": []
     }
   ]
 }
