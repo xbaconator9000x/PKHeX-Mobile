@@ -159,7 +159,7 @@ class AttestedEmulatorSelectionTests(unittest.TestCase):
         changed["frozen_source"]["sha256"] = "f" * 64
         with self.assertRaisesRegex(SelectionError, "digest"):
             self.choose(changed)
-        self.snapshot.write_text(self.snapshot.read_text() + "\\n", encoding="utf-8")
+        self.snapshot.write_text(self.snapshot.read_text() + "\n", encoding="utf-8")
         with self.assertRaisesRegex(SelectionError, "digest"):
             self.choose()
 
