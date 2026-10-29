@@ -47,6 +47,9 @@ on:
       - 'tests/test_pkforge_export_backup_boundary.py'
       - 'scripts/pkforge_backup_manifest_gate.py'
       - 'tests/test_pkforge_backup_manifest_gate.py'
+      - 'scripts/pkforge_private_storage_refusal.py'
+      - 'tests/test_pkforge_private_storage_refusal.py'
+      - 'tests/PKHeXMobile.PrivateStorage.Smoke/**'
 
 permissions:
   contents: read
@@ -81,6 +84,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_pkforge_neutral_assets.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_export_backup_boundary.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_backup_manifest_gate.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_private_storage_refusal.py' -v
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -213,9 +217,23 @@ jobs:
         if: steps.neutral-assets.outcome == 'success'
         continue-on-error: true
         run: python3 -m scripts.pkforge_export_backup_boundary --repo /tmp/pkforge
+      - name: Deny private bank and raw-save backup writes in diagnostic Infrastructure
+        id: private-storage
+        if: steps.export-backup-boundary.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_private_storage_refusal --repo /tmp/pkforge
+      - name: Execute diagnostic private-storage refusal against adapted Infrastructure
+        id: private-storage-smoke
+        if: steps.private-storage.outcome == 'success'
+        continue-on-error: true
+        env:
+          PKForgeRoot: /tmp/pkforge
+        run: |
+          dotnet build tests/PKHeXMobile.PrivateStorage.Smoke/PKHeXMobile.PrivateStorage.Smoke.csproj -c Release -p:DiagnosticBuild=true -v:minimal
+          dotnet tests/PKHeXMobile.PrivateStorage.Smoke/bin/Release/net10.0/PKHeXMobile.PrivateStorage.Smoke.dll
       - name: Install Android MAUI only after runtime refusal checks
         id: maui-workload
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success' && steps.neutral-assets.outcome == 'success' && steps.export-backup-boundary.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success' && steps.neutral-assets.outcome == 'success' && steps.export-backup-boundary.outcome == 'success' && steps.private-storage-smoke.outcome == 'success'
         run: dotnet workload install maui-android --skip-manifest-update
       - name: Restore exact diagnostic Android dependency graph before input freeze
         id: android-restore
@@ -235,7 +253,7 @@ jobs:
             --output "$RUNNER_TEMP/pkforge-source-freeze.json" --snapshot-only
       - name: Build PKForge Android against official Core
         id: android
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success' && steps.neutral-assets.outcome == 'success' && steps.export-backup-boundary.outcome == 'success' && steps.source-freeze.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success' && steps.neutral-assets.outcome == 'success' && steps.export-backup-boundary.outcome == 'success' && steps.private-storage-smoke.outcome == 'success' && steps.source-freeze.outcome == 'success'
         continue-on-error: true
         env:
           PKForgeRoot: /tmp/pkforge
@@ -295,6 +313,8 @@ jobs:
           PROVIDER_LIFECYCLE_SMOKE: ${{ steps.provider-lifecycle-smoke.outcome }}
           OFFLINE_CONTAINMENT: ${{ steps.offline-containment.outcome }}
           NEUTRAL_ASSETS: ${{ steps.neutral-assets.outcome }}
+          PRIVATE_STORAGE: ${{ steps.private-storage.outcome }}
+          PRIVATE_STORAGE_SMOKE: ${{ steps.private-storage-smoke.outcome }}
           OFFLINE_APK_PERMISSIONS: ${{ steps.offline-apk-permissions.outcome }}
           BACKUP_APK_MANIFEST: ${{ steps.backup-apk-manifest.outcome }}
           NEUTRAL_APK_MEDIA: ${{ steps.neutral-apk-media.outcome }}
@@ -328,6 +348,8 @@ jobs:
             echo "Real PKForge session lifecycle smoke: $PROVIDER_LIFECYCLE_SMOKE"
             echo "Diagnostic runtime media/installer containment: $OFFLINE_CONTAINMENT"
             echo "Neutral asset and cached game-art cutover: $NEUTRAL_ASSETS"
+            echo "Private bank/backup mutation refusal: $PRIVATE_STORAGE"
+            echo "Private bank/backup executable smoke: $PRIVATE_STORAGE_SMOKE"
             echo "Compiled APK offline permissions: $OFFLINE_APK_PERMISSIONS"
             echo "Compiled APK backup/transfer rules: $BACKUP_APK_MANIFEST"
             echo "Compiled APK negative-media gate: $NEUTRAL_APK_MEDIA"
@@ -336,13 +358,13 @@ jobs:
             echo "Full build-input freeze: $SOURCE_FREEZE"
             echo "Android compile: $ANDROID"
             echo "APK identity/media provenance (metadata only): $APK_PROVENANCE"
-            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$BACKUP_APK_MANIFEST" != success ] || [ "$NEUTRAL_APK_MEDIA" != success ] || [ "$APK_PROVENANCE" != success ]; then
+            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$PRIVATE_STORAGE" != success ] || [ "$PRIVATE_STORAGE_SMOKE" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$BACKUP_APK_MANIFEST" != success ] || [ "$NEUTRAL_APK_MEDIA" != success ] || [ "$APK_PROVENANCE" != success ]; then
               echo '**OFFICIAL-CORE COMPATIBILITY GATE FAILED.** Inspect compilation and runtime smoke diagnostics.'
             else
               echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$BACKUP_APK_MANIFEST" != success ] || [ "$NEUTRAL_APK_MEDIA" != success ] || [ "$APK_PROVENANCE" != success ]; then
+          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$NEUTRAL_ASSETS" != success ] || [ "$PRIVATE_STORAGE" != success ] || [ "$PRIVATE_STORAGE_SMOKE" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$BACKUP_APK_MANIFEST" != success ] || [ "$NEUTRAL_APK_MEDIA" != success ] || [ "$APK_PROVENANCE" != success ]; then
             echo 'Retail-only official-Core compatibility gate failed.' >&2
             exit 1
           fi
