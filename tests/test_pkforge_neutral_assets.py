@@ -62,7 +62,7 @@ if (await Task.Run(downloader.CountMissing) == 0)''',
         self.assertNotIn("<MauiAsset", project)
         self.assertNotIn("MauiFont Include=", project)
         self.assertIn("MauiFont Remove=", project)
-        self.assertIn("neutral-preview.svg", project)
+        self.assertIn("neutral_preview.svg", project)
         self.assertNotIn("pkforge.png", project)
         self.assertNotIn("NDS12", staged[self.root / PIXEL])
         self.assertNotIn("OpenAppPackageFileAsync", staged[self.root / PIXEL])
