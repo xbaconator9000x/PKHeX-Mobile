@@ -18,6 +18,13 @@ class QueueGates(unittest.TestCase):
         self.assertEqual([], dq.validate(self.queue, self.checkpoint))
         self.assertEqual(dq.select(self.queue, count=5), dq.select(self.queue, count=5))
 
+    def test_live_queue_uses_reviewable_claim_schema(self):
+        for task in self.queue["tasks"]:
+            self.assertNotIn("claim_branch", task)
+            self.assertNotIn("claim_base_sha", task)
+            if task["status"] == "in_progress":
+                self.assertIn("claim", task)
+
     def test_dependencies_and_cycle_fail_closed(self):
         for a, b in (("BASE-CORE", "not-a-task"), ("PORT-APK", "PORT-DEVICE")):
             q = copy.deepcopy(self.queue)
