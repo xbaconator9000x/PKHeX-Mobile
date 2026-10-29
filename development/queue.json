@@ -354,9 +354,9 @@
       "title": "Queue-driven implementation and verification checkpoint handoff",
       "owner": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 45,
-      "remaining_hours": 34,
+      "remaining_hours": 31,
       "dependencies": [],
       "locks": [
         "queue"
@@ -385,21 +385,19 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/103",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40845246235",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40845246116",
-        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40845577122"
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40845577122",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/106",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40849365386",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40849365350"
       ],
-      "blockers": [],
-      "claim": {
-        "branch": "impl/queue-claim-and-apk-recheck-20261029",
-        "pr": 106,
-        "base_sha": "b2c9286c72c7e22936179fb3c86d3c2ac199d5c0"
-      }
+      "blockers": []
     },
     {
       "id": "PREVIEW-EXPORT-BACKUP",
       "title": "Contain independent PKForge whole-save sharing and Android backup",
       "owner": "implementation",
       "priority": "P0",
-      "status": "ready",
+      "status": "blocked",
       "total_hours": 35,
       "remaining_hours": 3,
       "dependencies": [
@@ -440,7 +438,9 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40835217135",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40835217199"
       ],
-      "blockers": []
+      "blockers": [
+        "Remaining 3 modelled hours require actual Android emulator/device cold install, QR close/rotation, SAF provider cancellation and cloud/device-to-device backup-transfer sentinel tests. Draft PR #83 is not rebased or merged; source/compiled refusals alone cannot certify transfer behavior."
+      ]
     }
   ]
 }

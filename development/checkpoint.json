@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "6fde96577de69d4fd9d9ac2e6ecb5b2f0c5e67c0",
+  "main_sha": "f021b4c0608ec063c0e08eb463817c97188431e3",
   "observed_utc": "2026-10-29",
-  "last_pr": 103,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40845577309",
-  "note": "PR #103 merged at 6fde96577de69d4fd9d9ac2e6ecb5b2f0c5e67c0. Exact PR-head Foundation 40845246235 and queue 40845246116 passed; merged-main Foundation 40845577309 and queue 40845577122 passed. New source/SHA/frozen-input-bound emulator APK selector and synthetic refusal tests are present, but not yet integrated into independently owned draft emulator PR #83. QUEUE-RUN claim released to ready, 34 modelled hours remain. PR #83 still requires current-main rebase, attested installation, foreground Activity, provider/QR/backup device tests. No APK distribution or original-save writes."
+  "last_pr": 106,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40849598189",
+  "note": "PR #106 merged at f021b4c0608ec063c0e08eb463817c97188431e3: exact PR head de75ca0c52a3294b548dc36e0cab0b2561018f24 Foundation 40849365386 and queue 40849365350 passed. Strict queue claim validation now rejects missing/legacy fields; APK selection supports independent immediate-before-install attestation/byte recheck. Merged-main Foundation 40849598189 and queue 40849598062 were initiated; verify exact result before release claims. QUEUE-RUN claim released with 31 modelled hours remaining; PREVIEW-EXPORT-BACKUP blocked on real emulator/device transfer/QR/provider checks. Independently owned draft emulator PR #83 still requires rebase, attested install and foreground Activity. No APK distributed or original-save writing enabled."
 }
