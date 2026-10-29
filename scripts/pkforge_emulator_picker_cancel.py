@@ -106,8 +106,8 @@ def exact_readonly_document_launch(log: str) -> bool:
     if not starts:
         return False
     line = starts[-1]
-    action = re.search(r"\\bact=([^\\s}]+)", line)
-    flags = re.search(r"\\bflg=0x([0-9a-fA-F]+)", line)
+    action = re.search(r"\bact=([^\s}]+)", line)
+    flags = re.search(r"\bflg=0x([0-9a-fA-F]+)", line)
     if action is None or action.group(1) != "android.intent.action.OPEN_DOCUMENT":
         return False
     if "android.intent.category.OPENABLE" not in line or flags is None:
