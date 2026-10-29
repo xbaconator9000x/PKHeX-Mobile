@@ -43,11 +43,31 @@ def read_branch_queue(sha: str, token: str) -> dict:
     return json.loads(data)
 
 
-def collect(main_queue: dict, prs: list, branch_queue_reader) -> dict:
+def verify_claim_ancestry(base_sha: str, head_sha: str, token: str) -> None:
+    """Require the recorded claim base to be an actual ancestor of the live PR head.
+
+    A syntactically valid base SHA is not an ownership lease by itself. Compare
+    is read-only; unavailable, truncated or divergent GitHub evidence refuses
+    the reservation rather than guessing from a branch name.
+    """
+    if not isinstance(base_sha, str) or not SHA.fullmatch(base_sha):
+        raise ValueError("Invalid immutable claim base SHA")
+    if not isinstance(head_sha, str) or not SHA.fullmatch(head_sha):
+        raise ValueError("Invalid immutable PR head SHA")
+    comparison = api_json(f"/repos/{REPO}/compare/{base_sha}...{head_sha}", token)
+    if (not isinstance(comparison, dict)
+            or comparison.get("status") not in ("ahead", "identical")
+            or (comparison.get("merge_base_commit") or {}).get("sha") != base_sha):
+        raise ValueError("Open PR claim base is not an ancestor of its exact head")
+
+
+def collect(main_queue: dict, prs: list, branch_queue_reader,
+            ancestry_verifier=None) -> dict:
     if main_queue.get("repository") != REPO:
         raise ValueError("Main queue repository mismatch")
     main = {task["id"]: task for task in main_queue["tasks"]}
     reservations = {}
+    verified_ancestry = set()
     for pr in prs:
         if pr.get("state") != "open" or pr.get("base", {}).get("ref") != "main":
             continue
@@ -71,6 +91,10 @@ def collect(main_queue: dict, prs: list, branch_queue_reader) -> dict:
             base_sha = claim.get("base_sha")
             if not isinstance(base_sha, str) or not SHA.fullmatch(base_sha):
                 raise ValueError("Malformed open PR claim base SHA")
+            pair = (base_sha, sha)
+            if ancestry_verifier is not None and pair not in verified_ancestry:
+                ancestry_verifier(*pair)
+                verified_ancestry.add(pair)
             ident = task.get("id")
             if ident not in main:
                 raise ValueError("Open PR claims unknown task")
@@ -110,7 +134,9 @@ def main() -> None:
             break
     else:
         raise RuntimeError("Too many open PRs for bounded queue scan")
-    snapshot = collect(main_queue, prs, lambda sha: read_branch_queue(sha, token))
+    snapshot = collect(
+        main_queue, prs, lambda sha: read_branch_queue(sha, token),
+        ancestry_verifier=lambda base, head: verify_claim_ancestry(base, head, token))
     args.output.write_text(json.dumps(snapshot, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"Read-only PR claim scan: {len(prs)} open PRs, {len(snapshot['claims'])} reserved tasks.")
 
