@@ -6,18 +6,23 @@ on:
     paths:
       - 'development/**'
       - 'scripts/development_queue.py'
+      - 'scripts/development_pr_lease.py'
       - 'tests/test_development_queue.py'
+      - 'tests/test_development_pr_lease.py'
       - '.github/workflows/development-queue.yml'
   push:
     branches: [main]
     paths:
       - 'development/**'
       - 'scripts/development_queue.py'
+      - 'scripts/development_pr_lease.py'
       - 'tests/test_development_queue.py'
+      - 'tests/test_development_pr_lease.py'
       - '.github/workflows/development-queue.yml'
 
 permissions:
   contents: read
+  pull-requests: read
 concurrency:
   group: work-queue-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -31,13 +36,20 @@ jobs:
         with:
           python-version: '3.13'
       - run: python3 -m unittest discover -s tests -p 'test_development_queue.py' -v
+      - run: python3 -m unittest discover -s tests -p 'test_development_pr_lease.py' -v
       - run: python3 scripts/development_queue.py validate
+      - name: Discover exact open-PR task leases (read-only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/development_pr_lease.py --output work-queue-pr-claims.json
       - name: Select dependency-eligible independent batches
         run: |
-          python3 scripts/development_queue.py snapshot --batch-size 5 --output work-queue-snapshot.json
+          python3 scripts/development_queue.py snapshot --batch-size 5 --pr-claims work-queue-pr-claims.json --output work-queue-snapshot.json
           cat work-queue-snapshot.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: work-queue-snapshot
-          path: work-queue-snapshot.json
+          path: |
+            work-queue-snapshot.json
+            work-queue-pr-claims.json
           retention-days: 7

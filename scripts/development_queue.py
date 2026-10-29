@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fail-closed, deterministic, non-mutating development queue validator/selector."""
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -153,6 +154,45 @@ def select(q, owner="implementation", count=5, resume=False, claim=None):
     return {"selected": chosen, "deferred": deferred}
 
 
+def overlay_pr_claims(q, snapshot):
+    """Reserve reviewed open-PR claims in memory; never mutate main's queue."""
+    if not isinstance(snapshot, dict) or snapshot.get("repository") != q.get("repository"):
+        raise ValueError("Open-PR claim snapshot repository mismatch")
+    claims = snapshot.get("claims")
+    if not isinstance(claims, list):
+        raise ValueError("Open-PR claim snapshot requires claims array")
+    result = copy.deepcopy(q)
+    by_id = {t["id"]: t for t in result["tasks"]}
+    seen = set()
+    for entry in claims:
+        if not isinstance(entry, dict) or set(entry) != {"task_id", "branch", "pr", "base_sha"}:
+            raise ValueError("Malformed open-PR claim entry")
+        ident = entry["task_id"]
+        if not isinstance(ident, str) or ident not in by_id or ident in seen:
+            raise ValueError("Unknown or duplicate open-PR task")
+        seen.add(ident)
+        task = by_id[ident]
+        claim = {key: entry[key] for key in ("branch", "pr", "base_sha")}
+        prefix = "impl/" if task["owner"] == "implementation" else "audit/"
+        if (not isinstance(claim["branch"], str) or not claim["branch"].startswith(prefix)
+                or type(claim["pr"]) is not int or claim["pr"] <= 0
+                or not isinstance(claim["base_sha"], str)
+                or len(claim["base_sha"]) != 40
+                or any(x not in "0123456789abcdef" for x in claim["base_sha"])):
+            raise ValueError("Invalid open-PR task lease")
+        if task["status"] == "verified":
+            continue
+        if task["status"] == "blocked":
+            raise ValueError("Open PR attempts to reserve blocked task")
+        if task["status"] == "in_progress":
+            if task.get("claim") != claim:
+                raise ValueError("Open PR conflicts with main's active task claim")
+            continue
+        task["status"] = "in_progress"
+        task["claim"] = claim
+    return result
+
+
 def report(q, c):
     tasks = q["tasks"]
     total = sum(t["total_hours"] for t in tasks)
@@ -180,6 +220,7 @@ def main(argv=None):
     parser.add_argument("--claim-pr", type=int)
     parser.add_argument("--claim-base-sha")
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--pr-claims", type=Path, help="fresh read-only GitHub PR claim snapshot")
     args = parser.parse_args(argv)
     if not 1 <= args.batch_size <= 25:
         parser.error("batch size must be 1..25")
@@ -196,16 +237,28 @@ def main(argv=None):
         for error in errors:
             print("QUEUE ERROR: " + error, file=sys.stderr)
         return 1
+    selected_q = q
+    if args.pr_claims:
+        try:
+            selected_q = overlay_pr_claims(q, load(args.pr_claims))
+        except (ValueError, KeyError, TypeError) as error:
+            print("QUEUE ERROR: " + str(error), file=sys.stderr)
+            return 1
+        errors = validate(selected_q, c)
+        if errors:
+            for error in errors:
+                print("QUEUE ERROR: " + error, file=sys.stderr)
+            return 1
     if args.command == "validate":
         obj = {"valid": True, "task_count": len(q["tasks"]), "queue_sha256": hashlib.sha256(QUEUE.read_bytes()).hexdigest()}
     elif args.command == "report":
         obj = report(q, c)
     elif args.command == "next":
-        obj = select(q, args.owner, args.batch_size, args.resume, claim)
+        obj = select(selected_q, args.owner, args.batch_size, args.resume, claim)
     else:
         obj = {"progress": report(q, c),
-               "implementation": select(q, "implementation", args.batch_size, args.resume, claim),
-               "audit": select(q, "audit", args.batch_size, args.resume, claim)}
+               "implementation": select(selected_q, "implementation", args.batch_size, args.resume, claim),
+               "audit": select(selected_q, "audit", args.batch_size, args.resume, claim)}
     content = json.dumps(obj, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.write_text(content, encoding="utf-8")

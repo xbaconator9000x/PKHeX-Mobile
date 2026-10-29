@@ -150,6 +150,50 @@ class QueueGates(unittest.TestCase):
         q["tasks"][3]["status"] = "blocked"
         self.assertTrue(dq.validate(q, self.checkpoint))
 
+    def test_open_pr_overlay_reserves_ready_task_without_mutating_main(self):
+        q = copy.deepcopy(self.queue)
+        task = next(t for t in q["tasks"] if t["id"] == "QUEUE-RUN")
+        task["status"] = "ready"
+        task.pop("claim", None)
+        original = copy.deepcopy(q)
+        claim = {"branch": "impl/queue-lease-test", "pr": 120, "base_sha": "a" * 40}
+        snapshot = {"repository": q["repository"],
+                    "claims": [{"task_id": "QUEUE-RUN", **claim}]}
+        overlaid = dq.overlay_pr_claims(q, snapshot)
+        self.assertEqual(q, original)
+        self.assertEqual([], dq.validate(overlaid, self.checkpoint))
+        self.assertNotIn("QUEUE-RUN", {t["id"] for t in dq.select(overlaid)["selected"]})
+        self.assertIn("QUEUE-RUN", {t["id"] for t in dq.select(overlaid, resume=True,
+            claim=claim)["selected"]})
+
+    def test_open_pr_overlay_fails_closed_on_conflicts_and_forgery(self):
+        q = copy.deepcopy(self.queue)
+        queue_task = next(t for t in q["tasks"] if t["id"] == "QUEUE-RUN")
+        queue_task["status"] = "ready"
+        queue_task.pop("claim", None)
+        device = next(t for t in q["tasks"] if t["id"] == "PORT-DEVICE")
+        device["status"] = "in_progress"
+        device["claim"] = {"branch": "impl/owned-device", "pr": 118, "base_sha": "b" * 40}
+        claim = {"task_id": "QUEUE-RUN", "branch": "impl/queue-lease-test",
+                 "pr": 120, "base_sha": "a" * 40}
+        for entry in ({**claim, "branch": "audit/not-ours"},
+                      {**claim, "pr": True},
+                      {**claim, "base_sha": "main"},
+                      {**claim, "task_id": "MISSING"}):
+            with self.assertRaises(ValueError):
+                dq.overlay_pr_claims(q, {"repository": q["repository"],
+                                                  "claims": [entry]})
+        with self.assertRaises(ValueError):
+            dq.overlay_pr_claims(q, {"repository": "other/repo", "claims": []})
+        with self.assertRaises(ValueError):
+            dq.overlay_pr_claims(q, {"repository": q["repository"],
+                                              "claims": [claim, claim]})
+        # An open PR must not override main's already-claimed device task.
+        with self.assertRaises(ValueError):
+            dq.overlay_pr_claims(q, {"repository": q["repository"],
+                "claims": [{**claim, "task_id": "PORT-DEVICE",
+                    "branch": "impl/other-device"}]})
+
     def test_progress_does_not_claim_release(self):
         r = dq.report(self.queue, self.checkpoint)
         self.assertGreater(r["estimated_remaining_hours"], 0)
