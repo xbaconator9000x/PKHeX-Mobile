@@ -102,10 +102,12 @@ class AttestedEmulatorSelectionTests(unittest.TestCase):
         selection = self.choose()
         self.signed.rename(self.build / "moved.apk")
         with self.assertRaises(SelectionError):
-            verify_selected_apk(self.report, selection, self.build, SOURCE_SHA)
+            verify_selected_apk(self.report, selection, self.build, SOURCE_SHA,
+                                source_snapshot=self.snapshot)
         self.signed.symlink_to(self.build / "moved.apk")
         with self.assertRaises(SelectionError):
-            verify_selected_apk(self.report, selection, self.build, SOURCE_SHA)
+            verify_selected_apk(self.report, selection, self.build, SOURCE_SHA,
+                                source_snapshot=self.snapshot)
 
 
     def test_failed_freeze_predicates_refused_by_selection_and_recheck(self):
