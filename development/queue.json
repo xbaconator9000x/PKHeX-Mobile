@@ -354,7 +354,7 @@
       "title": "Queue-driven implementation and verification checkpoint handoff",
       "owner": "implementation",
       "priority": "P0",
-      "status": "ready",
+      "status": "in_progress",
       "total_hours": 45,
       "remaining_hours": 31,
       "dependencies": [],
@@ -390,7 +390,12 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40849365386",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40849365350"
       ],
-      "blockers": []
+      "blockers": [],
+      "claim": {
+        "branch": "impl/apk-provenance-consumer-20261029",
+        "pr": 109,
+        "base_sha": "2c8eb650fee20b454feaa9dcada35b054acd78df"
+      }
     },
     {
       "id": "PREVIEW-EXPORT-BACKUP",
