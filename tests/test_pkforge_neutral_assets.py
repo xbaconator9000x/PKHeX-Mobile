@@ -20,7 +20,7 @@ class NeutralAssetsTests(unittest.TestCase):
 <MauiIcon Include="Resources/AppIcon/pkforge.png" Color="#14121D" />
 <MauiSplashScreen Include="Resources/Splash/splash.png" Color="#14121D" BaseSize="180,180" />
 <MauiFont Include="Resources/Fonts/*.ttf" />
-''' + ''.join(f'<MauiAsset Include="Resources/UI/{n}.png" LogicalName="ui/{n}.png" />\n' for n in range(18)) + '''</ItemGroup></Project>''',
+''' + ''.join(f'    <MauiAsset Include="Resources/UI/{n}.png" LogicalName="ui/{n}.png" />\n' for n in range(18)) + '''</ItemGroup></Project>''',
             GAME_ART: '''public static Task<string?> GetIconAsync(string gameLabel) => GetAsync("gameart", gameLabel);
 public static Task<string?> GetHeroAsync(string gameLabel) => GetAsync("gamehero", gameLabel);
 public static Task<string?> GetLogoAsync(string gameLabel) => GetAsync("gamelogo", gameLabel);
