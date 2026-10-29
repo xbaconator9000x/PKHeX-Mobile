@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "ea8807d4d46d61592f8766872183dddadeee092e",
+  "main_sha": "eddb86e9135aef9a351666629ef7d56b380488ee",
   "observed_utc": "2026-10-29",
-  "last_pr": 84,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825365765",
-  "note": "PR #84 merged: diagnostic gift/identity metadata now memory-only, log share and crash-report sharing prompts denied; official-Core Android build, Foundation and queue CI green. Previous whole-save export, backup, bank refusal remain. Emulator/device, upgrade/restore, entity/cache sharing, rights and release certification remain outstanding."
+  "last_pr": 86,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40825923538",
+  "note": "PRs #84 and #86 merged with official-Core Android build, Foundation and queue CI green. Preview metadata memory-only, log/crash sharing denied, Pokémon single/bulk entity cache export, bank and event export denied before cache bytes; whole-save/backup refusal retained. Other cache/QR/Showdown routes, emulator/device/upgrade/restore, provider fixtures, licensing and release certification outstanding."
 }
