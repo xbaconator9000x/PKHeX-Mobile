@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "ed2cd7d2739594eb982c0d7db7dd2e5a420dc691",
+  "main_sha": "68a3f5f5d76e9916cc2a680ca7351eb462d76d7a",
   "observed_utc": "2026-10-29",
-  "last_pr": 97,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40842217046",
-  "note": "PR #97 merged at ed2cd7d2739594eb982c0d7db7dd2e5a420dc691 after exact-head Foundation and queue selection passed. Schema-17 private fixture verifier now checks expected read-only refusals, two-open synthetic source preservation, input SHA and CLI failure controls. FIXTURES remains blocked on independent desktop retail/hack oracle outputs; no private fixtures, Android device certification, export or save writes. Draft emulator PR #83 remains separately owned."
+  "last_pr": 99,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40842772250",
+  "note": "PR #99 merged at 68a3f5f5d76e9916cc2a680ca7351eb462d76d7a after exact-head Foundation and queue CI passed. Active task resume now requires matching branch, PR and immutable base SHA; ambiguous --resume is refused, with stale/owner/lock negative tests. QUEUE-RUN returned to ready with 40 modelled hours; GitHub state still requires independent PR/head verification and Actions never writes code. FIXTURES blocked on desktop oracle; emulator PR #83 independently owned; save writes disabled."
 }
