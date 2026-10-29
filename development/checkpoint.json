@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "a2bd78db152e967b97f75d9793bb4e8a240124e2",
+  "main_sha": "6f53e65cba40401ec959437f4552bb45b5c1e03a",
   "observed_utc": "2026-10-29",
-  "last_pr": 111,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40857993388",
-  "note": "PR #111 merged at a2bd78db152e967b97f75d9793bb4e8a240124e2; exact head 3455b6792f18f05deb7e7ed623b384ccc55164b5 Foundation 40857993388 (200 Python tests and domain smoke) and queue 40857993395 passed. Diagnostic APK selector now refuses unsigned/single fallback, clears stale selection output before consuming provenance, rejects output alias/symlink, and publishes selection JSON atomically with fsync+replace. Previous PR #109 pinned source-freeze contract remains in place. These are source/CLI gates only: independently owned draft emulator #83 still requires rebase, same-run attestation, exact signed APK install, foreground Activity, provider/backup/QR checks. QUEUE-RUN claim released, 25 modelled hours remain. No APK distribution, independent desktop fixture or original-save writing certified."
+  "last_pr": 114,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40865720030",
+  "note": "PR #114 merged at 6f53e65cba40401ec959437f4552bb45b5c1e03a. Exact PR head 84e4c88641115d734153e5a8a032c7d7e8caec2c passed Foundation 40865719993, queue 40865719976 and official-Core Android 40865720030. Diagnostic signed APK is now cryptographically verified by Android SDK apksigner, with parsed certificate SHA-256 and verified scheme bound to exact selected SHA-256, source pin and source freeze. A first CI run failed on modern V3 signer output; parser was corrected and all three workflows reran green. No APK uploaded or release signing approved. Queue claim released; 22 modelled QUEUE-RUN hours remain. Draft emulator PR #83 still needs integration of signer gate, exact APK install and foreground Activity, plus provider/QR/backup tests. No device, private fixture, safe export or full parity certification."
 }
