@@ -368,9 +368,9 @@
       "title": "Contain independent PKForge whole-save sharing and Android backup",
       "owner": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 35,
-      "remaining_hours": 35,
+      "remaining_hours": 12,
       "dependencies": [
         "BASE-PORT"
       ],
@@ -378,14 +378,15 @@
         "preview-export-backup"
       ],
       "acceptance": [
-        "Whole-save export menu, direct handler and cache/share route removed",
-        "Android allowBackup false and D2D/cloud exclusions verified at APK manifest and device",
-        "Synthetic regression and pinned official-Core Android compile CI pass"
+        "Whole-save export menu and direct cache/share route removed; source regression and official-Core Android compilation verified by PR #78",
+        "Compiled APK manifest and backup rules must be independently inspected, with synthetic device/upgrade transfer checks",
+        "Preview app-private bank/backup persistence routes audited and fail-closed"
       ],
-      "evidence": [],
-      "blockers": [],
-      "claim_branch": "impl/pkforge-export-backup-containment-20261029",
-      "claim_base_sha": "ce597f11df5b90757f79d91ba94441b7b40ea9ae"
+      "evidence": [
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/78",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40822807217"
+      ],
+      "blockers": []
     }
   ]
 }
