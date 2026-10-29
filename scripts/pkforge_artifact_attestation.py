@@ -149,18 +149,18 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
                 raise AttestationError("Invalid APK archive or missing manifest")
 
             dex = sorted(name for name in names
-                         if re.fullmatch(r"classes(?:[0-9]+)?\\.dex", name))
+                         if re.fullmatch(r"classes(?:[0-9]+)?\.dex", name))
             native = sorted(name for name in names
                             if re.fullmatch(
                                 r"lib/(?:arm64-v8a|armeabi-v7a|x86|x86_64)/"
-                                r"lib(?:monodroid|monosgen-2\\.0|xamarin-app)\\.so",
+                                r"lib(?:monodroid|monosgen-2\.0|xamarin-app)\.so",
                                 name))
             managed = sorted(name for name in names if (
                 name.startswith("assemblies/") and
                 (name.endswith(".dll") or name.endswith("assemblies.blob"))
             ) or re.fullmatch(
                 r"lib/(?:arm64-v8a|armeabi-v7a|x86|x86_64)/"
-                r"lib(?:PKForge\\.App\\.dll|assemblies|monodroid_bundle_app)\\.so",
+                r"lib(?:PKForge\.App\.dll|assemblies|monodroid_bundle_app)\.so",
                 name
             ))
             if not dex:
@@ -180,7 +180,7 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
                     for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                         h.update(chunk)
                 entry_hash.update(
-                    f"{info.filename}\\0{info.file_size}\\0{h.hexdigest()}\\n".encode()
+                    f"{info.filename}\0{info.file_size}\0{h.hexdigest()}\n".encode()
                 )
                 if (info.filename.startswith(("assets/", "res/", "resources/"))
                         or info.filename.lower().endswith(
@@ -196,7 +196,7 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
         )
     except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         raise AttestationError("Android package identity inspection failed") from exc
-    match = re.search(r"^package:\\s+name='([^']+)'", result.stdout, re.MULTILINE)
+    match = re.search(r"^package:\s+name='([^']+)'", result.stdout, re.MULTILINE)
     if not match or match.group(1) != EXPECTED_PACKAGE:
         raise AttestationError("Unexpected Android package ID; refuse artifact handoff")
     return {
