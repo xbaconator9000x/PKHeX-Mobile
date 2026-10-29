@@ -186,12 +186,19 @@ jobs:
         env:
           PKForgeRoot: /tmp/pkforge
         run: dotnet run --project tests/PKHeXMobile.ProviderOriginLifecycle.Smoke/PKHeXMobile.ProviderOriginLifecycle.Smoke.csproj --configuration Release
+      - name: Freeze transformed source before Android packaging
+        id: source-freeze
+        if: steps.provider-lifecycle-smoke.outcome == 'success'
+        run: |
+          python3 scripts/pkforge_artifact_attestation.py \
+            --repo /tmp/pkforge --mobile "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/pkforge-source-freeze.json" --snapshot-only
       - name: Install Android MAUI only if engine compiles
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.source-freeze.outcome == 'success'
         run: dotnet workload install maui-android --skip-manifest-update
       - name: Build PKForge Android against official Core
         id: android
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.source-freeze.outcome == 'success'
         continue-on-error: true
         env:
           PKForgeRoot: /tmp/pkforge
@@ -206,7 +213,8 @@ jobs:
         run: |
           python3 scripts/pkforge_artifact_attestation.py \
             --repo /tmp/pkforge --mobile "$GITHUB_WORKSPACE" \
-            --output "$RUNNER_TEMP/pkforge-diagnostic-provenance.json"
+            --output "$RUNNER_TEMP/pkforge-diagnostic-provenance.json" \
+            --source-snapshot "$RUNNER_TEMP/pkforge-source-freeze.json"
           echo 'APK identity verified; upstream artwork redistribution NOT authorized.' >> "$GITHUB_STEP_SUMMARY"
       - name: Retain provenance metadata only (NEVER upload the APK)
         if: steps.apk-provenance.outcome == 'success'
