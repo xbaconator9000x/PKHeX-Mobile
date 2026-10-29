@@ -3,6 +3,7 @@
 import argparse
 from pathlib import Path
 from scripts.pkforge_offline_preview import checked_file, verify_pins, OfflineRefusal
+from scripts import pkforge_residual_cache_refusal as residual
 
 INF = "src/PKForge.Infrastructure/"
 PROJECT = INF + "PKForge.Infrastructure.csproj"
@@ -181,7 +182,7 @@ def transform(root):
     root = root.resolve(strict=True)
     sources = {p: checked_file(root, p).read_text(encoding="utf-8")
                for p in (PROJECT, BANK, BACKUP, MAUI, HOME, BOX, BANK_PAGE, EVENT_GALLERY)}
-    return {
+    staged = {
         root / PROJECT: once(sources[PROJECT], PROJECT_ANCHOR, PROJECT_REPLACE),
         root / BANK: once(sources[BANK], BANK_ANCHOR, BANK_REPLACE),
         root / BACKUP: once(once(sources[BACKUP], BACKUP_START, BACKUP_START_REPLACE),
@@ -192,6 +193,7 @@ def transform(root):
         root / BANK_PAGE: adapt_bank_export(sources[BANK_PAGE]),
         root / EVENT_GALLERY: adapt_event_export(sources[EVENT_GALLERY]),
     }
+    return residual.extend(root, staged)
 
 def prepare(root):
     verify_pins(root)
