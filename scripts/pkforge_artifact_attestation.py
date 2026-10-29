@@ -170,9 +170,12 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
             if not managed:
                 candidates = sorted(
                     name for name in names
-                    if ("assembl" in name.lower() or name.endswith(".dll")
-                        or name.endswith(".so"))
-                )[:24]
+                    if ("PKForge" in name or "assembl" in name.lower()
+                        or "bundle" in name.lower())
+                )[:32]
+                if not candidates:
+                    candidates = sorted(name for name in names
+                                        if name.endswith(".dll.so"))[-12:]
                 raise AttestationError(
                     "APK missing embedded managed assembly payload; "
                     f"runtime-layout candidates={candidates!r}"
