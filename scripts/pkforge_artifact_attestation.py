@@ -289,7 +289,8 @@ def verify_source_snapshot(root: Path, snapshot: Path) -> dict:
     }
 
 
-def attestation(root: Path, mobile: Path, packager: Path | None = None,\n                source_snapshot: Path | None = None) -> dict:
+def attestation(root: Path, mobile: Path, packager: Path | None = None,
+                source_snapshot: Path | None = None) -> dict:
     root, mobile = root.resolve(strict=True), mobile.resolve(strict=True)
     check_pins(root)
     project = root / PROJECT
