@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "374e2e35a2d131feb4f64a637c50de217b708a20",
+  "main_sha": "6fde96577de69d4fd9d9ac2e6ecb5b2f0c5e67c0",
   "observed_utc": "2026-10-29",
-  "last_pr": 101,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40843980513",
-  "note": "PR #101 merged at 374e2e35a2d131feb4f64a637c50de217b708a20; exact merged-main official-Core Android integration run 40843980513, Foundation 40843980515 and queue 40843980539 all PASSED. PR-head official-Core 40843392176 also passed. Main push trigger now covers Domain/ReadOnly and transitive residual-cache adapter with negative trigger tests. QUEUE-RUN ready with 36 modelled hours, not verified; emulator PR #83 independently owned; no Android device/provider or save-write certification."
+  "last_pr": 103,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40845577309",
+  "note": "PR #103 merged at 6fde96577de69d4fd9d9ac2e6ecb5b2f0c5e67c0. Exact PR-head Foundation 40845246235 and queue 40845246116 passed; merged-main Foundation 40845577309 and queue 40845577122 passed. New source/SHA/frozen-input-bound emulator APK selector and synthetic refusal tests are present, but not yet integrated into independently owned draft emulator PR #83. QUEUE-RUN claim released to ready, 34 modelled hours remain. PR #83 still requires current-main rebase, attested installation, foreground Activity, provider/QR/backup device tests. No APK distribution or original-save writes."
 }
