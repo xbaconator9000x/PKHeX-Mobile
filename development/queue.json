@@ -368,9 +368,9 @@
       "title": "Contain independent PKForge whole-save sharing and Android backup",
       "owner": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "ready",
       "total_hours": 35,
-      "remaining_hours": 12,
+      "remaining_hours": 8,
       "dependencies": [
         "BASE-PORT"
       ],
@@ -378,17 +378,20 @@
         "preview-export-backup"
       ],
       "acceptance": [
-        "Whole-save export menu and direct cache/share route removed; source regression and official-Core Android compilation verified by PR #78",
-        "Compiled APK manifest and backup rules must be independently inspected, with synthetic device/upgrade transfer checks",
-        "Preview app-private bank/backup persistence routes audited and fail-closed"
+        "Source whole-save share/export denial passed; compiled APK backup flags and both exclusion XML sections checked by aapt2",
+        "Diagnostic Infrastructure bank mutations and raw-save backup creation refused by executable synthetic smoke",
+        "Android emulator/device cold-install, upgrade and cloud/D2D transfer tests with synthetic sentinels remain outstanding",
+        "Audit other app-private gift, identity, cache and share persistence before release"
       ],
       "evidence": [
         "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/78",
-        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40822807217"
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40822807217",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/80",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/81",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40823602811",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40824075390"
       ],
-      "blockers": [],
-      "claim_branch": "impl/preview-private-storage-refusal-20261029",
-      "claim_base_sha": "f46318a6e75d9d8356ecaca757dba6338a72550a"
+      "blockers": []
     }
   ]
 }
