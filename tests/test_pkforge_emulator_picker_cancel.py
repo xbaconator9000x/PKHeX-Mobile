@@ -34,6 +34,13 @@ class PickerCancelTests(unittest.TestCase):
         self.assertTrue(module.is_app(app, "org.pkforge.app.debug"))
         self.assertFalse(module.is_app(other, "org.pkforge.app.debug"))
         self.assertFalse(module.is_app(picker, "org.pkforge.app.debug"))
+        stale_legacy = ("mResumedActivity: ActivityRecord{u0 org.pkforge.app.debug/crc.MainActivity}\n"
+                        "topResumedActivity=ActivityRecord{u0 com.google.android.apps.nexuslauncher/.Launcher}")
+        self.assertFalse(module.is_app(stale_legacy, "org.pkforge.app.debug"))
+        self.assertFalse(module.is_picker(stale_legacy))
+        top_picker = ("mResumedActivity: ActivityRecord{u0 org.pkforge.app.debug/crc.MainActivity}\n"
+                      "topResumedActivity=ActivityRecord{u0 com.google.android.documentsui/.FilesActivity}")
+        self.assertTrue(module.is_picker(top_picker))
 
     def test_resumed_package_diagnostic_contains_no_ui_text(self):
         dump = ("topResumedActivity=ActivityRecord{u0 com.android.launcher3/.Launcher}\n"
