@@ -89,6 +89,7 @@ for _ in $(seq 1 15); do
   sleep 2
 done
 test "$recovered" = true
+python3 "$workspace/scripts/pkforge_emulator_picker_cancel.py" --package "$package"
 test "$(sha256sum "$apk" | cut -d' ' -f1)" = "$expected"
 echo "Installed diagnostic APK SHA-256: $expected"
 echo "Package: $package; foreground, background-negative and relaunch passed."

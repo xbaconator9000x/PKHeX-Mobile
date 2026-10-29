@@ -42,6 +42,8 @@ on:
       - 'scripts/pkforge_emulator_apk_selection.py'
       - 'scripts/pkforge_apk_signature_gate.py'
       - 'scripts/pkforge_emulator_launch_smoke.sh'
+      - 'scripts/pkforge_emulator_picker_cancel.py'
+      - 'tests/test_pkforge_emulator_picker_cancel.py'
       - 'scripts/pkforge_emulator_foreground.py'
       - 'tests/test_pkforge_emulator_launch_smoke.py'
       - 'tests/test_pkforge_emulator_apk_selection.py'
@@ -100,6 +102,8 @@ on:
       - 'scripts/pkforge_emulator_apk_selection.py'
       - 'scripts/pkforge_apk_signature_gate.py'
       - 'scripts/pkforge_emulator_launch_smoke.sh'
+      - 'scripts/pkforge_emulator_picker_cancel.py'
+      - 'tests/test_pkforge_emulator_picker_cancel.py'
       - 'scripts/pkforge_emulator_foreground.py'
       - 'tests/test_pkforge_emulator_launch_smoke.py'
       - 'tests/test_pkforge_emulator_apk_selection.py'
@@ -154,6 +158,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_pkforge_emulator_apk_selection.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_apk_signature_gate.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_emulator_launch_smoke.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_emulator_picker_cancel.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_offline_preview.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_neutral_assets.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_export_backup_boundary.py' -v
