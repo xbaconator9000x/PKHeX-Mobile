@@ -1,4 +1,6 @@
 import copy
+import contextlib
+import io
 from pathlib import Path
 import sys
 import unittest
@@ -38,17 +40,68 @@ class QueueGates(unittest.TestCase):
         self.assertEqual(len(locks), len(set(locks)))
 
         apk["status"] = "in_progress"
+        claim = {"branch": "impl/port-apk-test", "pr": 83, "base_sha": "a" * 40}
+        apk["claim"] = claim
         claimed = {x["id"] for x in dq.select(q, count=25)["selected"]}
         self.assertNotIn("PORT-APK", claimed)
-        resumed = {x["id"] for x in dq.select(q, count=25, resume=True)["selected"]}
+        resumed = {x["id"] for x in dq.select(q, count=25, resume=True, claim=claim)["selected"]}
         self.assertIn("PORT-APK", resumed)
 
     def test_active_tasks_not_stolen(self):
         q = copy.deepcopy(self.queue)
         x = next(t for t in q["tasks"] if t["id"] == "PORT-APK")
         x["status"] = "in_progress"
+        claim = {"branch": "impl/port-apk-test", "pr": 83, "base_sha": "a" * 40}
+        x["claim"] = claim
         self.assertNotIn("PORT-APK", {t["id"] for t in dq.select(q, count=25)["selected"]})
-        self.assertIn("PORT-APK", {t["id"] for t in dq.select(q, count=25, resume=True)["selected"]})
+        self.assertNotIn("PORT-APK", {t["id"] for t in dq.select(q, count=25, resume=True)["selected"]})
+        self.assertNotIn("PORT-APK", {t["id"] for t in dq.select(q, count=25, resume=True,
+            claim={**claim, "pr": 84})["selected"]})
+        self.assertNotIn("PORT-APK", {t["id"] for t in dq.select(q, count=25, resume=True,
+            claim={**claim, "base_sha": "b" * 40})["selected"]})
+        self.assertIn("PORT-APK", {t["id"] for t in dq.select(q, count=25, resume=True,
+            claim=claim)["selected"]})
+
+
+    def test_claim_validation_rejects_stale_or_wrong_owner(self):
+        q = copy.deepcopy(self.queue)
+        task = next(t for t in q["tasks"] if t["id"] == "PORT-APK")
+        task["status"] = "in_progress"
+        task["claim"] = {"branch": "impl/emulator", "pr": 83, "base_sha": "a" * 40}
+        self.assertEqual([], dq.validate(q, self.checkpoint))
+        for changed in (
+            {"branch": "audit/emulator"},
+            {"pr": 0},
+            {"pr": True},
+            {"base_sha": "main"},
+            {"base_sha": "A" * 40},
+            {"branch": ""},
+        ):
+            bad = copy.deepcopy(q)
+            next(t for t in bad["tasks"] if t["id"] == "PORT-APK")["claim"].update(changed)
+            self.assertTrue(dq.validate(bad, self.checkpoint), changed)
+        task["status"] = "ready"
+        self.assertTrue(dq.validate(q, self.checkpoint))
+
+    def test_resume_requires_full_explicit_claim(self):
+        q = copy.deepcopy(self.queue)
+        task = next(t for t in q["tasks"] if t["id"] == "PORT-APK")
+        task["status"] = "in_progress"
+        task["claim"] = {"branch": "impl/emulator", "pr": 83, "base_sha": "a" * 40}
+        self.assertNotIn("PORT-APK", {t["id"] for t in dq.select(q, resume=True, count=25)["selected"]})
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                dq.main(["next", "--resume"])
+            with self.assertRaises(SystemExit):
+                dq.main(["next", "--claim-branch", "impl/emulator"])
+        # Other active tasks and their locks are never included in an exact resume.
+        other = next(t for t in q["tasks"] if t["id"] == "QUEUE-RUN")
+        other["status"] = "in_progress"
+        other["claim"] = {"branch": "impl/queue-other", "pr": 91, "base_sha": "b" * 40}
+        chosen = {t["id"] for t in dq.select(q, resume=True, count=25,
+            claim=task["claim"])["selected"]}
+        self.assertIn("PORT-APK", chosen)
+        self.assertNotIn("QUEUE-RUN", chosen)
 
     def test_verified_requires_evidence_and_zero_remaining(self):
         q = copy.deepcopy(self.queue)
