@@ -39,6 +39,8 @@ on:
       - 'tests/test_pkforge_disable_bulk_import.py'
       - 'scripts/pkforge_artifact_attestation.py'
       - 'tests/test_pkforge_artifact_attestation.py'
+      - 'scripts/pkforge_offline_preview.py'
+      - 'tests/test_pkforge_offline_preview.py'
 
 permissions:
   contents: read
@@ -69,6 +71,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_pkforge_session_transaction.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_disable_bulk_import.py' -v
           python3 -m unittest discover -s tests -p 'test_pkforge_artifact_attestation.py' -v
+          python3 -m unittest discover -s tests -p 'test_pkforge_offline_preview.py' -v
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -186,9 +189,14 @@ jobs:
         env:
           PKForgeRoot: /tmp/pkforge
         run: dotnet run --project tests/PKHeXMobile.ProviderOriginLifecycle.Smoke/PKHeXMobile.ProviderOriginLifecycle.Smoke.csproj --configuration Release
+      - name: Disable runtime media downloads and APK installation in diagnostic MAUI
+        id: offline-containment
+        if: steps.provider-lifecycle-smoke.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m scripts.pkforge_offline_preview --repo /tmp/pkforge
       - name: Install Android MAUI only after runtime refusal checks
         id: maui-workload
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success'
         run: dotnet workload install maui-android --skip-manifest-update
       - name: Restore exact diagnostic Android dependency graph before input freeze
         id: android-restore
@@ -208,7 +216,7 @@ jobs:
             --output "$RUNNER_TEMP/pkforge-source-freeze.json" --snapshot-only
       - name: Build PKForge Android against official Core
         id: android
-        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.source-freeze.outcome == 'success'
+        if: steps.engine.outcome == 'success' && steps.retail-smoke.outcome == 'success' && steps.retail-editor.outcome == 'success' && steps.preview-ui.outcome == 'success' && steps.hardening.outcome == 'success' && steps.picker-lifecycle.outcome == 'success' && steps.bulk-import-refusal.outcome == 'success' && steps.containment-smoke.outcome == 'success' && steps.bounded-source.outcome == 'success' && steps.bounded-smoke.outcome == 'success' && steps.folder-containment.outcome == 'success' && steps.folder-smoke.outcome == 'success' && steps.provider-origin.outcome == 'success' && steps.session-transaction.outcome == 'success' && steps.provider-preview-smoke.outcome == 'success' && steps.provider-lifecycle-smoke.outcome == 'success' && steps.offline-containment.outcome == 'success' && steps.source-freeze.outcome == 'success'
         continue-on-error: true
         env:
           PKForgeRoot: /tmp/pkforge
@@ -216,9 +224,13 @@ jobs:
         run: |
           dotnet build src/PKForge.App/PKForge.App.csproj -f net10.0-android -c Debug --no-restore \
             -p:DiagnosticBuild=true -p:AndroidPackageFormat=apk -v:minimal
+      - name: Verify compiled APK denies network and package installation permissions
+        id: offline-apk-permissions
+        if: steps.android.outcome == 'success'
+        run: python3 -m scripts.pkforge_offline_preview --repo /tmp/pkforge --verify-apks
       - name: Attest adapted editor APK identity and inventory bundled media
         id: apk-provenance
-        if: steps.android.outcome == 'success'
+        if: steps.android.outcome == 'success' && steps.offline-apk-permissions.outcome == 'success'
         shell: bash
         run: |
           python3 scripts/pkforge_artifact_attestation.py \
@@ -254,6 +266,8 @@ jobs:
           SESSION_TRANSACTION: ${{ steps.session-transaction.outcome }}
           PROVIDER_PREVIEW_SMOKE: ${{ steps.provider-preview-smoke.outcome }}
           PROVIDER_LIFECYCLE_SMOKE: ${{ steps.provider-lifecycle-smoke.outcome }}
+          OFFLINE_CONTAINMENT: ${{ steps.offline-containment.outcome }}
+          OFFLINE_APK_PERMISSIONS: ${{ steps.offline-apk-permissions.outcome }}
           MAUI_WORKLOAD: ${{ steps.maui-workload.outcome }}
           ANDROID_RESTORE: ${{ steps.android-restore.outcome }}
           SOURCE_FREEZE: ${{ steps.source-freeze.outcome }}
@@ -282,18 +296,20 @@ jobs:
             echo "Atomic activation transaction: $SESSION_TRANSACTION"
             echo "Provider-bound preview smoke: $PROVIDER_PREVIEW_SMOKE"
             echo "Real PKForge session lifecycle smoke: $PROVIDER_LIFECYCLE_SMOKE"
+            echo "Diagnostic runtime media/installer containment: $OFFLINE_CONTAINMENT"
+            echo "Compiled APK offline permissions: $OFFLINE_APK_PERMISSIONS"
             echo "Android MAUI workload: $MAUI_WORKLOAD"
             echo "Frozen prebuild NuGet restore: $ANDROID_RESTORE"
             echo "Full build-input freeze: $SOURCE_FREEZE"
             echo "Android compile: $ANDROID"
             echo "APK identity/media provenance (metadata only): $APK_PROVENANCE"
-            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$APK_PROVENANCE" != success ]; then
+            if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$APK_PROVENANCE" != success ]; then
               echo '**OFFICIAL-CORE COMPATIBILITY GATE FAILED.** Inspect compilation and runtime smoke diagnostics.'
             else
               echo '**COMPILES ONLY.** No write, device or desktop parity certification.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$APK_PROVENANCE" != success ]; then
+          if [ "$ENGINE" != success ] || [ "$RETAIL_SMOKE" != success ] || [ "$RETAIL_EDITOR" != success ] || [ "$PREVIEW_UI" != success ] || [ "$CONTAINMENT" != success ] || [ "$HARDENING" != success ] || [ "$PICKER_LIFECYCLE" != success ] || [ "$BULK_IMPORT_REFUSAL" != success ] || [ "$CONTAINMENT_SMOKE" != success ] || [ "$BOUNDED_SOURCE" != success ] || [ "$BOUNDED_SMOKE" != success ] || [ "$FOLDER_CONTAINMENT" != success ] || [ "$FOLDER_SMOKE" != success ] || [ "$PROVIDER_ORIGIN" != success ] || [ "$SESSION_TRANSACTION" != success ] || [ "$PROVIDER_PREVIEW_SMOKE" != success ] || [ "$PROVIDER_LIFECYCLE_SMOKE" != success ] || [ "$OFFLINE_CONTAINMENT" != success ] || [ "$MAUI_WORKLOAD" != success ] || [ "$ANDROID_RESTORE" != success ] || [ "$SOURCE_FREEZE" != success ] || [ "$ANDROID" != success ] || [ "$OFFLINE_APK_PERMISSIONS" != success ] || [ "$APK_PROVENANCE" != success ]; then
             echo 'Retail-only official-Core compatibility gate failed.' >&2
             exit 1
           fi
