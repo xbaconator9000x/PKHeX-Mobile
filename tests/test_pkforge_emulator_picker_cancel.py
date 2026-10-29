@@ -35,6 +35,14 @@ class PickerCancelTests(unittest.TestCase):
         self.assertFalse(module.is_app(other, "org.pkforge.app.debug"))
         self.assertFalse(module.is_app(picker, "org.pkforge.app.debug"))
 
+    def test_resumed_package_diagnostic_contains_no_ui_text(self):
+        dump = ("topResumedActivity=ActivityRecord{u0 com.android.launcher3/.Launcher}\n"
+                "mResumedActivity: ActivityRecord{u0 com.google.android.documentsui/.FilesActivity}\n"
+                "text=private-provider-filename.sav")
+        self.assertEqual(("com.android.launcher3", "com.google.android.documentsui"),
+                         module.resumed_packages(dump))
+        self.assertEqual((), module.resumed_packages("mResumedActivity=null"))
+
     def test_transient_empty_accessibility_dump_recovers_without_ui_leak(self):
         good = "<hierarchy><node text='File' bounds='[0,0][20,20]'/></hierarchy>"
         xml = iter(["<?xml version='1.0'?>", good])
@@ -78,7 +86,7 @@ class PickerCancelTests(unittest.TestCase):
               patch.object(module, "ui_nodes", side_effect=AssertionError("not needed"))):
             module.open_picker("org.pkforge.app.debug")
         self.assertEqual([
-            ("shell", "logcat", "-c", "-b", "main"),
+            ("shell", "logcat", "-c", "-b", "main", "-b", "system"),
             ("shell", "input", "keyevent", "99"),
         ], [call.args for call in adb_call.call_args_list])
         verified.assert_called_once_with()
@@ -145,7 +153,7 @@ class PickerCancelTests(unittest.TestCase):
             "cmp=com.android.documentsui/.files.FilesActivity}")) as adb_call:
             module.verify_file_picker_launch()
         adb_call.assert_called_once_with("shell", "logcat", "-d", "-b", "main",
-                                         "-s", "ActivityTaskManager:I")
+                                         "-b", "system", "-s", "ActivityTaskManager:I")
 
     def test_script_never_selects_or_transfers_documents(self):
         source = SCRIPT.read_text()
