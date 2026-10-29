@@ -4,9 +4,6 @@ name: PKForge pinned Android build spike
 # No APK/artwork is uploaded or distributed. GitHub Actions minutes are finite.
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/pkforge-build-spike.yml'
 
 permissions:
   contents: read

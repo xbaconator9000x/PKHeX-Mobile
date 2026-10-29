@@ -2,23 +2,6 @@ name: GitHub work queue selection
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'development/**'
-      - 'scripts/development_queue.py'
-      - 'scripts/development_pr_lease.py'
-      - 'tests/test_development_queue.py'
-      - 'tests/test_development_pr_lease.py'
-      - '.github/workflows/development-queue.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'development/**'
-      - 'scripts/development_queue.py'
-      - 'scripts/development_pr_lease.py'
-      - 'tests/test_development_queue.py'
-      - 'tests/test_development_pr_lease.py'
-      - '.github/workflows/development-queue.yml'
 
 permissions:
   contents: read

@@ -2,27 +2,6 @@ name: Android read-only prototype build
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'src/PKHeXMobile.Android/**'
-      - 'src/PKHeXMobile.ReadOnly/**'
-      - 'src/PKHeXMobile.Domain/**'
-      - 'Directory.Build.*'
-      - 'Directory.Packages.props'
-      - 'NuGet.Config'
-      - 'global.json'
-      - '.github/workflows/android-build.yml'
-  pull_request:
-    paths:
-      - 'src/PKHeXMobile.Android/**'
-      - 'src/PKHeXMobile.ReadOnly/**'
-      - 'src/PKHeXMobile.Domain/**'
-      - 'Directory.Build.*'
-      - 'Directory.Packages.props'
-      - 'NuGet.Config'
-      - 'global.json'
-      - '.github/workflows/android-build.yml'
 
 permissions:
   contents: read
