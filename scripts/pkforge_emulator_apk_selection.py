@@ -10,6 +10,22 @@ import json
 from pathlib import Path
 import re
 
+# Keep the consumer bound to the producer's actual immutable upstream pins.
+# This does not independently authenticate the upstream checkout: the producer
+# and its same-run source snapshot must succeed before the emulator consumer.
+from pkforge_artifact_attestation import (
+    PKFORGE, FORK, PLUGINS, MAUI, CORE_SOURCE, CORE_PACKAGE,
+)
+
+EXPECTED_PINS = {
+    "pkforge": PKFORGE,
+    "fork_core": FORK,
+    "plugins": PLUGINS,
+    "pkhex_maui_reference": MAUI,
+    "official_core_source": CORE_SOURCE,
+    "official_core_package": CORE_PACKAGE,
+}
+
 
 EXPECTED_PACKAGE = "org.pkforge.app.debug"
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
@@ -35,8 +51,38 @@ def _require_sha(value: object, pattern: re.Pattern, label: str) -> str:
     return value
 
 
+def _verified_snapshot(frozen: dict, snapshot: Path | None) -> None:
+    """Bind producer's source-freeze digest to the same-run snapshot bytes.
+
+    The snapshot must come from this CI job's successful --snapshot-only step,
+    not an artifact downloaded from an unrelated workflow or user input.
+    """
+    for key in ("source_unchanged_after_build",
+                "includes_external_sources_and_media",
+                "includes_prebuild_restore_graph"):
+        if frozen.get(key) is not True:
+            raise SelectionError("Source freeze predicate failed: " + key)
+    count = frozen.get("files")
+    if type(count) is not int or count <= 0:
+        raise SelectionError("Missing positive frozen source file count")
+    if snapshot is None or snapshot.is_symlink() or not snapshot.is_file():
+        raise SelectionError("Missing same-run source snapshot")
+    try:
+        payload = json.loads(snapshot.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise SelectionError("Unreadable same-run source snapshot") from exc
+    if (not isinstance(payload, dict) or payload.get("schema") != 2
+            or payload.get("scope") != "full-transformed-build-inputs"
+            or not isinstance(payload.get("files"), dict)
+            or len(payload["files"]) != count):
+        raise SelectionError("Source snapshot schema or file count mismatch")
+    if _digest(snapshot) != frozen["sha256"]:
+        raise SelectionError("Source snapshot digest differs from attestation")
+
+
 def select_apk(report: dict, build_dir: Path, expected_mobile_sha: str,
-               variant: str = "signed") -> dict:
+               variant: str = "signed",
+               source_snapshot: Path | None = None) -> dict:
     """Verify source pin, unique attested filename and actual APK bytes.
 
     signed: exactly one attested *-Signed.apk; no unsigned fallback.
@@ -54,10 +100,14 @@ def select_apk(report: dict, build_dir: Path, expected_mobile_sha: str,
     pins = report.get("pins")
     if not isinstance(pins, dict) or pins.get("mobile_head") != expected_mobile_sha:
         raise SelectionError("Provenance is not bound to expected source commit")
+    for key, value in EXPECTED_PINS.items():
+        if pins.get(key) != value:
+            raise SelectionError("Provenance upstream pin mismatch: " + key)
     frozen = report.get("frozen_source")
     if not isinstance(frozen, dict):
         raise SelectionError("Missing verified prebuild source freeze")
     _require_sha(frozen.get("sha256"), SHA256, "frozen source hash")
+    _verified_snapshot(frozen, source_snapshot)
     apks = report.get("apks")
     if not isinstance(apks, list) or not apks:
         raise SelectionError("No attested APKs")
@@ -119,13 +169,15 @@ def select_apk(report: dict, build_dir: Path, expected_mobile_sha: str,
 
 
 def verify_selected_apk(report: dict, selection: dict, build_dir: Path,
-                        expected_mobile_sha: str, variant: str = "signed") -> dict:
+                        expected_mobile_sha: str, variant: str = "signed",
+                        source_snapshot: Path | None = None) -> dict:
     """Recheck the exact source, attestation and APK bytes just before install.
 
     The selection JSON is untrusted input, not an authorization to choose a
     different APK. This check does not eliminate races after it returns.
     """
-    expected = select_apk(report, build_dir, expected_mobile_sha, variant)
+    expected = select_apk(report, build_dir, expected_mobile_sha, variant,
+                          source_snapshot)
     if not isinstance(selection, dict) or selection != expected:
         raise SelectionError("Selected APK record differs from fresh attestation")
     return expected
@@ -136,6 +188,8 @@ def main() -> None:
     parser.add_argument("--provenance", type=Path, required=True)
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--expected-mobile-sha", required=True)
+    parser.add_argument("--source-snapshot", type=Path, required=True,
+                        help="Same-run prebuild snapshot; never use a downloaded artifact")
     parser.add_argument("--variant", choices=("signed", "single"), default="signed")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--verify-selection", type=Path,
@@ -145,12 +199,14 @@ def main() -> None:
     if args.verify_selection is not None:
         selected = json.loads(args.verify_selection.read_text(encoding="utf-8"))
         verify_selected_apk(report, selected, args.build_dir,
-                            args.expected_mobile_sha, args.variant)
+                            args.expected_mobile_sha, args.variant,
+                            args.source_snapshot)
         print("Exact attested APK reverified immediately before emulator install.")
         return
     if args.output is None:
         parser.error("--output is required when not verifying a selection")
-    result = select_apk(report, args.build_dir, args.expected_mobile_sha, args.variant)
+    result = select_apk(report, args.build_dir, args.expected_mobile_sha,
+                        args.variant, args.source_snapshot)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n",
                            encoding="utf-8")
