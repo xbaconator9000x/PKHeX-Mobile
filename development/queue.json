@@ -132,9 +132,9 @@
       "title": "Independent desktop PKHeX 26.10.18 fixture and false-positive verification",
       "owner": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "blocked",
       "total_hours": 120,
-      "remaining_hours": 120,
+      "remaining_hours": 118,
       "dependencies": [
         "BASE-CORE"
       ],
@@ -147,8 +147,13 @@
         "Unknown/hack profile remains read-only",
         "Schema-17 read-only negative/refusal fixtures explicitly distinguish rejected saves from recognized desktop-matched projections; no writes or private files"
       ],
-      "evidence": [],
-      "blockers": []
+      "evidence": [
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/pull/97",
+        "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40842217046"
+      ],
+      "blockers": [
+        "Independent same-version desktop PKHeX 26.10.18 positive retail/hack oracle outputs and authenticated private fixtures remain unavailable; schema-17 synthetic refusal coverage does not prove a specific hack guard or authorize writes."
+      ]
     },
     {
       "id": "PORT-EDITOR",

@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "repository": "xbaconator9000x/PKHeX-Mobile",
-  "main_sha": "1d298e150fa2951eee66fe926e460018e17fb03f",
+  "main_sha": "ed2cd7d2739594eb982c0d7db7dd2e5a420dc691",
   "observed_utc": "2026-10-29",
-  "last_pr": 94,
-  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40835217135",
-  "note": "PR #94 merged at 1d298e150fa2951eee66fe926e460018e17fb03f with Foundation, queue and official-Core Android compile green. QR encoded pixels now remain unmodified during delayed MAUI stream callbacks and Image.Source is released on idempotent close; source-level regression passed. PREVIEW-EXPORT-BACKUP returned to ready with 3 forecast hours for actual Android QR/provider/backup-transfer and cache-lifecycle testing. Draft emulator PR #83 remains independently owned and must be rebased and attested. Save writes remain disabled; no device/release certification."
+  "last_pr": 97,
+  "ci_url": "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40842217046",
+  "note": "PR #97 merged at ed2cd7d2739594eb982c0d7db7dd2e5a420dc691 after exact-head Foundation and queue selection passed. Schema-17 private fixture verifier now checks expected read-only refusals, two-open synthetic source preservation, input SHA and CLI failure controls. FIXTURES remains blocked on independent desktop retail/hack oracle outputs; no private fixtures, Android device certification, export or save writes. Draft emulator PR #83 remains separately owned."
 }
