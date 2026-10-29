@@ -18,6 +18,8 @@ REQUIRED = {
     "scripts/pkforge_emulator_apk_selection.py",
     "scripts/pkforge_apk_signature_gate.py",
     "scripts/pkforge_emulator_launch_smoke.sh",
+    "scripts/pkforge_emulator_picker_cancel.py",
+    "tests/test_pkforge_emulator_picker_cancel.py",
     "scripts/pkforge_emulator_foreground.py",
     "tests/test_pkforge_emulator_launch_smoke.py",
     "tests/test_pkforge_emulator_apk_selection.py",
