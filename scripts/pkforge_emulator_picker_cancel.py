@@ -98,6 +98,15 @@ def is_picker(dump: str) -> bool:
     activity = resumed_activity(dump).lower()
     return any(package in activity for package in PICKER_PACKAGES)
 
+def resumed_packages(dump: str) -> tuple[str, ...]:
+    """Return only Android component package names, never accessibility text."""
+    names = set()
+    for line in dump.splitlines():
+        if re.search(r"\b(?:topResumedActivity|mResumedActivity)\s*[:=]", line):
+            names.update(re.findall(r"\b([A-Za-z][A-Za-z0-9_.]+)/[A-Za-z0-9_.$]+", line))
+    return tuple(sorted(names))
+
+
 
 def exact_readonly_document_launch(log: str) -> bool:
     """Only the last fresh DocumentsUI START intent can authorize this smoke."""
@@ -123,7 +132,7 @@ def exact_readonly_document_launch(log: str) -> bool:
 def verify_file_picker_launch() -> None:
     # The ActivityTaskManager START record is cleared immediately before the
     # input that opens the picker. Foreground DocumentsUI alone is insufficient.
-    events = adb("shell", "logcat", "-d", "-b", "main", "-s", "ActivityTaskManager:I")
+    events = adb("shell", "logcat", "-d", "-b", "main", "-b", "system", "-s", "ActivityTaskManager:I")
     if not exact_readonly_document_launch(events):
         raise RuntimeError("DocumentsUI did not prove fresh read-only ACTION_OPEN_DOCUMENT")
 
@@ -157,13 +166,23 @@ def open_picker(package: str) -> None:
             raise RuntimeError("PKForge left foreground before picker interaction")
         # X is a no-op while a dialogue/menu owns the router. On Home it
         # reaches LinkFileAsync directly without choosing an emulator folder.
-        adb("shell", "logcat", "-c", "-b", "main")
+        adb("shell", "logcat", "-c", "-b", "main", "-b", "system")
         adb("shell", "input", "keyevent", "99")
         if wait_for(is_picker, 3):
             verify_file_picker_launch()
             return
-        if not is_app(adb("shell", "dumpsys", "activity", "activities"), package):
-            raise RuntimeError("PKForge left foreground after safe X input")
+        current = adb("shell", "dumpsys", "activity", "activities")
+        if not is_app(current, package):
+            # Distinguish an unexpected Launcher/permission foreground from a
+            # file picker that our resumed-Activity matcher failed to identify.
+            # Only safe package names and action classification reach CI logs.
+            events = adb("shell", "logcat", "-d", "-b", "main", "-b", "system",
+                         "-s", "ActivityTaskManager:I")
+            action = ("OPEN_DOCUMENT launch seen" if exact_readonly_document_launch(events)
+                      else "no verified OPEN_DOCUMENT launch")
+            packages = ",".join(resumed_packages(current))[:160] or "unavailable"
+            raise RuntimeError("PKForge left foreground after safe X input; " +
+                               "resumed packages=" + packages + "; " + action)
         try:
             nodes = ui_nodes(retries=2)
         except RuntimeError as error:
@@ -171,7 +190,7 @@ def open_picker(package: str) -> None:
             nodes = []
         point = find_target(nodes)
         if point is not None:
-            adb("shell", "logcat", "-c", "-b", "main")
+            adb("shell", "logcat", "-c", "-b", "main", "-b", "system")
             adb("shell", "input", "tap", str(point[0]), str(point[1]))
             if wait_for(is_picker, 8):
                 verify_file_picker_launch()
