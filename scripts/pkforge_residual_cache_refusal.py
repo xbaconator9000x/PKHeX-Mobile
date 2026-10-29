@@ -60,11 +60,31 @@ QR_MEMORY = """        // Per-overlay immutable pixels: no shared cache file or 
             png = encoded.ToArray();
         }
 
+        // The stream factory may run after Close on the MAUI image pipeline.
+        // Never zero or mutate pixels captured by an outstanding stream.
+        var qrImage = new Image
+        {
+            Source = ImageSource.FromStream(() => new MemoryStream(png, writable: false)),
+            WidthRequest = 240,
+            HeightRequest = 240,
+            HorizontalOptions = LayoutOptions.Center,
+        };
+
 """
 QR_FILE_IMAGE = "Source = ImageSource.FromFile(path),"
 QR_MEMORY_IMAGE = "Source = ImageSource.FromStream(() => new MemoryStream(png, writable: false)),"
+QR_IMAGE_BLOCK = """Kit.LcdPanel(new Image
+                {
+                    Source = ImageSource.FromFile(path),
+                    WidthRequest = 240,
+                    HeightRequest = 240,
+                    HorizontalOptions = LayoutOptions.Center,
+                }, padding: 8),"""
+QR_IMAGE_CALL = "Kit.LcdPanel(qrImage, padding: 8),"
+QR_CLOSE_START = "        void Close()\n        {\n"
+QR_CLOSE_START_NEW = "        var closed = false;\n        void Close()\n        {\n            if (closed) return;\n            closed = true;\n"
 QR_CLOSE = "            done.TrySetResult();\n"
-QR_CLEAR = "            Array.Clear(png);\n            done.TrySetResult();\n"
+QR_RELEASE = "            qrImage.Source = null;\n            done.TrySetResult();\n"
 
 
 def guard_method(source: str, start: str, end: str, required: tuple[str, ...], guard: str) -> str:
@@ -103,8 +123,9 @@ def adapt_qr(source: str) -> str:
                      ("File.Create(path)", "encoded.SaveTo(file)", "SKImage.FromBitmap(bitmap)")):
         raise OfflineRefusal("Pinned QR disk encoder changed")
     source = source[:a] + QR_MEMORY + source[b:]
-    source = replace_once(source, QR_FILE_IMAGE, QR_MEMORY_IMAGE)
-    return replace_once(source, QR_CLOSE, QR_CLEAR)
+    source = replace_once(source, QR_IMAGE_BLOCK, QR_IMAGE_CALL)
+    source = replace_once(source, QR_CLOSE_START, QR_CLOSE_START_NEW)
+    return replace_once(source, QR_CLOSE, QR_RELEASE)
 
 
 def adapt_park(source: str) -> str:
