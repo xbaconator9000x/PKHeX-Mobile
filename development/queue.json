@@ -170,7 +170,7 @@
       "title": "Adapt PKForge Pokémon, party and box editing into detached staging only",
       "owner": "implementation",
       "priority": "P1",
-      "status": "ready",
+      "status": "in_progress",
       "total_hours": 155,
       "remaining_hours": 153,
       "dependencies": [
@@ -189,7 +189,12 @@
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40881697235",
         "https://github.com/xbaconator9000x/PKHeX-Mobile/actions/runs/40881697052"
       ],
-      "blockers": []
+      "blockers": [],
+      "claim": {
+        "branch": "impl/preview-request-cancellation-20261030",
+        "pr": 129,
+        "base_sha": "2326c8a215c56bcf271af0fca033d71b29e1bc71"
+      }
     },
     {
       "id": "SAFE-EXPORT",
