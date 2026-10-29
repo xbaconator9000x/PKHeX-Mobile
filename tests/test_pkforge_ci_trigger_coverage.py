@@ -15,6 +15,10 @@ REQUIRED = {
     "src/PKHeXMobile.ReadOnly/**",
     "scripts/pkforge_private_storage_refusal.py",
     "scripts/pkforge_residual_cache_refusal.py",
+    "scripts/pkforge_emulator_apk_selection.py",
+    "scripts/pkforge_apk_signature_gate.py",
+    "tests/test_pkforge_emulator_apk_selection.py",
+    "tests/test_pkforge_apk_signature_gate.py",
     "tests/test_pkforge_ci_trigger_coverage.py",
 }
 
