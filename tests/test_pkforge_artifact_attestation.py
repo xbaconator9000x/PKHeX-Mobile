@@ -42,10 +42,19 @@ class ArtifactAttestationTests(unittest.TestCase):
         self.packager = Path(self.temp.name) / "aapt2"
         self.set_package(audit.EXPECTED_PACKAGE)
 
-    def make_apk(self, valid=True):
+    def make_apk(self, valid=True, *, dex=True, native=True, managed=True,
+                 extra_entries=None):
         if valid:
             with zipfile.ZipFile(self.apk, "w") as archive:
                 archive.writestr("AndroidManifest.xml", b"synthetic manifest")
+                if dex:
+                    archive.writestr("classes.dex", b"synthetic dex")
+                if native:
+                    archive.writestr("lib/arm64-v8a/libmonodroid.so", b"synthetic runtime")
+                if managed:
+                    archive.writestr("assemblies/PKForge.App.dll", b"synthetic editor")
+                for name, data in (extra_entries or []):
+                    archive.writestr(name, data)
         else:
             self.apk.write_bytes(b"not a zip")
 
@@ -79,6 +88,53 @@ class ArtifactAttestationTests(unittest.TestCase):
         self.assertFalse(report["rights_review_complete"])
         self.assertEqual(report["nuget"]["libraries"], ["PKHeX.Core/26.10.18"])
         self.assertTrue(report["assets"][0]["sha256"])
+
+    def test_payload_gate_rejects_manifest_only_spoof(self):
+        self.make_apk(dex=False, native=False, managed=False)
+        with self.assertRaisesRegex(audit.AttestationError, "classes.dex"):
+            self.make_report()
+
+    def test_missing_native_runtime_refused(self):
+        self.make_apk(native=False)
+        with self.assertRaisesRegex(audit.AttestationError, "native runtime"):
+            self.make_report()
+
+    def test_missing_managed_editor_payload_refused(self):
+        self.make_apk(managed=False)
+        with self.assertRaisesRegex(audit.AttestationError, "managed assembly"):
+            self.make_report()
+
+    def test_packaged_entry_manifest_changes_when_unlisted_asset_changes(self):
+        self.make_apk(extra_entries=[("assets/hidden.png", b"unlisted-a")])
+        first = self.make_report()["apks"][0]
+        self.make_apk(extra_entries=[("assets/hidden.png", b"unlisted-b")])
+        second = self.make_report()["apks"][0]
+        self.assertNotEqual(first["packaged_entry_manifest_sha256"],
+                            second["packaged_entry_manifest_sha256"])
+        self.assertEqual(first["packaged_media_entry_count_unreviewed"], 1)
+        self.assertFalse(first["packaged_media_rights_verified"])
+        self.assertEqual(first["managed_payload_entries"],
+                         ["assemblies/PKForge.App.dll"])
+
+    def test_assembly_store_layout_is_accepted_as_structural_only(self):
+        self.make_apk(managed=False, extra_entries=[
+            ("assemblies/assemblies.blob", b"synthetic store")])
+        entry = self.make_report()["apks"][0]
+        self.assertTrue(entry["payload_structural_check"])
+        self.assertFalse(entry["apk_tested_on_device"])
+
+    def test_duplicate_zip_entry_refused(self):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            self.make_apk(extra_entries=[("classes.dex", b"duplicate")])
+        with self.assertRaisesRegex(audit.AttestationError, "Duplicate"):
+            self.make_report()
+
+    def test_zip_path_traversal_refused(self):
+        self.make_apk(extra_entries=[("../private.png", b"synthetic")])
+        with self.assertRaisesRegex(audit.AttestationError, "Unsafe APK"):
+            self.make_report()
 
     def test_package_mismatch_refused(self):
         self.set_package("org.pkforge.app")
