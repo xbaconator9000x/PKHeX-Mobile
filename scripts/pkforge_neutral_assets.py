@@ -21,6 +21,9 @@ ABOUT = APP + "Views/AboutPopup.cs"
 MAUI = APP + "MauiProgram.cs"
 PIXEL = APP + "Views/PixelFont.cs"
 BOX = APP + "Views/BoxBrowserPage.cs"
+BANK_EDITOR = APP + "Views/BankEntryEditor.cs"
+DEX_PICKER = APP + "Views/PokedexPicker.cs"
+GENERATE = APP + "Views/GenerateWizard.cs"
 ICON = APP + "Resources/AppIcon/neutral-preview.svg"
 SPLASH = APP + "Resources/Splash/neutral-preview.svg"
 
@@ -71,7 +74,7 @@ def once(source: str, before: str, after: str, label: str) -> str:
 
 def transform(root: Path) -> dict[Path, str]:
     root = root.resolve(strict=True)
-    files = [PROJECT, GAME_ART, HOME, ABOUT, MAUI, PIXEL, BOX]
+    files = [PROJECT, GAME_ART, HOME, ABOUT, MAUI, PIXEL, BOX, BANK_EDITOR, DEX_PICKER, GENERATE]
     originals = {p: checked_file(root, p).read_text(encoding="utf-8") for p in files}
     for rel in (ICON, SPLASH):
         path = root / rel
@@ -131,7 +134,20 @@ def transform(root: Path) -> dict[Path, str]:
                       "private static string? BallIconPath(int ball)\n    {"):
         box = once(box, signature, signature + "\n        if (PreviewRuntimePolicy.Offline) return null;", "cached game icon")
 
+    bank_editor = once(originals[BANK_EDITOR], "private static string? BallIconPath(int ball)\n    {",
+        "private static string? BallIconPath(int ball)\n    {\n        if (PreviewRuntimePolicy.Offline) return null;", "bank cached ball")
+    dex = originals[DEX_PICKER]
+    dex = once(dex, "private static async Task EnsureIconsAsync(IGameDataService data)\n    {",
+        "private static async Task EnsureIconsAsync(IGameDataService data)\n    {\n        if (PreviewRuntimePolicy.Offline) return;", "dex cache sweep")
+    dex = once(dex, "private static async Task NormalizeIconAsync(int id)\n    {",
+        "private static async Task NormalizeIconAsync(int id)\n    {\n        if (PreviewRuntimePolicy.Offline) return;", "dex icon normalizer")
+    dex = once(dex, "File.Exists(icon) ? icon : null,",
+        "!PreviewRuntimePolicy.Offline && File.Exists(icon) ? icon : null,", "dex cached icon binding")
+    generate = once(originals[GENERATE], "private static async Task<string?> FormSpritePathAsync(int species, int form)\n    {",
+        "private static async Task<string?> FormSpritePathAsync(int species, int form)\n    {\n        if (PreviewRuntimePolicy.Offline) return null;", "generated form cached art")
+
     return {
+        root / BANK_EDITOR: bank_editor, root / DEX_PICKER: dex, root / GENERATE: generate,
         root / BOX: box,
         root / PROJECT: project, root / GAME_ART: game, root / HOME: home,
         root / ABOUT: about, root / MAUI: maui, root / PIXEL: PIXEL_SOURCE,
