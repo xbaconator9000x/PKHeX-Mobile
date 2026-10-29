@@ -193,6 +193,8 @@ jobs:
       - name: Restore exact diagnostic Android dependency graph before input freeze
         id: android-restore
         if: steps.maui-workload.outcome == 'success'
+        env:
+          PKForgeRoot: /tmp/pkforge
         working-directory: /tmp/pkforge
         run: |
           dotnet restore src/PKForge.App/PKForge.App.csproj \
