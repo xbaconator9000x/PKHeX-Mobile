@@ -157,11 +157,11 @@ def inspect_apk(apk: Path, packager: Path) -> dict:
                                 name))
             managed = sorted(name for name in names if (
                 re.fullmatch(
-                    r"assemblies/PKForge\\.(?:App|Engine|Infrastructure)\\.dll",
+                    r"assemblies/PKForge\.(?:App|Engine|Infrastructure)\.dll",
                     name,
                 ) or re.fullmatch(
                     r"lib/(?:arm64-v8a|armeabi-v7a|x86|x86_64)/"
-                    r"lib[_-]PKForge\\.(?:App|Engine|Infrastructure)\\.dll\\.so",
+                    r"lib[_-]PKForge\.(?:App|Engine|Infrastructure)\.dll\.so",
                     name,
                 )
             ))
